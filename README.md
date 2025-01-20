@@ -13,7 +13,7 @@ A versatile python wrapper to perform CPA+DMFT calculations utilizing the TRIQS 
 Install the library by running the following command:
 
 ```bash
-pip install "git+ssh://git@github.com/dylanljones/triqs_cpa_dmft"
+pip install "git+ssh://git@git.rz.uni-augsburg.de/jonesdyl/model_dmft"
 ```
 
 ### Dependencies

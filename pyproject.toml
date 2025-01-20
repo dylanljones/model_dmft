@@ -22,10 +22,10 @@ keywords = ["triqs", "dmft", "cpa"]
 requires-python = ">=3.8"
 
 [project.urls]
-Source = "https://github.com/dylanljones/triqs_cpa_dmft"
+Source = "https://git.rz.uni-augsburg.de/jonesdyl/model_dmft"
 
 [project.scripts]
-triqs_cpa_dmft = "triqs_cpa_dmft.__main__:cli"
+triqs_cpa_dmft = "model_dmft.__main__:cli"
 
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}
@@ -49,7 +49,7 @@ include-package-data = true
 find = {}
 
 [tool.setuptools_scm]
-write_to = "triqs_cpa_dmft/_version.py"
+write_to = "model_dmft/_version.py"
 git_describe_command = "git describe --dirty --tags --long --match * --first-parent"
 
 

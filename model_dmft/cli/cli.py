@@ -75,7 +75,7 @@ def cli():
 def update():
     import os
 
-    cmd = "pip install git+ssh://git@github.com/dylanljones/triqs_cpa_dmft"
+    cmd = "pip install git+ssh://git@git.rz.uni-augsburg.de/jonesdyl/model_dmft"
     click.echo("Updating application")
     click.echo(f"> {cmd}")
     click.echo()
