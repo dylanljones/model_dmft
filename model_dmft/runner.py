@@ -307,8 +307,8 @@ def solve_impurities(
     n = nproc / params.n_cmpt
     if n % 1 != 0:
         raise ValueError("Number of processes must be divisible by number of components.")
-    elif n > 4:
-        raise ValueError("Number of processes per component must be less than 4.")
+    # elif n > 4:
+    #     raise ValueError("Number of processes per component must be less than 4.")
     n = max(1, int(n))
 
     if use_srun:
@@ -508,6 +508,11 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                 report("Computing bath hybdridization function Δ(ω)...")
                 delta = dmft.hybridization(g_cmpt, eps, sigma_dmft, eta=eta)
 
+                if mpi.is_master_node():
+                    with HDFArchive(out_file, "a") as ar:
+                        ar["sigma_dmft"] = sigma_dmft
+                        # ar[f"error_dmft"] = err_dmft
+                        ar["delta"] = delta
                 # Solve impurity problems to obtain new sigma_dmft
                 kwargs = dict(
                     params=params, u=u, e_onsite=e_onsite, delta=delta, sigma_dmft=sigma_dmft
