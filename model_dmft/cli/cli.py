@@ -1,0 +1,263 @@
+# -*- coding: utf-8 -*-
+# Author: Dylan Jones
+# Date:   2024-09-12
+
+import functools
+import sys
+from pathlib import Path
+from typing import List
+
+import click
+
+from model_dmft import Folder, InputParameters, walkdirs
+
+__all__ = ["cli", "get_dirs", "single_path_opts", "multi_path_opts", "frmt_file"]
+
+
+def get_dirs(*paths, recursive=False) -> List[Folder]:
+    if not paths:
+        paths = (".",)
+    try:
+        folders = list(walkdirs(*paths, recursive=recursive))
+    except Exception as e:
+        raise click.ClickException(click.style(str(e), bg="red"))
+    if not folders:
+        raise click.ClickException(click.style("No TRIQS-CPA+DMFT directories found.", bg="red"))
+    # Recursively sort the folders by path paths
+    maxparts = max([len(f.path.parts) for f in folders])
+    for i in reversed(range(maxparts)):
+        folders = sorted(folders, key=lambda f: f.path.parts[i] if len(f.path.parts) > i else "")
+    return folders
+
+
+def single_path_opts(func):
+    """Click argument decorator for commands accepting a single input path."""
+
+    @click.argument("path", type=click.Path(), nargs=1, required=False, default=".")
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+def multi_path_opts(func):
+    """Click argument decorator for commands accepting multiple input paths."""
+
+    @click.option(
+        "--recursive",
+        "-r",
+        is_flag=True,
+        default=False,
+        help="Recursively search for EMTO directories.",
+    )
+    @click.argument("paths", type=click.Path(), nargs=-1, required=False)
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+def frmt_file(s):
+    return click.style(str(s), fg="magenta")
+
+
+# -- CLI -------------------------------------------------------------------------------------------
+
+
+@click.group(name="cpa_dmft")
+def cli():
+    pass
+
+
+@cli.command(name="update", help="Update the application")
+def update():
+    import os
+
+    cmd = "pip install git+ssh://git@github.com/dylanljones/triqs_cpa_dmft"
+    click.echo("Updating application")
+    click.echo(f"> {cmd}")
+    click.echo()
+    os.system(cmd)
+
+
+@cli.command(name="solve_impurity")
+@click.argument("tmp_file", type=click.Path(exists=True))
+def solve_impurity_cmd(tmp_file: str):
+    """Solve the impurity problem."""
+    from model_dmft.dmft import solve_impurity
+
+    solve_impurity(tmp_file)
+    sys.exit(0)  # make sure exit code is 0 on success
+
+
+@cli.command(name="run")
+@click.argument(
+    "file",
+    type=click.Path(exists=True),
+    default="inp.toml",
+)
+@click.option("--n_procs", "-n", default=0, type=int, help="Total number of processes to use")
+def run_cmd(file: str, n_procs: int):
+    """Run a CPA+DMFT calculation."""
+    from model_dmft.runner import solve
+
+    file = Path(file)
+    if file.is_dir():
+        # Assume the input file 'inp.toml' is in the directory
+        file = file / "inp.toml"
+
+    if not file.exists():
+        raise click.ClickException(click.style(f"No input file '{file}' found!", bg="red"))
+
+    params = InputParameters(file)
+    # params.resolve_location(file.parent)
+    solve(params, n_procs=n_procs)
+
+
+# -- Utility ---------------------------------------------------------------------------------------
+
+
+@cli.command(name="walk")
+@multi_path_opts
+def walk_cmd(recursive: bool, paths: List[str]):
+    """Walk through directories and search for CPA+DMFT calculations.
+
+    RECURSIVE: Search directories recursively. The default is False.
+    PATHS: One or multiple paths to search for calculation directories. The default is '.'.
+    """
+    folders = get_dirs(*paths, recursive=recursive)
+    maxw = max(len(str(folder.path)) for folder in folders) + 1
+    for folder in folders:
+        path = frmt_file(f"{str(folder.path) + ':':<{maxw}}")
+        click.echo(f"{path} {folder.params}")
+
+
+@cli.command(name="get")
+@click.argument("key", type=str, nargs=1)
+@multi_path_opts
+def get_cmd(key: str, recursive: bool, paths: List[str]):
+    """Gets the given value from the input files in the given directories.
+
+    KEY: The key of the value to get.
+    RECURSIVE: Search directories recursively. The default is False.
+    PATHS: One or multiple paths to search for calculation directories. The default is '.'.
+    """
+    folders = get_dirs(*paths, recursive=recursive)
+    maxw = max(len(str(folder.path)) for folder in folders) + 1
+    for folder in folders:
+        path = frmt_file(f"{str(folder.path) + ':':<{maxw}}")
+        params = folder.params
+        click.echo(f"{path} {key}={params[key]}")
+
+
+@cli.command(name="set")
+@click.argument("value", type=str, nargs=1)
+@multi_path_opts
+def set_cmd(value: str, recursive: bool, paths: List[str]):
+    """Sets the given value in the input files in the given directories.
+
+    VALUE: The key of the value to set. Must be in the form KEY=VALUE.
+    RECURSIVE: Search directories recursively. The default is False.
+    PATHS: One or multiple paths to search for calculation directories. The default is '.'.
+    """
+    folders = get_dirs(*paths, recursive=recursive)
+    maxw = max(len(str(folder.path)) for folder in folders) + 1
+    key, val = value.split("=")
+    key, val = key.strip(), val.strip()
+    for folder in folders:
+        path = frmt_file(f"{str(folder.path) + ':':<{maxw}}")
+        click.echo(f"{path} Setting {key} to {val}")
+        params = folder.params
+        params[key] = val
+        params.dump()
+
+
+@cli.command(name="diff")
+@multi_path_opts
+def diff_cmd(recursive: bool, paths: List[str]):
+    """Prints the differences of the given input files.
+
+    RECURSIVE: Search directories recursively. The default is False.
+    PATHS: One or multiple paths to search for calculation directories. The default is '.'.
+    """
+    folders = get_dirs(*paths, recursive=recursive)
+    # maxw = max(len(str(folder.path)) for folder in folders) + 1
+    if len(folders) < 2:
+        raise click.ClickException(
+            click.style("Need at least two directories to compare.", bg="red")
+        )
+    elif len(folders) == 2:
+        click.echo(f"Comparing {folders[0].path} and {folders[1].path}")
+    else:
+        raise click.ClickException(
+            click.style("Can only compare two directories for now.", bg="red")
+        )
+
+
+# noinspection PyShadowingBuiltins
+@cli.command(name="iter")
+@multi_path_opts
+def iter_cmd(recursive: bool, paths: List[str]):
+    folders = get_dirs(*paths, recursive=recursive)
+    maxw = max(len(str(folder.path)) for folder in folders) + 1
+    for folder in folders:
+        p = frmt_file(f"{str(folder.path) + ':':<{maxw}}")
+        with folder.archive() as ar:
+            if "it" not in ar:
+                click.echo(f"{p} " + click.style("No iterations!", fg="red"))
+                continue
+            it = ar["it"]
+            click.echo(f"{p} Last Iteration: {it}")
+
+
+# noinspection PyShadowingBuiltins
+@cli.command(name="error")
+@click.option("--all", "-a", is_flag=True, default=False, help="Show all line")
+@multi_path_opts
+def error_cmd(all: bool, recursive: bool, paths: List[str]):
+    folders = get_dirs(*paths, recursive=recursive)
+    maxw = max(len(str(folder.path)) for folder in folders) + 1
+    for folder in folders:
+        p = frmt_file(f"{str(folder.path) + ':':<{maxw}}")
+        click.echo(p)
+        with folder.archive() as ar:
+            if "it" not in ar:
+                click.echo("  " + click.style("No iterations!", fg="red"))
+                continue
+            max_it = ar["it"]
+            if not all:
+                errors = ar[f"error_dmft-{max_it}"]
+                for key, val in errors.items():
+                    click.echo(f"  [{max_it:<2}] Error Σ_{key}={val:11.8f}")
+            else:
+                for it in range(1, max_it + 1):
+                    errors = ar[f"error_dmft-{it}"]
+                    for key, val in errors.items():
+                        click.echo(f"  [{it:<2}] Error Σ_{key}={val:11.8f}")
+                    click.echo("")
+
+
+# noinspection PyShadowingBuiltins
+@cli.command(name="clean")
+@multi_path_opts
+def clean_cmd(recursive: bool, paths: List[str]):
+    folders = get_dirs(*paths, recursive=recursive)
+    maxw = max(len(str(folder.path)) for folder in folders) + 1
+    for folder in folders:
+        p = frmt_file(f"{str(folder.path) + ':':<{maxw}}")
+        click.echo(f"{p} Cleaning directory")
+        folder.clear()
+
+
+# noinspection PyShadowingBuiltins
+@cli.command(name="clean-tmp")
+@multi_path_opts
+def clean_tmp(recursive: bool, paths: List[str]):
+    folders = get_dirs(*paths, recursive=recursive)
+    maxw = max(len(str(folder.path)) for folder in folders) + 1
+    for folder in folders:
+        p = frmt_file(f"{str(folder.path) + ':':<{maxw}}")
+        click.echo(f"{p} Cleaning directory")
+        folder.remove_tmp_dirs()

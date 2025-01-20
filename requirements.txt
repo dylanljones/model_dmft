@@ -1,0 +1,9 @@
+click
+colorama
+gftool
+tomlkit
+numpy<2.0.0
+scipy<1.14.0
+matplotlib
+pytest
+# slurmio @ git+ssh://git@github.com/dylanljones/slurmio

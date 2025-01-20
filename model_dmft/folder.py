@@ -1,0 +1,161 @@
+# -*- coding: utf-8 -*-
+# Author: Dylan Jones
+# Date:   2024-08-15
+
+import shutil
+from contextlib import contextmanager
+from pathlib import Path
+from typing import ContextManager, Iterable, List, Union
+
+import tomlkit
+from h5 import HDFArchive
+
+from .input import InputParameters
+
+__all__ = ["Folder", "walkdirs"]
+
+
+def find_input_file(root: Union[str, Path], check_content: bool = True) -> Union[Path, None]:
+    """Search for an input file in the given directory.
+
+    The input file must be a .toml file and contain at least the section "general" with the
+    "output" key. If multiple input files are found, an error is raised. If no input file is found,
+    None is returned.
+    """
+    # Find .toml files
+    files = list(Path(root).glob("*.toml"))
+    if len(files) == 0:
+        # raise FileNotFoundError(f"No toml files found in {root}")
+        return None
+
+    # Check if the toml file has the expected sections
+    candidates = list()
+    for file in files:
+        if check_content:
+            with open(file, "r") as f:
+                text = f.read()
+            data = tomlkit.parse(text)
+            if "output" in data.get("general", {}):
+                candidates.append(file)
+        else:
+            candidates.append(file)
+
+    if len(candidates) == 0:
+        # raise FileNotFoundError(f"No input file found in {root}")
+        return None
+    if len(candidates) > 1:
+        raise FileNotFoundError(f"Multiple input files found in {root}")
+
+    return candidates[0]
+
+
+class Folder:
+    def __init__(self, path: Union[str, Path], input_file: Union[str, Path] = None):
+        self.path = Path(path)
+        self._input_file = input_file
+        self._params = None
+
+    @property
+    def input_file(self) -> Path:
+        if self._input_file is None:
+            self._input_file = find_input_file(self.path)
+        return self._input_file
+
+    @property
+    def params(self) -> InputParameters:
+        if self._params is None:
+            self._params = InputParameters(self.input_file)
+        return self._params
+
+    def get_slurm_outputs(self) -> List[Path]:
+        return sorted(self.path.glob("slurm-*.out"))
+
+    def read_slurm_output(self) -> str:
+        """Read the last slurm output file."""
+        files = self.get_slurm_outputs()
+        if files:
+            with open(files[-1], "r") as f:
+                return f.read()
+        return ""
+
+    def remove_slurm_outputs(self, keep_last: bool = False) -> None:
+        files = sorted(self.get_slurm_outputs())
+        if keep_last and files:
+            files.pop(-1)
+        for file in files:
+            file.unlink()
+
+    def remove_tmp_dirs(self) -> None:
+        shutil.rmtree(self.params.tmp_dir_path, ignore_errors=True)
+
+    def remove_output_files(self) -> None:
+        for file in self.path.glob("*.h5"):
+            file.unlink()
+
+    def remove_log_files(self) -> None:
+        for file in self.path.glob("*.log"):
+            file.unlink()
+
+    def clear(
+        self, slurm: bool = True, logs: bool = True, data: bool = True, tmp: bool = True
+    ) -> None:
+        if slurm:
+            self.remove_slurm_outputs()
+        if data:
+            self.remove_output_files()
+        if logs:
+            self.remove_log_files()
+        if tmp:
+            self.remove_tmp_dirs()
+
+    @contextmanager
+    def archive(self, mode: str = "r") -> ContextManager[HDFArchive]:
+        file = self.path / self.params.output
+        if not file.exists():
+            raise FileNotFoundError(f"Output file '{file}' not found!")
+        with HDFArchive(str(file), mode) as ar:
+            yield ar
+
+    def load_output(self, *keys, it: int = -1) -> dict:
+        data = dict()
+        with self.archive("r") as ar:
+            if it < 0:
+                it = ar["it"]
+            data["it"] = it
+            for key in keys:
+                data[key] = ar[f"{key}-{it}"]
+        return data
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.path})"
+
+
+def walkdirs(
+    *paths: Union[str, Path], recursive: bool = False, check: bool = True, nested: bool = True
+) -> Iterable[Folder]:
+    """Walk through directories and yield project folders."""
+    parents = list()
+    for p in paths:
+        path = Path(p)
+        if not path.is_dir():
+            raise NotADirectoryError(f"{path} is not a directory!")
+        parents.append(path)
+
+    while parents:
+        dir_path = parents.pop(0)
+        is_folder = False
+        # Check if an input file is present in the current directory
+        try:
+            input_file = find_input_file(dir_path, check_content=check)
+            if input_file is not None:
+                # Found an input file, this is a project folder.
+                yield Folder(dir_path, input_file=input_file)
+                is_folder = True
+        except FileNotFoundError:
+            pass
+
+        # Check subdirectories if not a project folder
+        if recursive and ((not is_folder) or nested):
+            for sub_path in dir_path.iterdir():
+                if sub_path.is_dir() and not sub_path.name.startswith("."):
+                    parents.append(sub_path)
