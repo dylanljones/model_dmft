@@ -1,0 +1,50 @@
+# Generated on 2024-11-02 by triqs_cpa_dmft
+
+[general]
+
+jobname        = "FTPS_U={u:.1f}_c={conc[1]:.1f}"  # The job name of the simulation. Used for generating SLURM scripts.
+location       = "."                               # The directory where the simulation is run. (default: '.')
+tmpdir         = ".tmp/"                           # The directory where temporary files are stored. (default: '.tmp/')
+output         = "out.h5"                          # The name of the output file. (default: 'out.h5')
+n_loops        = 120                               # The total number of iterations to perform.
+restart        = false
+store_iter     = true
+
+# Model parameters
+lattice        = "square"                          # The lattice type.
+gf_struct      = [["up", 1], ["dn", 1]]            # The structure of the Greens function.
+half_bandwidth = 1.0
+conc           = [0.8, 0.2]                        # The concentrations of the components as single value (no CPA) or list of numbers.
+u              = 2.0                               # The Hubbard interaction strength (Coulomb repulsion) of the components.
+eps            = [-0.5, +0.5]                      # The on-site energies of the components.
+h_field        = 0.0                               # The magnetic Zeeman field of the components.
+mu             = 0.0                               # The chemical potential.
+
+# Mesh parameters
+n_w            = 4001                              # Number of mesh points.
+w_range        = [-6, 6]                           # Frequency range.
+eta            = 0.0                               # Complex broadening (Negative: eta = 6 / nbath).
+
+# CPA parameters
+method_cpa     = "iter"                             # Method used for computing the CPA self energy.
+maxiter_cpa    = 10000                              # Number of iterations for computing the CPA self energy.
+tol_cpa        = 1e-06                              # Tolerance for the CPA self-consistency check.
+verbosity_cpa  = 1                                  # Verbosity level of the CPA iterations.
+
+# DMFT parameters
+mixing_dmft    = 0.2                                # Mixing of the DMFT self energy.
+gtol           = 1e-08                              # Convergence tolerance for the coherent Green's function.
+stol           = 1e-08                              # Convergence tolerance for the self energy.
+
+[solver]
+
+type           = "ftps"                            # Solver used to solve the impurity problem.
+bath_fit       = true
+n_bath         = 64                                # The number of bath sites used by the FTPS solver.
+time_steps     = 100                               # Number of time steps for the time evolution.
+dt             = 0.1                               # Time step for the time evolution.
+method         = "TDVP_2"                          # Time evolution method, "TDVP", "TDVP_2" or "TEBD".
+sweeps         = 15                                # Number of DMRG sweeps (default 15).
+tw             = 1e-09                             # Truncated weight for every link. (default 1e-9).
+maxm           = 100                               # Maximum bond dimension. (default 100).
+nmax           = 40                                # Maximal Number of Krylov vectors created. (default 40).

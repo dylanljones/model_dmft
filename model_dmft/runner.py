@@ -326,7 +326,7 @@ def solve_impurities(
         # write_header(err_file, it, out_mode)
 
         # Start process
-        cmd = base_cmd + [executable, "-m", "triqs_cpa_dmft", "solve_impurity", tmp_file]
+        cmd = base_cmd + [executable, "-m", "model_dmft", "solve_impurity", tmp_file]
         if verbosity > 0:
             report("> " + " ".join(cmd))
         p = Popen(cmd, stdout=PIPE, stderr=PIPE)

@@ -326,8 +326,7 @@ class InputParameters(Parameters):
     }
 
     __descriptions__ = {
-        "jobname": "The job name of the simulation. Used for generating SLURM scripts.",
-        "mail": "The email address for job notifications. Used for generating SLURM scripts.",
+        "jobname": "The job name of the simulation.",
         "location": "The directory where the simulation is run. (default: '.')",
         "output": "The name of the output file. (default: 'out.h5')",
         "tmpdir": "The directory where temporary files are stored. (default: '.tmp/')",
@@ -362,7 +361,6 @@ class InputParameters(Parameters):
         self._path: Path = Path(path) if path is not None else None
 
         self._jobname: str = "TRIQS_CPA+DMFT"  # The job name. Can be a formattable string.
-        self.mail: str = ""  # The email address for job notifications.
         self._output: str = "out.h5"  # The output file name.
         self._location: str = "."  # The directory of the calculation
         self.tmpdir: str = ".tmp/"  # Directory to store temporary files
@@ -690,7 +688,6 @@ class InputParameters(Parameters):
         general = toml.table()
         general.add(toml.nl())
         general.add("jobname", self._jobname)
-        general.add("mail", data.pop("mail"))
         general.add("location", self._location)
         general.add("tmpdir", data.pop("tmpdir"))
         general.add("output", self._output)

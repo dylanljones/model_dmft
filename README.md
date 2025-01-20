@@ -46,9 +46,9 @@ conda install -c conda-forge triqs_cthyb -y
 
 TL;DR:
 ```bash
-conda create -n triqs2 python=3.12 -y
-conda activate triqs2 && conda install -c conda-forge triqs=3.1.1 -y
-conda activate triqs2 && conda install -c conda-forge triqs_cthyb -y
+conda create -n triqs python=3.12 -y
+conda activate triqs && conda install -c conda-forge triqs=3.1.1 -y
+conda activate triqs && conda install -c conda-forge triqs_cthyb -y
 ```
 
 ## Usage
@@ -97,17 +97,16 @@ like the lattice type, Green's function structure, and computational parameters 
 The `[solver]` section specifies wich solver is used for the impurity problem and
 contains solver-specific parameters.
 
-A full example of an input file, [inp.toml.example](inp.example.toml), can be found in the root of this repository.
-To start a new calculation, copy this file to `inp.toml` and modify the parameters as needed:
+A full example of an input file and SLURM script can be found in the [example](example) directory.
+To start a new calculation, copy the folder and modify the parameters in the `inp.toml` file as needed:
 ```shell
-cp <path-to-repo>/inp.example.toml inp.toml
+cp <path-to-repo>/example <new-directory>
 ```
 
 #### ``[general]``
 | Name             | Type                     | Description                                                                 |
 |------------------|--------------------------|-----------------------------------------------------------------------------|
 | `jobname`        | `str`                    | Name of the job.                                                            |
-| `mail`           | `str`                    | Email address to send job status.                                           |
 | `location`       | `str`                    | Location of the job.                                                        |
 | `output`         | `str`                    | Name of the output file.                                                    |
 | `tmp_dir`        | `str`                    | Temporary directory.                                                        |
@@ -140,7 +139,6 @@ cp <path-to-repo>/inp.example.toml inp.toml
 ```toml
 [general]  # General parameters that apply to the whole simulation.
 jobname         = "FTPS-CPA+DMFT"        # The job name of the simulation. Used for generating SLURM scripts.
-mail            = "dylan.jones@uni-a.de" # The email address for job notifications. Used for generating SLURM scripts.
 location        = "."                    # The directory where the simulation is run.
 output          = "out.h5"               # The name of the output file.
 tmp_dir         = ".tmp/"                # The directory where temporary files are stored.
@@ -174,6 +172,8 @@ verbosity_cpa  = 1                       # Verbosity level of the CPA iterations
 
 # DMFT parameters
 mixing_dmft    = 0.1                      # Mixing of the DMFT self energy.
+
+# Convergence parameters
 gtol           = 1e-06                    # Convergence tolerance for the coherent Green's function.
 stol           = 1e-06                    # Convergence tolerance for the self energy.
 
