@@ -25,7 +25,7 @@ requires-python = ">=3.8"
 Source = "https://git.rz.uni-augsburg.de/jonesdyl/model_dmft"
 
 [project.scripts]
-triqs_cpa_dmft = "model_dmft.__main__:cli"
+model_dmft = "model_dmft.__main__:cli"
 
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}
