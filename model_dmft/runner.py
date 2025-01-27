@@ -105,8 +105,6 @@ def check_compatible_input(archive_file: Union[Path, str], params: InputParamete
             raise ValueError("Half bandwidth mismatch.")
         if params.conc != old_params.conc:
             raise ValueError("Concentration mismatch.")
-        if params.u != old_params.u:
-            raise ValueError("U mismatch.")
         if params.eps != old_params.eps:
             raise ValueError("Onsite energy mismatch.")
         if params.h_field != old_params.h_field:
