@@ -17,7 +17,7 @@ from triqs.utility import mpi
 
 from . import cpa, dmft
 from .functions import HilbertTransform
-from .input import InputParameters
+from .input import InputParameters, get_supported_solvers
 from .utility import (
     SIGMA,
     apply_mixing,
@@ -485,6 +485,10 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
     solver_type = params.solver
     solver_params = params.solver_params
     if solver_type:
+        supported = get_supported_solvers()
+        if solver_type not in supported:
+            raise ValueError(f"Solver {solver_type} is not supported. Use one of {supported}.")
+
         if params.is_real_mesh:
             if solver_type not in ("ftps",):
                 raise ValueError(f"Solver {solver_type} is not compatible with real mesh.")
@@ -560,7 +564,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
             report("")
 
             # Calculate local (component) Green's functions
-            report("Computing component Green's function G_i(ω)...")
+            report("Computing component Green's function G_i(z)...")
             eps_eff = eps + sigma_dmft
             g_cmpt = cpa.gf_component(ht, sigma_cpa, conc, eps_eff, eta=eta, scale=False)
 
@@ -574,7 +578,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                 sigma_old = sigma_dmft.copy()
 
                 # Compute bath hybridization function
-                report("Computing bath hybdridization function Δ(ω)...")
+                report("Computing bath hybdridization function Δ(z)...")
                 delta = dmft.hybridization(g_cmpt, eps, sigma_dmft, eta=eta)
 
                 if mpi.is_master_node():
@@ -587,7 +591,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                     params=params, u=u, e_onsite=e_onsite, delta=delta, sigma_dmft=sigma_dmft
                 )
                 if mpi.is_master_node():
-                    report("Solving for impurity self-energies Σ_i(ω)...")
+                    report("Solving for impurity self-energies Σ_i(z)...")
                     report("")
 
                 if n_procs > 1:
@@ -670,6 +674,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                     break
 
         # Write output files as plain text
+        report("Writing output files...")
         write_out_files(params)
 
         end_time = datetime.now()

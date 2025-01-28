@@ -92,6 +92,11 @@ def register_solver_input(cls: Type["SolverParams"]) -> None:
     SOLVERS[cls.SOLVER] = cls
 
 
+def get_supported_solvers() -> List[str]:
+    """Return a list of supported solvers."""
+    return list(SOLVERS.keys())
+
+
 class Parameters(Mapping, ABC):
     """Base class for handling parameter mappings.
 
