@@ -30,7 +30,7 @@ import tomlkit as toml
 from h5.archive import register_class
 from triqs.gf import MeshImFreq, MeshReFreq
 
-__all__ = ["InputParameters", "FtpsSolverParams", "SolverParams"]
+__all__ = ["InputParameters", "FtpsSolverParams", "SolverParams", "get_supported_solvers"]
 
 SOLVERS: Dict[str, Type["SolverParams"]] = dict()
 LATTICES = ("bethe", "square")

@@ -17,7 +17,7 @@ from triqs.utility import mpi
 
 from .ftps import check_bath, construct_bath
 from .input import InputParameters
-from .utility import DN, UP, report
+from .utility import report
 
 
 def hybridization(
@@ -56,6 +56,8 @@ def _solve_ftps(
     params: InputParameters, u: np.ndarray, e_onsite: np.ndarray, delta: BlockGf
 ) -> BlockGf:
     gf_struct = params.gf_struct
+    up, dn = params.spin_names
+
     mesh = delta.mesh
     solve_params = params.solver_params
     # Prepare parameters for solver
@@ -74,7 +76,7 @@ def _solve_ftps(
         "tevo": tevo,
         "params_GS": dmrg,
         "params_partSector": dmrg,
-        "measurements": [ops.n(UP, 0), ops.n(DN, 0)],  # Only measure impurity Gfs
+        "measurements": [ops.n(up, 0), ops.n(dn, 0)],  # Only measure impurity Gfs
     }
     tmp_dir = params.tmp_dir_path
     Path(tmp_dir).mkdir(parents=True, exist_ok=True)
@@ -91,8 +93,8 @@ def _solve_ftps(
     # Construct local and interaction Hamiltonian
     report("Initializing solver.")
     hloc = Hloc(gf_struct)
-    hloc.Fill(UP, [[e_onsite[0]]])
-    hloc.Fill(DN, [[e_onsite[1]]])
+    hloc.Fill(up, [[e_onsite[0]]])
+    hloc.Fill(dn, [[e_onsite[1]]])
     hint = HInt(u=u, j=0.0, up=0.0, dd=True)
 
     # Initialize solver
