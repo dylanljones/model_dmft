@@ -2,7 +2,7 @@
 # -- Project metadata ------------------------------------------------------------------
 
 [project]
-name = "moel_dmft"
+name = "model_dmft"
 description = "A versatile python wrapper to perform CPA+DMFT calculations utilizing the TRIQS software library."
 readme = "README.md"
 authors = [
