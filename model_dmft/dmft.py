@@ -5,14 +5,15 @@
 from pathlib import Path
 from typing import Union
 
+import forktps
 import numpy as np
 import triqs.operators as ops
-from forktps import Solver
+import triqs_cthyb as cthyb
 from forktps.DiscreteBath import SigmaDyson
 from forktps.solver import DMRGParams, TevoParams
 from forktps.solver_core import Bath, HInt, Hloc  # noqa
 from h5 import HDFArchive
-from triqs.gf import BlockGf, MeshReFreq, Omega, inverse, iOmega_n
+from triqs.gf import BlockGf, Fourier, MeshReFreq, Omega, inverse, iOmega_n
 from triqs.utility import mpi
 
 from .ftps import check_bath, construct_bath
@@ -98,7 +99,7 @@ def _solve_ftps(
     hint = HInt(u=u, j=0.0, up=0.0, dd=True)
 
     # Initialize solver
-    solver = Solver(gf_struct, mesh.omega_min, mesh.omega_max, len(mesh))
+    solver = forktps.Solver(gf_struct, mesh.omega_min, mesh.omega_max, len(mesh))
     solver.b = bath  # Add bath to solver
     solver.e0 = hloc  # Add local Hamiltonian to solver
 
@@ -121,6 +122,40 @@ def _solve_ftps(
     return solver.Sigma_w
 
 
+def _solve_cthyb(
+    params: InputParameters, u: np.ndarray, e_onsite: np.ndarray, delta: BlockGf
+) -> BlockGf:
+    up, dn = params.spin_names
+    solver_params = params.solver_params
+
+    report("Initializing solver.")
+
+    # Local Hamiltonian and interaction term
+    h_loc0 = e_onsite[0] * ops.n(up, 0) + e_onsite[1] * ops.n(dn, 0)
+    h_int = u * ops.n(up, 0) * ops.n(dn, 0)
+
+    # Initialize solver
+    solver = cthyb.Solver(
+        beta=params.beta, gf_struct=params.gf_struct, n_iw=params.n_iw, delta_interface=True
+    )
+    # Set hybridization function (imaginary time)
+    solver.Delta_tau << Fourier(delta)
+    mpi.barrier()
+
+    # Solve impurity problem
+    solver.solve(
+        h_loc0=h_loc0,
+        h_int=h_int,
+        n_cycles=solver_params.n_cycles,
+        length_cycle=solver_params.length_cycle,
+        n_warmup_cycles=solver_params.n_warmup_cycles,
+    )
+    report("Done!")
+    report("")
+
+    return solver.Sigma_iw
+
+
 def solve_impurity(tmp_file: Union[str, Path]) -> None:
     # Load parameters and data from temporary file
     with HDFArchive(str(tmp_file), "r") as ar:
@@ -131,13 +166,15 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
 
     if u == 0:
         # No interaction, return zero self-energy
-        report("Skipping...", fg="lk")
+        report("Skipping...")
         report("")
         return
 
     solver_type = params.solver
     if solver_type == "ftps":
         sigma_dmft = _solve_ftps(params, u, e_onsite, delta)
+    elif solver_type == "cthyb":
+        sigma_dmft = _solve_cthyb(params, u, e_onsite, delta)
     else:
         raise ValueError(f"Unknown solver type: {solver_type}")
 

@@ -86,7 +86,7 @@ def print_params(params: InputParameters) -> None:
             report(f"Max bond dim:   {solver.maxm}")
             report(f"Max Krylov:     {solver.nmax}")
         elif solver.type == "cthyb":
-            report(f"N warmup:       {solver.n_warmup_cycle}")
+            report(f"N warmup:       {solver.n_warmup_cycles}")
             report(f"N cycles:       {solver.n_cycles}")
             report(f"Length cycle:   {solver.length_cycle}")
     report("-" * 60)
