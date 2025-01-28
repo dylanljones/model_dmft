@@ -261,20 +261,20 @@ class CthybSolverParams(SolverParams):
     __types__ = {
         "n_cycles": int,
         "length_cycle": int,
-        "n_warmup_cycles": float,
+        "n_warmup_cycles": int,
     }
 
     __descriptions__ = {
         "n_cycles": "Number of Quantum Monte Carlo cycles (default 50_000).",
         "length_cycle": "Length of the cycle (default: 100)",
-        "n_warmup_cycle": "Number of warmup cycles (default: 5_000)",
+        "n_warmup_cycles": "Number of warmup cycles (default: 5_000)",
     }
 
     def __init__(self, **kwargs):
         # General
-        self.n_cycles: int = 5000  # Number of QMC cycles.
+        self.n_cycles: int = 50_000  # Number of QMC cycles.
+        self.n_warmup_cycles: int = 5_000  # Number of warmup cycles.
         self.length_cycle: int = 200  # Length of a cycle.
-        self.n_warmup_cycles: int = 1000  # Number of warmup cycles.
 
         super().__init__(**kwargs)
 
