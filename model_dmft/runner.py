@@ -684,8 +684,6 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
         report(f"Finished job '{params.jobname}' at {end_time:%H:%M %d-%b-%y}")
         report(f"Total time: {run_duration}")
 
-    except Exception as e:
-        sys.exit(f"Error: {e}")
     finally:
         try:
             pass
