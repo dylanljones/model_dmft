@@ -487,6 +487,10 @@ class InputParameters(Parameters):
         conc = self.cast_cmpt()[0]
         return len(conc) if hasattr(conc, "__len__") else 1
 
+    @property
+    def spin_names(self) -> List[str]:
+        return [s[0] for s in self.gf_struct]
+
     def resolve_location(self, root: Union[str, Path] = None) -> None:
         """Resolve the location path relative to the root directory.
 
