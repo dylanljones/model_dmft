@@ -209,7 +209,7 @@ def write_out_files(params: InputParameters) -> None:
     params : InputParameters
         The input parameters.
     """
-    frmt = "%.16f"
+    frmt = "%+.16f"
     location = Path(params.location)
     archive_file = str(location / params.output)
 
@@ -218,38 +218,76 @@ def write_out_files(params: InputParameters) -> None:
         g_coh = ar["g_coh"]
         g_cmpt = ar["g_cmpt"]
         sigma_coh = ar["sigma_cpa"]
+        if "sigma_dmft" in ar:
+            sigma_dmft = ar["sigma_dmft"]
+        else:
+            sigma_dmft = None
 
     omega = np.array(list(g_coh.mesh.values()))
 
     # Write DOS file
     names, items = list(), list()
     names.append("omega")
-    names.append("DOS(up)")
-    names.append("DOS(dn)")
     items.append(omega)
-    items.append(-g_coh["up"].data[:, 0, 0].imag / np.pi)
-    items.append(-g_coh["dn"].data[:, 0, 0].imag / np.pi)
+    for spin, g in g_coh:
+        names.append(f"DOS({spin})")
+        items.append(-g.data[:, 0, 0].imag / np.pi)
     # Components
-    for name, g in g_cmpt:
-        names.append(f"DOS({name}-up)")
-        names.append(f"DOS({name}-dn)")
-        items.append(-g["up"].data[:, 0, 0].imag / np.pi)
-        items.append(-g["dn"].data[:, 0, 0].imag / np.pi)
+    for name, gf in g_cmpt:
+        for spin, g in gf:
+            names.append(f"PDOS({name}-{spin})")
+            items.append(-g.data[:, 0, 0].imag / np.pi)
     header = "   ".join(names)
     data = np.array(items).T
     np.savetxt(location / "dos.dat", data, header=header, fmt=frmt, delimiter="  ")
 
-    # Write coherent self-energy file
-    names = ["omega", "Re SIG(up)", "Im SIG(up)", "Re SIG(dn)", "Im SIG(dn)"]
-    items = list()
+    # Write Gf file
+    names, items = list(), list()
+    names.append("omega")
     items.append(omega)
-    items.append(sigma_coh["up"].data[:, 0, 0].real)
-    items.append(sigma_coh["up"].data[:, 0, 0].imag)
-    items.append(sigma_coh["dn"].data[:, 0, 0].real)
-    items.append(sigma_coh["dn"].data[:, 0, 0].imag)
+    for spin, g in g_coh:
+        names.append(f"Re G({spin})")
+        names.append(f"Im G({spin})")
+        items.append(g.data[:, 0, 0].real)
+        items.append(g.data[:, 0, 0].imag)
+    # Components
+    for name, gf in g_cmpt:
+        for spin, g in gf:
+            names.append(f"Re G({name}-{spin})")
+            names.append(f"Im G({name}-{spin})")
+            items.append(g.data[:, 0, 0].real)
+            items.append(g.data[:, 0, 0].imag)
+    header = "   ".join(names)
+    data = np.array(items).T
+    np.savetxt(location / "gf.dat", data, header=header, fmt=frmt, delimiter="  ")
+
+    # Write coherent self-energy file
+    names, items = list(), list()
+    names.append("omega")
+    items.append(omega)
+    for spin, sig in sigma_coh:
+        names.append(f"Re Sig({spin})")
+        names.append(f"Im Sig({spin})")
+        items.append(sig.data[:, 0, 0].real)
+        items.append(sig.data[:, 0, 0].imag)
     header = "   ".join(names)
     data = np.array(items).T
     np.savetxt(location / "sigma_coh.dat", data, header=header, fmt=frmt, delimiter="  ")
+
+    # Write DMFT self-energy file
+    if sigma_dmft is not None:
+        items = list()
+        items.append(omega)
+        names = ["omega"]
+        for name, sigma in sigma_dmft:
+            for spin, sig in sigma:
+                names.append(f"Re SIG({name}-{spin})")
+                names.append(f"Im SIG({name}-{spin})")
+                items.append(sig.data[:, 0, 0].real)
+                items.append(sig.data[:, 0, 0].imag)
+        header = "   ".join(names)
+        data = np.array(items).T
+        np.savetxt(location / "sigma_dmft.dat", data, header=header, fmt=frmt, delimiter="  ")
 
 
 def solve_impurities_seq(
