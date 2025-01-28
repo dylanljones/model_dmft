@@ -447,7 +447,8 @@ def solve_impurities(
         # if verbosity > 1:
         #     report(f"Loading temporary file {tmp_file}...")
         with HDFArchive(str(tmp_file), "r") as ar:
-            sig << ar[f"sigma_dmft"]  # noqa
+            if "sigma_dmft" in ar:
+                sig << ar["sigma_dmft"]  # noqa
         # Remove temporary file
         Path(tmp_file).unlink(missing_ok=True)
 
