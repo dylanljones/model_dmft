@@ -103,14 +103,6 @@ def check_compatible_input(archive_file: Union[Path, str], params: InputParamete
             raise ValueError("Green's function structure mismatch.")
         if params.half_bandwidth != old_params.half_bandwidth:
             raise ValueError("Half bandwidth mismatch.")
-        if params.conc != old_params.conc:
-            raise ValueError("Concentration mismatch.")
-        if params.eps != old_params.eps:
-            raise ValueError("Onsite energy mismatch.")
-        if params.h_field != old_params.h_field:
-            raise ValueError("H field mismatch.")
-        if params.mu != old_params.mu:
-            raise ValueError("Chemical potential mismatch.")
         if params.is_real_mesh:
             if params.w_range != old_params.w_range:
                 raise ValueError("Frequency range mismatch.")
@@ -119,8 +111,6 @@ def check_compatible_input(archive_file: Union[Path, str], params: InputParamete
             if params.eta != old_params.eta:
                 raise ValueError("Broadening mismatch.")
         else:
-            if params.beta != old_params.beta:
-                raise ValueError("Inverse temperature mismatch.")
             if params.n_iw != old_params.n_iw:
                 raise ValueError("Number of Matsubara frequencies mismatch.")
 
@@ -131,20 +121,6 @@ def check_compatible_input(archive_file: Union[Path, str], params: InputParamete
         if params.solver.lower() == "ftps":
             if params.solver_params.n_bath != old_params.solver_params.n_bath:
                 raise ValueError("Number of bath sites mismatch.")
-            if params.solver_params.time_steps != old_params.solver_params.time_steps:
-                raise ValueError("Number of time steps mismatch.")
-            if params.solver_params.dt != old_params.solver_params.dt:
-                raise ValueError("Time step mismatch.")
-            if params.solver_params.method != old_params.solver_params.method:
-                raise ValueError("Solver method mismatch.")
-            if params.solver_params.sweeps != old_params.solver_params.sweeps:
-                raise ValueError("Number of sweeps mismatch.")
-            if params.solver_params.tw != old_params.solver_params.tw:
-                raise ValueError("Truncation weight mismatch.")
-            if params.solver_params.maxm != old_params.solver_params.maxm:
-                raise ValueError("Max bond dimension mismatch.")
-            if params.solver_params.nmax != old_params.solver_params.nmax:
-                raise ValueError("Max Krylov dimension mismatch.")
 
 
 def load_state(params: InputParameters) -> Tuple[int, BlockGf, BlockGf]:
