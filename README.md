@@ -224,7 +224,7 @@ nmax            = 40                     # Maximal Number of Krylov vectors crea
 
 #### `cthyb`
 
-Parameters for the [CTHYB] solver. (Coming soon!)
+Parameters for the [CTHYB] solver (experimental).
 
 | Name               | Type    | Description                                  |
 |--------------------|---------|----------------------------------------------|
