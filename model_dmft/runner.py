@@ -108,8 +108,6 @@ def check_compatible_input(archive_file: Union[Path, str], params: InputParamete
                 raise ValueError("Frequency range mismatch.")
             if params.n_w != old_params.n_w:
                 raise ValueError("Number of frequencies mismatch.")
-            if params.eta != old_params.eta:
-                raise ValueError("Broadening mismatch.")
         else:
             if params.n_iw != old_params.n_iw:
                 raise ValueError("Number of Matsubara frequencies mismatch.")
