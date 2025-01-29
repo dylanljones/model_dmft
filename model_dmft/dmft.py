@@ -135,10 +135,16 @@ def _solve_cthyb(
     h_int = u * ops.n(up, 0) * ops.n(dn, 0)
     solver_kwargs = solver_params.dict()
     n_tau = solver_kwargs.pop("n_tau")
-    if solver_kwargs["fit_min_n"] == 0:
-        solver_kwargs["fit_min_n"] = int(0.5 * params.n_iw)
-    if solver_kwargs["fit_max_n"] == 0:
-        solver_kwargs["fit_max_n"] = params.n_iw
+    solver_kwargs.pop("type")
+    if not solver_kwargs["perform_tail_fit"]:
+        solver_kwargs.pop("fit_min_n")
+        solver_kwargs.pop("fit_max_n")
+        solver_kwargs.pop("fit_max_moment")
+    else:
+        if solver_kwargs["fit_min_n"] == 0:
+            solver_kwargs["fit_min_n"] = int(0.5 * params.n_iw)
+        if solver_kwargs["fit_max_n"] == 0:
+            solver_kwargs["fit_max_n"] = params.n_iw
 
     # Initialize solver
     solver = cthyb.Solver(
