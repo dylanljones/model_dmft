@@ -112,14 +112,6 @@ def check_compatible_input(archive_file: Union[Path, str], params: InputParamete
             if params.n_iw != old_params.n_iw:
                 raise ValueError("Number of Matsubara frequencies mismatch.")
 
-        # Solver parameters
-        if params.solver != old_params.solver:
-            raise ValueError("Solver mismatch.")
-
-        if params.solver.lower() == "ftps":
-            if params.solver_params.n_bath != old_params.solver_params.n_bath:
-                raise ValueError("Number of bath sites mismatch.")
-
 
 def load_state(params: InputParameters) -> Tuple[int, BlockGf, BlockGf]:
     """Load the previous state of the calculation from the output archive.
