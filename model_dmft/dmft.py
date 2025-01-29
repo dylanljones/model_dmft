@@ -133,23 +133,27 @@ def _solve_cthyb(
     # Local Hamiltonian and interaction term
     h_loc0 = e_onsite[0] * ops.n(up, 0) + e_onsite[1] * ops.n(dn, 0)
     h_int = u * ops.n(up, 0) * ops.n(dn, 0)
+    solver_kwargs = solver_params.dict()
+    n_tau = solver_kwargs.pop("n_tau")
+    if solver_kwargs["fit_min_n"] == 0:
+        solver_kwargs["fit_min_n"] = int(0.5 * params.n_iw)
+    if solver_kwargs["fit_max_n"] == 0:
+        solver_kwargs["fit_max_n"] = params.n_iw
 
     # Initialize solver
     solver = cthyb.Solver(
-        beta=params.beta, gf_struct=params.gf_struct, n_iw=params.n_iw, delta_interface=True
+        beta=params.beta,
+        gf_struct=params.gf_struct,
+        n_iw=params.n_iw,
+        n_tau=n_tau,
+        delta_interface=True,
     )
     # Set hybridization function (imaginary time)
     solver.Delta_tau << Fourier(delta)
     mpi.barrier()
 
     # Solve impurity problem
-    solver.solve(
-        h_loc0=h_loc0,
-        h_int=h_int,
-        n_cycles=solver_params.n_cycles,
-        length_cycle=solver_params.length_cycle,
-        n_warmup_cycles=solver_params.n_warmup_cycles,
-    )
+    solver.solve(h_loc0=h_loc0, h_int=h_int, **solver_kwargs)
     report("Done!")
     report("")
 
