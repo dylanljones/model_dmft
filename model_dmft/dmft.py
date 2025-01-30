@@ -122,6 +122,15 @@ def _solve_ftps(
     return solver.Sigma_w
 
 
+def sigma_dyson_cthyb(g_iw: BlockGf, e_onsite: np.ndarray, delta: BlockGf) -> BlockGf:
+    """Compute self-energy using Dyson equation."""
+    g0_inv = g_iw.copy()
+    for i, (name, g) in enumerate(g0_inv):
+        g << iOmega_n - e_onsite[i] - delta[name]
+
+    return g0_inv - inverse(g_iw)
+
+
 def _solve_cthyb(
     params: InputParameters, u: np.ndarray, e_onsite: np.ndarray, delta: BlockGf
 ) -> BlockGf:
@@ -170,6 +179,7 @@ def _solve_cthyb(
     report("Done!")
     report("")
 
+    # return sigma_dyson_cthyb(solver.G_iw, e_onsite, delta)
     return solver.Sigma_iw
 
 
