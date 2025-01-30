@@ -17,7 +17,7 @@ from triqs.gf import BlockGf, Fourier, MeshReFreq, Omega, inverse, iOmega_n
 from triqs.utility import mpi
 
 from .ftps import check_bath, construct_bath
-from .input import InputParameters
+from .input import CthybSolverParams, FtpsSolverParams, InputParameters
 from .utility import report
 
 
@@ -60,7 +60,7 @@ def _solve_ftps(
     up, dn = params.spin_names
 
     mesh = delta.mesh
-    solve_params = params.solver_params
+    solve_params: FtpsSolverParams = params.solver_params
     # Prepare parameters for solver
     bath_fit = solve_params["bath_fit"]
     nbath = solve_params["n_bath"]
@@ -105,7 +105,7 @@ def _solve_ftps(
 
     # Run solver
     report("Solving impurity...")
-    solver.solve(h_int=hint, **solve_kwds)
+    solver.solve(h_int=hint, **solve_kwds)  # type: ignore
 
     # Update self energy using Dyson equation
     mpi.barrier()
@@ -126,40 +126,45 @@ def _solve_cthyb(
     params: InputParameters, u: np.ndarray, e_onsite: np.ndarray, delta: BlockGf
 ) -> BlockGf:
     up, dn = params.spin_names
-    solver_params = params.solver_params
+    solver_params: CthybSolverParams = params.solver_params
 
     report("Initializing solver.")
 
     # Local Hamiltonian and interaction term
     h_loc0 = e_onsite[0] * ops.n(up, 0) + e_onsite[1] * ops.n(dn, 0)
     h_int = u * ops.n(up, 0) * ops.n(dn, 0)
-    solver_kwargs = solver_params.dict()
-    n_tau = solver_kwargs.pop("n_tau")
-    solver_kwargs.pop("type")
-    if not solver_kwargs["perform_tail_fit"]:
-        solver_kwargs.pop("fit_min_n")
-        solver_kwargs.pop("fit_max_n")
-        solver_kwargs.pop("fit_max_moment")
-    else:
-        if solver_kwargs["fit_min_n"] == 0:
-            solver_kwargs["fit_min_n"] = int(0.5 * params.n_iw)
-        if solver_kwargs["fit_max_n"] == 0:
-            solver_kwargs["fit_max_n"] = params.n_iw
+
+    solve_kwargs = {
+        "n_warmup_cycles": solver_params.n_warmup_cycles,
+        "n_cycles": solver_params.n_cycles,
+        "length_cycle": solver_params.length_cycle,
+        "perform_tail_fit": solver_params.tail_fit,
+    }
+    if solver_params.tail_fit:
+        if solver_params.fit_min_n == 0:
+            solve_kwargs["fit_min_n"] = int(0.5 * params.n_iw)
+        else:
+            solve_kwargs["fit_min_n"] = solver_params.fit_min_n
+        if solver_params.fit_max_n == 0:
+            solve_kwargs["fit_max_n"] = params.n_iw
+        else:
+            solve_kwargs["fit_max_n"] = solver_params.fit_max_n
+        solve_kwargs["fit_max_moment"] = solver_params.fit_max_moment
 
     # Initialize solver
     solver = cthyb.Solver(
         beta=params.beta,
         gf_struct=params.gf_struct,
         n_iw=params.n_iw,
-        n_tau=n_tau,
+        n_tau=solver_params.n_tau,
         delta_interface=True,
     )
     # Set hybridization function (imaginary time)
-    solver.Delta_tau << Fourier(delta)
+    solver.Delta_tau << Fourier(delta)  # type: ignore
     mpi.barrier()
 
     # Solve impurity problem
-    solver.solve(h_loc0=h_loc0, h_int=h_int, **solver_kwargs)
+    solver.solve(h_loc0=h_loc0, h_int=h_int, **solve_kwargs)
     report("Done!")
     report("")
 

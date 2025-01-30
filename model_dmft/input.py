@@ -263,7 +263,7 @@ class CthybSolverParams(SolverParams):
         "length_cycle": int,
         "n_warmup_cycles": int,
         "n_tau": int,
-        "perform_tail_fit": bool,
+        "tail_fit": bool,
         "fit_max_moment": int,
         "fit_min_n": int,
         "fit_max_n": int,
@@ -274,7 +274,7 @@ class CthybSolverParams(SolverParams):
         "length_cycle": "Length of the cycle (default: 100)",
         "n_warmup_cycles": "Number of warmup cycles (default: 1_000)",
         "n_tau": "Number of imaginary time steps. (default: 10001)",
-        "perform_tail_fit": "Perform tail fit of Sigma and G (default: false)",
+        "tail_fit": "Perform tail fit of Sigma and G (default: false)",
         "fit_max_moment": "Highest moment to fit in the tail of Sigma (default: 3)",
         "fit_min_n": "Index of iw from which to start fitting (default: 0.5*n_iw)",
         "fit_max_n": "Index of iw up to which to fit (default: n_iw)",
@@ -286,7 +286,7 @@ class CthybSolverParams(SolverParams):
         self.n_warmup_cycles: int = 1_000  # Number of warmup cycles.
         self.length_cycle: int = 100  # Length of a cycle.
         self.n_tau: int = 10001  # Number of imaginary time steps.
-        self.perform_tail_fit: bool = False  # Perform tail fit.
+        self.tail_fit: bool = False  # Perform tail fit.
         self.fit_max_moment: int = 3  # Highest moment to fit in the tail of Sigma
         self.fit_min_n: int = 0  # Index of iw from which to start fitting.
         self.fit_max_n: int = 0  # Index of iw up to which to fit.
@@ -421,7 +421,7 @@ class InputParameters(Parameters):
         self.stol: Optional[float] = None  # Tolerance for the self energy.
         self.occ_tol: Optional[float] = None  # Tolerance for the occupation number.
 
-        self.solver_params: Optional[SolverParams] = None
+        self.solver_params: Optional[Union[CthybSolverParams, FtpsSolverParams]] = None
 
         super().__init__(**kwargs)
         if solver is not None:

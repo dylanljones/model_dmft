@@ -227,30 +227,30 @@ nmax            = 40                     # Maximal Number of Krylov vectors crea
 
 Parameters for the [CTHYB] solver (experimental).
 
-| Name               | Type    | Description                                  |
-|--------------------|---------|----------------------------------------------|
-| `n_cycles`         | `int`   | Number of Quantum Monte Carlo cycles.        |
-| `n_warmup_cycle`   | `int`   | Number of warmup cycles.                     |
-| `length_cycle`     | `int`   | Length of the cycle.                         |
-| `n_tau`            | `int`   | Number of imaginary time steps.              |
-| `perform_tail_fit` | `bool`  | Perform tail fit of Sigma and G.             |
-| `fit_max_moment`   | `int`   | Highest moment to fit in the tail of Sigma.  |
-| `fit_min_n`        | `int`   | Index of iw from which to start fitting.     |
-| `fit_max_n`        | `int`   | Index of iw up to which to fit.              |
+| Name             | Type    | Description                                  |
+|------------------|---------|----------------------------------------------|
+| `n_cycles`       | `int`   | Number of Quantum Monte Carlo cycles.        |
+| `n_warmup_cycle` | `int`   | Number of warmup cycles.                     |
+| `length_cycle`   | `int`   | Length of the cycle.                         |
+| `n_tau`          | `int`   | Number of imaginary time steps.              |
+| `tail_fit `      | `bool`  | Perform tail fit of Sigma and G.             |
+| `fit_max_moment` | `int`   | Highest moment to fit in the tail of Sigma.  |
+| `fit_min_n`      | `int`   | Index of iw from which to start fitting.     |
+| `fit_max_n`      | `int`   | Index of iw up to which to fit.              |
 
 
 ```toml
 [solver]
-type             = "cthyb"               # Solver used to solve impurity problem
+type            = "cthyb"               # Solver used to solve impurity problem
 
-n_cycles         = 5000                  # Number of Quantum Monte Carlo cycles (default 10_000)
-n_warmup_cycle   = 1000                  # Number of warmup cycles (default: 1_000)
-length_cycle     = 100                   # Length of the cycle (default: 100)
-n_tau            = 10001                 # Number of imaginary time steps. (default: 10001)
-perform_tail_fit = false                 # Perform tail fit of Sigma and G (default: false)
-fit_max_moment   = 3                     # Highest moment to fit in the tail of Sigma (default: 3)
-fit_min_n        = 0                     # Index of iw from which to start fitting (default: 0.5*n_iw)
-fit_max_n        = 0                     # Index of iw up to which to fit (default: n_iw)
+n_cycles        = 5000                  # Number of Quantum Monte Carlo cycles (default 10_000)
+n_warmup_cycle  = 1000                  # Number of warmup cycles (default: 1_000)
+length_cycle    = 100                   # Length of the cycle (default: 100)
+n_tau           = 10001                 # Number of imaginary time steps. (default: 10001)
+tail_fit        = false                 # Perform tail fit of Sigma and G (default: false)
+fit_max_moment  = 3                     # Highest moment to fit in the tail of Sigma (default: 3)
+fit_min_n       = 0                     # Index of iw from which to start fitting (default: 0.5*n_iw)
+fit_max_n       = 0                     # Index of iw up to which to fit (default: n_iw)
 ```
 
 [TRIQS]: https://triqs.github.io/triqs/latest/index.html
