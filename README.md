@@ -132,6 +132,7 @@ cp <path-to-repo>/example <new-directory>
 | `tol_cpa`        | `float`                  | Tolerance for CPA.                                                          |
 | `gtol`           | `float`                  | Convergence tolerance for the coherent Green's function.                    |
 | `stol`           | `float`                  | Convergence tolerance for the self energy.                                  |
+| `occ_tol`        | `float`                  | Convergence tolerance for occupation number.                                |
 | `mixing_cpa`     | `float`                  | Mixing parameter for CPA.                                                   |
 | `mixing_dmft`    | `float`                  | Mixing parameter for DMFT.                                                  |
 
@@ -176,7 +177,7 @@ mixing_dmft    = 0.1                      # Mixing of the DMFT self energy.
 # Convergence parameters
 gtol           = 1e-06                    # Convergence tolerance for the coherent Green's function.
 stol           = 1e-06                    # Convergence tolerance for the self energy.
-
+occ_tol        = 1e-06                    # Occupation tolerance for CPA.
 ```
 
 #### ``[solver]``

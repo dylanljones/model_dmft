@@ -342,6 +342,7 @@ class InputParameters(Parameters):
         "mixing_cpa": float,
         "gtol": float,
         "stol": float,
+        "occ_tol": float,
     }
 
     __descriptions__ = {
@@ -367,6 +368,7 @@ class InputParameters(Parameters):
         "mixing_dmft": "Mixing of the DMFT self energy.",
         "gtol": "Convergence tolerance for the coherent Green's function.",
         "stol": "Convergence tolerance for the self energy.",
+        "occ_tol": "Convergence tolerance for the occupation number.",
         "mixing_cpa": "Mixing of the CPA self energy.",
         "method_cpa": "Method used for computing the CPA self energy.",
         "maxiter_cpa": "Number of iterations for computing the CPA self energy.",
@@ -417,6 +419,8 @@ class InputParameters(Parameters):
         self.tol_cpa: Optional[float] = 1e-6  # Tolerance for the CPA if method is 'iter'.
         self.gtol: Optional[float] = None  # Tolerance for the coherent Green's function.
         self.stol: Optional[float] = None  # Tolerance for the self energy.
+        self.occ_tol: Optional[float] = None  # Tolerance for the occupation number.
+
         self.solver_params: Optional[SolverParams] = None
 
         super().__init__(**kwargs)
@@ -698,6 +702,7 @@ class InputParameters(Parameters):
             "mixing_dmft",
             "gtol",
             "stol",
+            "occ_tol",
         ]
 
         self.validate()

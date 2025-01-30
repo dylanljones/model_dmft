@@ -184,6 +184,7 @@ def update_dataset(archive_file: Union[Path, str], keep_iter: bool = True) -> No
         ar[f"sigma_cpa-{it}"] = ar["sigma_cpa"]
         ar[f"g_coh-{it}"] = ar["g_coh"]
         ar[f"g_cmpt-{it}"] = ar["g_cmpt"]
+        ar[f"occ-{it}"] = ar["occ"]
         ar[f"err_g-{it}"] = ar["err_g"]
         ar[f"err_sigma-{it}"] = ar["err_sigma"]
         if "sigma_dmft" in ar:
@@ -496,6 +497,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
 
     # ---- DERIVED PARAMETERS ----------------------------------------------------------------------
 
+    up, dn = params.spin_names
     check_broadening(mesh, eta)
     ht = HilbertTransform(lattice, params.half_bandwidth)
 
@@ -545,6 +547,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
 
     gf_coh_old = None
     sig_coh_old = None
+    occ_old = None
 
     # Start iterations
     try:
@@ -623,6 +626,13 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                 report("Computing component Green's function...")
                 g_cmpt = cpa.gf_component(ht, sigma_cpa, conc, eps_eff, eta, scale=False)
 
+                # Compute occupation numbers
+                density = g_coh.density()
+                occ_up = density[up][0, 0].real
+                occ_dn = density[up][0, 0].real
+                occ = g_coh.total_density().real
+                report(f"Occupation: total={occ:.4f} up={occ_up:.4f} dn={occ_dn:.4f}")
+
                 # Check convergence
                 if gf_coh_old is not None:
                     err_g_coh = check_convergence(gf_coh_old, g_coh, relative=True)  # type: ignore
@@ -632,8 +642,11 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                     err_sigma = check_convergence(sig_coh_old, sigma_cpa, relative=True)  # type: ignore
                 else:
                     err_sigma = 1.0
+                err_occ = abs(occ - occ_old) / occ_old if occ_old is not None else 1.0
+
                 sig_coh_old = sigma_cpa.copy()
                 gf_coh_old = g_coh.copy()
+                occ_old = occ
 
                 report(f"Writing results of iteration {it} to {out_file}")
                 with HDFArchive(out_file, "a") as ar:
@@ -641,14 +654,17 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                     ar["sigma_cpa"] = sigma_cpa
                     ar["g_coh"] = g_coh
                     ar["g_cmpt"] = g_cmpt
+                    ar["occ"] = occ
                     ar["err_g"] = err_g_coh
                     ar["err_sigma"] = err_sigma
+                    ar["err_occ"] = err_occ
 
                 # Set the latest datasets and remove previous iterations if not needed
                 update_dataset(out_file, keep_iter=params.store_iter)
 
                 report("")
-                report(f"Iteration: {it:>2} Error-G: {err_g_coh:.10f} Error-Σ: {err_sigma:.10f}")
+                s = "Iteration: {it:>2} Error-G: {g:.10f} Error-Σ: {sig:.10f} Error-n: {occ:.10f}"
+                report(s.format(it=it, g=err_g_coh, sig=err_sigma, occ=err_occ))
 
                 if not has_interaction:
                     report("No interaction, skipping further iterations.")
@@ -662,6 +678,11 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                     now = datetime.now()
                     report("")
                     report(f"G converged in {it} iterations at {now:%H:%M %d-%b-%y}")
+                    break
+                if params.occ_tol and err_occ < params.occ_tol:
+                    now = datetime.now()
+                    report("")
+                    report(f"Occupation converged in {it} iterations at {now:%H:%M %d-%b-%y}")
                     break
 
         # Write output files as plain text
