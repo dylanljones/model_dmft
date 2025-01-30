@@ -227,17 +227,18 @@ nmax            = 40                     # Maximal Number of Krylov vectors crea
 
 Parameters for the [CTHYB] solver (experimental).
 
-| Name             | Type    | Description                                  |
-|------------------|---------|----------------------------------------------|
-| `n_cycles`       | `int`   | Number of Quantum Monte Carlo cycles.        |
-| `n_warmup_cycle` | `int`   | Number of warmup cycles.                     |
-| `length_cycle`   | `int`   | Length of the cycle.                         |
-| `n_tau`          | `int`   | Number of imaginary time steps.              |
-| `tail_fit `      | `bool`  | Perform tail fit of Sigma and G.             |
-| `fit_max_moment` | `int`   | Highest moment to fit in the tail of Sigma.  |
-| `fit_min_n`      | `int`   | Index of iw from which to start fitting.     |
-| `fit_max_n`      | `int`   | Index of iw up to which to fit.              |
-
+| Name             | Type    | Description                                   |
+|------------------|---------|-----------------------------------------------|
+| `n_cycles`       | `int`   | Number of Quantum Monte Carlo cycles.         |
+| `n_warmup_cycle` | `int`   | Number of warmup cycles.                      |
+| `length_cycle`   | `int`   | Length of the cycle.                          |
+| `n_tau`          | `int`   | Number of imaginary time steps.               |
+| `tail_fit `      | `bool`  | Perform tail fit of Sigma and G.              |
+| `fit_max_moment` | `int`   | Highest moment to fit in the tail of Sigma.   |
+| `fit_min_n`      | `int`   | Index of iw from which to start fitting.      |
+| `fit_max_n`      | `int`   | Index of iw up to which to fit.               |
+| `measure_g_l`    | `bool`  | Measure G_l (Legendre)? (default: false)      |
+| `n_l`            | `int`   | Number of Legendre polynomials. (default: 30) |
 
 ```toml
 [solver]
@@ -251,6 +252,8 @@ tail_fit        = false                 # Perform tail fit of Sigma and G (defau
 fit_max_moment  = 3                     # Highest moment to fit in the tail of Sigma (default: 3)
 fit_min_n       = 0                     # Index of iw from which to start fitting (default: 0.5*n_iw)
 fit_max_n       = 0                     # Index of iw up to which to fit (default: n_iw)
+measure_g_l     = false                 # Measure G_l (Legendre) (default: false)
+n_l             = 30                    # Number of Legendre polynomials (default: 30)
 ```
 
 [TRIQS]: https://triqs.github.io/triqs/latest/index.html

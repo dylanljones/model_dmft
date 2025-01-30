@@ -139,6 +139,7 @@ def _solve_cthyb(
         "n_cycles": solver_params.n_cycles,
         "length_cycle": solver_params.length_cycle,
         "perform_tail_fit": solver_params.tail_fit,
+        "measure_G_l": solver_params.measure_g_l,
     }
     if solver_params.tail_fit:
         if solver_params.fit_min_n == 0:
@@ -158,6 +159,7 @@ def _solve_cthyb(
         n_iw=params.n_iw,
         n_tau=solver_params.n_tau,
         delta_interface=True,
+        n_l=solver_params.n_l,
     )
     # Set hybridization function (imaginary time)
     solver.Delta_tau << Fourier(delta)  # type: ignore

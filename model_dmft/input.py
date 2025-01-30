@@ -267,6 +267,8 @@ class CthybSolverParams(SolverParams):
         "fit_max_moment": int,
         "fit_min_n": int,
         "fit_max_n": int,
+        "measure_g_l": bool,
+        "n_l": int,
     }
 
     __descriptions__ = {
@@ -278,6 +280,8 @@ class CthybSolverParams(SolverParams):
         "fit_max_moment": "Highest moment to fit in the tail of Sigma (default: 3)",
         "fit_min_n": "Index of iw from which to start fitting (default: 0.5*n_iw)",
         "fit_max_n": "Index of iw up to which to fit (default: n_iw)",
+        "measure_g_l": "Measure G_l (Legendre) (default: false)",
+        "n_l": "Number of Legendre polynomials. (default: 30)",
     }
 
     def __init__(self, **kwargs):
@@ -290,6 +294,8 @@ class CthybSolverParams(SolverParams):
         self.fit_max_moment: int = 3  # Highest moment to fit in the tail of Sigma
         self.fit_min_n: int = 0  # Index of iw from which to start fitting.
         self.fit_max_n: int = 0  # Index of iw up to which to fit.
+        self.measure_g_l: bool = False  # Measure G_l (Legendre)
+        self.n_l: int = 30  # Number of Legendre polynomials.
         super().__init__(**kwargs)
 
 

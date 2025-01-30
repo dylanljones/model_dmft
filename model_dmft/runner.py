@@ -89,6 +89,12 @@ def print_params(params: InputParameters) -> None:
             report(f"N warmup:       {solver.n_warmup_cycles}")
             report(f"N cycles:       {solver.n_cycles}")
             report(f"Length cycle:   {solver.length_cycle}")
+            report(f"Tail fit:       {solver.tail_fit}")
+            report(f"Fit max moment: {solver.fit_max_moment}")
+            report(f"Fit min N:      {solver.fit_min_n}")
+            report(f"Fit max N:      {solver.fit_max_n}")
+            report(f"Measure G(l):   {solver.measure_g_l}")
+            report(f"N_l:            {solver.n_l}")
     report("-" * 60)
     report("")
 
@@ -215,6 +221,10 @@ def write_out_files(params: InputParameters) -> None:
             sigma_dmft = None
 
     omega = np.array(list(g_coh.mesh.values()))
+    if params.is_real_mesh:
+        omega = omega.real
+    else:
+        omega = omega.imag
 
     # Write DOS file
     names, items = list(), list()
