@@ -639,7 +639,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                 # Compute occupation numbers
                 density = g_coh.density()
                 occ_up = density[up][0, 0].real
-                occ_dn = density[up][0, 0].real
+                occ_dn = density[dn][0, 0].real
                 occ = g_coh.total_density().real
                 report(f"Occupation: total={occ:.4f} up={occ_up:.4f} dn={occ_dn:.4f}")
 
