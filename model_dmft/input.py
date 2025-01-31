@@ -30,7 +30,13 @@ import tomlkit as toml
 from h5.archive import register_class
 from triqs.gf import MeshImFreq, MeshReFreq
 
-__all__ = ["InputParameters", "FtpsSolverParams", "SolverParams", "get_supported_solvers"]
+__all__ = [
+    "InputParameters",
+    "FtpsSolverParams",
+    "CthybSolverParams",
+    "SolverParams",
+    "get_supported_solvers",
+]
 
 SOLVERS: Dict[str, Type["SolverParams"]] = dict()
 LATTICES = ("bethe", "square")
@@ -95,6 +101,24 @@ def register_solver_input(cls: Type["SolverParams"]) -> None:
 def get_supported_solvers() -> List[str]:
     """Return a list of supported solvers."""
     return list(SOLVERS.keys())
+
+
+def _parse_array(value: Union[str, float, Sequence[float]]) -> Union[float, Sequence[float]]:
+    if isinstance(value, str):
+        if "," in value:
+            value = value.strip("[]")
+            return list(float(x) for x in value.split(","))
+        return float(value)
+    return value
+
+
+class InputError(ValueError):
+    pass
+
+
+class InputMeshError(InputError):
+    def __init__(self, mesh_type, param_name):
+        super().__init__(f"Mesh type '{mesh_type}' requires parameter '{param_name}' to be set!")
 
 
 class Parameters(Mapping, ABC):
@@ -299,25 +323,62 @@ class CthybSolverParams(SolverParams):
         super().__init__(**kwargs)
 
 
+# -- Maxent input parameters -----------------------------------------------------------------------
+
+
+class MaxEntParams(Parameters):
+    """Maximum Entropy solver parameters.
+
+    This class extends the `Parameters` class to include attributes and methods specific to MaxEnt
+    parameters.
+    """
+
+    __types__ = {
+        "error": float,
+        "cost_function": str,
+        "probability": str,
+        "alpha_mesh": str,
+        "n_alpha": int,
+        "alpha_range": _parse_array,
+        "w_mesh": str,
+        "n_w": int,
+        "w_range": _parse_array,
+    }
+
+    __descriptions__ = {
+        "error": "Error threshold (default: 1e-4)",
+        "cost_function": "Cost function (default: bryan)",
+        "probability": "Probability distribution (default: normal)",
+        "alpha_mesh": "Alpha mesh type (default: logarithmic)",
+        "n_alpha": "Number of alpha mesh points",
+        "alpha_range": "Alpha range",
+        "w_mesh": "Frequency mesh type (default: hyperbolic)",
+        "n_w": "Number of frequency mesh points",
+        "w_range": "Frequency range",
+    }
+
+    def __init__(self, **kwargs):
+        self.error = 1e-4  # Error threshold for the MaxEnt solver.
+        self.cost_function: Optional[str] = "bryan"  # Cost function for the MaxEnt solver.
+        self.probability: Optional[str] = (
+            "normal"  # Probability distribution for the MaxEnt solver.
+        )
+        # Alpha mesh
+        self.mesh_type_alpha: Optional[str] = "logarithmic"
+        self.n_alpha: Optional[int] = 60  # Number of alpha mesh points.
+        self.alpha_range: Optional[Tuple[float, float]] = (0.01, 2000)  # The range of alpha values.
+        # Omega_mesh
+        self.mesh_type_w: Optional[str] = "hyperbolic"
+        self.n_w: Optional[int] = 201  # Number of real frequencies.
+        self.w_range: Optional[Tuple[float, float]] = (-10, +10)  # The range of real frequencies.
+
+        super().__init__(**kwargs)
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}()"
+
+
 # -- Input parameters ------------------------------------------------------------------------------
-
-
-def _parse_array(value: Union[str, float, Sequence[float]]) -> Union[float, Sequence[float]]:
-    if isinstance(value, str):
-        if "," in value:
-            value = value.strip("[]")
-            return list(float(x) for x in value.split(","))
-        return float(value)
-    return value
-
-
-class InputError(ValueError):
-    pass
-
-
-class InputMeshError(InputError):
-    def __init__(self, mesh_type, param_name):
-        super().__init__(f"Mesh type '{mesh_type}' requires parameter '{param_name}' to be set!")
 
 
 class InputParameters(Parameters):
@@ -428,6 +489,7 @@ class InputParameters(Parameters):
         self.occ_tol: Optional[float] = None  # Tolerance for the occupation number.
 
         self.solver_params: Optional[Union[CthybSolverParams, FtpsSolverParams]] = None
+        self.maxent_params: Optional[MaxEntParams] = None
 
         super().__init__(**kwargs)
         if solver is not None:
@@ -603,6 +665,11 @@ class InputParameters(Parameters):
         self.solver_params = cls(**kwargs)
         return self.solver_params
 
+    def add_maxent(self, **kwargs) -> MaxEntParams:
+        """Add a MaxEnt solver to the input parameters."""
+        self.maxent_params = MaxEntParams(**kwargs)
+        return self.maxent_params
+
     def dict(self, include_none: bool = True) -> Dict[str, Any]:
         """Return the input parameters as a dictionary."""
         data = super().dict(include_none)
@@ -664,10 +731,13 @@ class InputParameters(Parameters):
         data = toml.loads(data)
         general = data["general"]
         solver = data.get("solver", dict())
+        maxent = data.get("maxent", dict())
         self.update(general)
         if solver:
             solver_name = solver.pop("type")
             self.add_solver(solver_name, **solver)
+        if maxent:
+            self.add_maxent(**maxent)
         self.validate()
 
     def dumps(
@@ -717,6 +787,7 @@ class InputParameters(Parameters):
         data.pop("output")
         data.pop("location")
         solver_params = data.pop("solver_params", dict())
+        maxent_params = data.pop("maxent_params", dict())
 
         # General section
         general = toml.table()
@@ -755,11 +826,22 @@ class InputParameters(Parameters):
             general.update(items)
 
         # Solver section
-        solver = toml.table()
-        solver.add(toml.nl())
-        solver_type = solver_params.pop("type")
-        solver.add("type", solver_type)
-        solver.update(solver_params)
+        if solver_params:
+            solver = toml.table()
+            solver.add(toml.nl())
+            solver_type = solver_params.pop("type")
+            solver.add("type", solver_type)
+            solver.update(solver_params)
+        else:
+            solver = None
+
+        # maxent section
+        if maxent_params:
+            maxent = toml.table()
+            maxent.add(toml.nl())
+            maxent.update(maxent_params)
+        else:
+            maxent = None
 
         # Format document
         doc = toml.document()
@@ -771,8 +853,12 @@ class InputParameters(Parameters):
         doc.add("general", general)
         # doc.add(toml.nl())
         # doc.add(toml_section_comment("Solver specific parameters"))
-        doc.add(toml.nl())
-        doc.add("solver", solver)
+        if solver is not None:
+            doc.add(toml.nl())
+            doc.add("solver", solver)
+        if maxent is not None:
+            doc.add(toml.nl())
+            doc.add("maxent", maxent)
         # doc.add(toml.nl())
 
         # Add comments
@@ -782,12 +868,19 @@ class InputParameters(Parameters):
                     general[key].comment(self.__descriptions__[key])
                 except (AttributeError, KeyError):
                     pass
-            for key in solver.keys():
-                try:
-                    solver[key].comment(self.solver_params.__descriptions__[key])
-                except (AttributeError, KeyError):
-                    pass
-                solver["type"].comment("Solver used to solve the impurity problem.")
+            if solver:
+                for key in solver.keys():
+                    try:
+                        solver[key].comment(self.solver_params.__descriptions__[key])
+                    except (AttributeError, KeyError):
+                        pass
+                    solver["type"].comment("Solver used to solve the impurity problem.")
+            if maxent:
+                for key in maxent.keys():
+                    try:
+                        solver[key].comment(self.solver_params.__descriptions__[key])
+                    except (AttributeError, KeyError):
+                        pass
 
         text = toml.dumps(doc)
         lines = text.splitlines(keepends=False)
@@ -859,6 +952,10 @@ class InputParameters(Parameters):
         for key, val in solver.items():
             if isinstance(val, list):
                 solver[key] = tuple(val)
+        maxent = data.get("maxent_params", dict())
+        for key, val in maxent.items():
+            if isinstance(val, list):
+                maxent[key] = tuple(val)
         return data
 
     def flatten(self, include_none: bool = True) -> Dict[str, Any]:
@@ -886,6 +983,8 @@ class InputParameters(Parameters):
 # Register classes for serialization with h5
 register_class(Parameters)
 register_class(FtpsSolverParams)
+register_class(CthybSolverParams)
+register_class(MaxEntParams)
 register_class(InputParameters)
 
 # Register solver input classes
