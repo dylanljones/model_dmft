@@ -150,6 +150,10 @@ def _solve_cthyb(
         "perform_tail_fit": solver_params.tail_fit,
         "measure_G_l": solver_params.measure_g_l,
     }
+    if solver_params.density_matrix:
+        solve_kwargs["measure_density_matrix"] = True
+        solve_kwargs["use_norm_as_weight"] = True
+
     if solver_params.tail_fit:
         if solver_params.fit_min_n == 0:
             solve_kwargs["fit_min_n"] = int(0.5 * params.n_iw)
@@ -160,6 +164,12 @@ def _solve_cthyb(
         else:
             solve_kwargs["fit_max_n"] = solver_params.fit_max_n
         solve_kwargs["fit_max_moment"] = solver_params.fit_max_moment
+        # Used for calculating moments
+        solve_kwargs["measure_density_matrix"] = True
+        solve_kwargs["use_norm_as_weight"] = True
+
+    # Different random seed on each core
+    solve_kwargs["random_seed"] = 34788 + 928374 * mpi.rank  # Default random seed
 
     # Initialize solver
     solver = cthyb.Solver(

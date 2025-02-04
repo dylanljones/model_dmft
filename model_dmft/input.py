@@ -293,6 +293,7 @@ class CthybSolverParams(SolverParams):
         "fit_max_n": int,
         "measure_g_l": bool,
         "n_l": int,
+        "density_matrix": bool,
     }
 
     __descriptions__ = {
@@ -306,6 +307,7 @@ class CthybSolverParams(SolverParams):
         "fit_max_n": "Index of iw up to which to fit (default: n_iw)",
         "measure_g_l": "Measure G_l (Legendre) (default: false)",
         "n_l": "Number of Legendre polynomials. (default: 30)",
+        "density_matrix": "Measure the impurity density matrix (default: false)",
     }
 
     def __init__(self, **kwargs):
@@ -320,6 +322,7 @@ class CthybSolverParams(SolverParams):
         self.fit_max_n: int = 0  # Index of iw up to which to fit.
         self.measure_g_l: bool = False  # Measure G_l (Legendre)
         self.n_l: int = 30  # Number of Legendre polynomials.
+        self.density_matrix: bool = False  # Measure the impurity density matrix.
         super().__init__(**kwargs)
 
 
