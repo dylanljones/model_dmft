@@ -8,8 +8,8 @@ import triqs_cthyb
 from triqs.gf import BlockGf, Fourier
 from triqs.utility import mpi
 
-from model_dmft.input import CthybSolverParams, InputParameters
-from model_dmft.utility import report
+from ..input import CthybSolverParams, InputParameters
+from ..utility import report
 
 
 def solve_cthyb(

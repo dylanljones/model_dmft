@@ -21,8 +21,8 @@ from triqs.gf import BlockGf
 from triqs.plot.mpl_interface import plt
 from triqs.utility import mpi
 
-from model_dmft.input import FtpsSolverParams, InputParameters
-from model_dmft.utility import report, toarray
+from ..input import FtpsSolverParams, InputParameters
+from ..utility import report, toarray
 
 # logger = logging.getLogger(__name__)
 
