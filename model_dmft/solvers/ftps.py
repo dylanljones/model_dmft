@@ -10,15 +10,19 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import ContextManager, Iterable, Union
 
+import forktps
 import numpy as np
+import triqs.operators as ops
 from forktps.BathFitting import BathFitter
-from forktps.DiscreteBath import DiscretizeBath
+from forktps.DiscreteBath import DiscretizeBath, SigmaDyson
+from forktps.solver import DMRGParams, TevoParams
 from forktps.solver_core import Bath, HInt, Hloc  # noqa
 from triqs.gf import BlockGf
 from triqs.plot.mpl_interface import plt
 from triqs.utility import mpi
 
-from .utility import report, toarray
+from model_dmft.input import FtpsSolverParams, InputParameters
+from model_dmft.utility import report, toarray
 
 # logger = logging.getLogger(__name__)
 
@@ -249,3 +253,72 @@ def cleantmp(
     finally:
         if post:
             rm_tmpdirs()
+
+
+def solve_ftps(
+    params: InputParameters, u: np.ndarray, e_onsite: np.ndarray, delta: BlockGf
+) -> BlockGf:
+    gf_struct = params.gf_struct
+    up, dn = params.spin_names
+
+    mesh = delta.mesh
+    solve_params: FtpsSolverParams = params.solver_params
+    # Prepare parameters for solver
+    bath_fit = solve_params["bath_fit"]
+    nbath = solve_params["n_bath"]
+    common = dict(tw=solve_params["tw"], maxm=solve_params["maxm"], nmax=solve_params["nmax"])
+    tevo = TevoParams(
+        time_steps=solve_params["time_steps"],
+        dt=solve_params["dt"],
+        method=solve_params["method"],
+        **common,
+    )
+    dmrg = DMRGParams(sweeps=solve_params["sweeps"], **common)
+    solve_kwds = {
+        "eta": params.eta,
+        "tevo": tevo,
+        "params_GS": dmrg,
+        "params_partSector": dmrg,
+        "measurements": [ops.n(up, 0), ops.n(dn, 0)],  # Only measure impurity Gfs
+    }
+    tmp_dir = params.tmp_dir_path
+    Path(tmp_dir).mkdir(parents=True, exist_ok=True)
+    if not tmp_dir.endswith("/"):
+        tmp_dir += "/"
+    solve_kwds["state_storage"] = tmp_dir
+
+    # Construct bath
+    report("Constructing bath.")
+    bath = construct_bath(delta, params.eta, nbath, bath_fit=bath_fit)
+    if not check_bath(bath, delta, params.eta, plot=False):
+        raise ValueError("Bath construction failed!")
+
+    # Construct local and interaction Hamiltonian
+    report("Initializing solver.")
+    hloc = Hloc(gf_struct)
+    hloc.Fill(up, [[e_onsite[0]]])
+    hloc.Fill(dn, [[e_onsite[1]]])
+    hint = HInt(u=u, j=0.0, up=0.0, dd=True)
+
+    # Initialize solver
+    solver = forktps.Solver(gf_struct, mesh.omega_min, mesh.omega_max, len(mesh))
+    solver.b = bath  # Add bath to solver
+    solver.e0 = hloc  # Add local Hamiltonian to solver
+
+    # Run solver
+    report("Solving impurity...")
+    solver.solve(h_int=hint, **solve_kwds)  # type: ignore
+
+    # Update self energy using Dyson equation
+    mpi.barrier()
+    solver.Sigma_w << SigmaDyson(
+        Gret=solver.G_ret,
+        bath=solver.b,
+        hloc=solver.e0,
+        mesh=solver.G_w.mesh,
+        eta=params.eta,
+    )
+    report("Done!")
+    report("")
+
+    return solver.Sigma_w

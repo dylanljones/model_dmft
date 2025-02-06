@@ -86,7 +86,7 @@ def update():
 @click.argument("tmp_file", type=click.Path(exists=True))
 def solve_impurity_cmd(tmp_file: str):
     """Solve the impurity problem."""
-    from model_dmft.dmft import solve_impurity
+    from model_dmft.runner import solve_impurity
 
     solve_impurity(tmp_file)
     sys.exit(0)  # make sure exit code is 0 on success

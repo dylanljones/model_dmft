@@ -12,10 +12,10 @@ import numpy as np
 
 # noinspection PyPackageRequirements
 from h5 import HDFArchive
-from triqs.gf import BlockGf
+from triqs.gf import BlockGf, MeshReFreq, Omega, inverse, iOmega_n
 from triqs.utility import mpi
 
-from . import cpa, dmft
+from . import cpa
 from .functions import HilbertTransform
 from .input import InputParameters, get_supported_solvers
 from .utility import (
@@ -294,6 +294,77 @@ def write_out_files(params: InputParameters) -> None:
         np.savetxt(location / "sigma_dmft.dat", data, header=header, fmt=frmt, delimiter="  ")
 
 
+def hybridization(
+    gf: BlockGf, eps: BlockGf, sigma: BlockGf, eta: float = 0.0, name: str = "Δ"
+) -> BlockGf:
+    """Compute bath hybridization function."""
+    x = Omega if isinstance(gf.mesh, MeshReFreq) else iOmega_n
+    delta = sigma.copy()
+    delta.name = name
+    for cmpt, e_i in eps:
+        for spin, e_is in e_i:
+            delta[cmpt][spin] << x + 1j * eta - e_is - sigma[cmpt][spin] - inverse(gf[cmpt][spin])
+    return delta
+
+
+def prepare_tmp_file(
+    tmp_file: Union[str, Path],
+    params: InputParameters,
+    u: np.ndarray,
+    e_onsite: np.ndarray,
+    delta: BlockGf,
+) -> None:
+    sigma = delta.copy()
+    sigma.name = "Σ"
+    sigma.zero()
+
+    with HDFArchive(str(tmp_file), "w") as ar:
+        ar["params"] = params
+        ar["u"] = u
+        ar["e_onsite"] = e_onsite
+        ar["delta"] = delta
+        ar["sigma"] = sigma
+
+
+def solve_impurity(tmp_file: Union[str, Path]) -> None:
+    # Load parameters and data from temporary file
+    with HDFArchive(str(tmp_file), "r") as ar:
+        params = ar["params"]
+        u = ar["u"]
+        e_onsite = ar["e_onsite"]
+        delta = ar["delta"]
+
+    if u == 0:
+        # No interaction, return zero self-energy
+        report("Skipping...")
+        report("")
+        return
+
+    solver_type = params.solver
+    if solver_type == "ftps":
+        from .solvers.ftps import solve_ftps
+
+        sigma_dmft = solve_ftps(params, u, e_onsite, delta)
+        # Write results back to temporary file
+        mpi.barrier()
+        if mpi.is_master_node():
+            with HDFArchive(str(tmp_file), "a") as ar:
+                ar["sigma_dmft"] = sigma_dmft
+
+    elif solver_type == "cthyb":
+        from .solvers.cthyb import solve_cthyb
+
+        sigma_dmft = solve_cthyb(params, u, e_onsite, delta)
+        # Write results back to temporary file
+        mpi.barrier()
+        if mpi.is_master_node():
+            with HDFArchive(str(tmp_file), "a") as ar:
+                ar["sigma_dmft"] = sigma_dmft
+
+    else:
+        raise ValueError(f"Unknown solver type: {solver_type}")
+
+
 def solve_impurities_seq(
     params: InputParameters,
     u: np.ndarray,
@@ -308,19 +379,15 @@ def solve_impurities_seq(
 
     # Write parameters and data to temporary files
     if mpi.is_master_node():
-        # report("Solving for impurity self-energies Σ_i(ω)...")
-        # report("")
-
         for i, (cmpt, delt) in enumerate(delta):
             tmp_file = tmp_filepath.format(cmpt=cmpt)
-            report(f"Writing temporary file {tmp_file}...")
-            dmft.prepare_tmp_file(tmp_file, params, u[i], e_onsite[i], delta[cmpt])
+            prepare_tmp_file(tmp_file, params, u[i], e_onsite[i], delta[cmpt])
     mpi.barrier()
 
     # --- Solve impurity problems -----
     for cmpt in sigma_dmft.indices:
         report(f"Solving component {cmpt}...")
-        dmft.solve_impurity(tmp_filepath.format(cmpt=cmpt))
+        solve_impurity(tmp_filepath.format(cmpt=cmpt))
     mpi.barrier()
     report("Solvers done!")
 
@@ -362,16 +429,10 @@ def solve_impurities(
     if not mpi.is_master_node():
         return  # This method should only be called from the master node
 
-    # if verbosity > 0:
-    #     report("Solving for impurity self-energies Σ_i(ω)...")
-    #     report("")
-
     # Write parameters and data to temporary files
     for i, (cmpt, delt) in enumerate(delta):
         tmp_file = tmp_filepath.format(cmpt=cmpt)
-        # if verbosity > 1:
-        #    report(f"Writing temporary file {tmp_file}...")
-        dmft.prepare_tmp_file(tmp_file, params, u[i], e_onsite[i], delta[cmpt])
+        prepare_tmp_file(tmp_file, params, u[i], e_onsite[i], delta[cmpt])
 
     # --- Solve impurity problems -----
 
@@ -405,9 +466,6 @@ def solve_impurities(
         p = Popen(cmd, stdout=PIPE, stderr=PIPE)
         procs.append((p, out_file, err_file))
 
-    # if verbosity > 0:
-    #     report("")
-
     # Wait for all subprocesses to end and stream STDOUT to file and console
     while True:
         received = False
@@ -440,16 +498,11 @@ def solve_impurities(
                 f.write(err + "\n")
             raise SubprocessError(f"Error in process {p.pid}\n{err}")
 
-    # if verbosity > 0:
-    #     report("Solvers done!")
-
     # ---- End solve ------------------
 
     # Load results back from temporary file
     for cmpt, sig in sigma_dmft:
         tmp_file = tmp_filepath.format(cmpt=cmpt)
-        # if verbosity > 1:
-        #     report(f"Loading temporary file {tmp_file}...")
         with HDFArchive(str(tmp_file), "r") as ar:
             if "sigma_dmft" in ar:
                 sig << ar["sigma_dmft"]  # noqa
@@ -586,7 +639,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
 
                 # Compute bath hybridization function
                 report("Computing bath hybdridization function Δ(z)...")
-                delta = dmft.hybridization(g_cmpt, eps, sigma_dmft, eta=eta)
+                delta = hybridization(g_cmpt, eps, sigma_dmft, eta=eta)
 
                 if mpi.is_master_node():
                     with HDFArchive(out_file, "a") as ar:
