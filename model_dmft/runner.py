@@ -344,22 +344,26 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
     if solver_type == "ftps":
         from .solvers.ftps import solve_ftps
 
-        sigma_dmft = solve_ftps(params, u, e_onsite, delta)
+        solver = solve_ftps(params, u, e_onsite, delta)
+
         # Write results back to temporary file
         mpi.barrier()
         if mpi.is_master_node():
             with HDFArchive(str(tmp_file), "a") as ar:
-                ar["sigma_dmft"] = sigma_dmft
+                ar["solver"] = solver
+                ar["sigma_dmft"] = solver.Sigma_w
 
     elif solver_type == "cthyb":
         from .solvers.cthyb import solve_cthyb
 
-        sigma_dmft = solve_cthyb(params, u, e_onsite, delta)
+        solver = solve_cthyb(params, u, e_onsite, delta)
+
         # Write results back to temporary file
         mpi.barrier()
         if mpi.is_master_node():
             with HDFArchive(str(tmp_file), "a") as ar:
-                ar["sigma_dmft"] = sigma_dmft
+                ar["solver"] = solver
+                ar["sigma_dmft"] = solver.Sigma_iw
 
     else:
         raise ValueError(f"Unknown solver type: {solver_type}")

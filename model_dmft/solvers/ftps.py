@@ -257,7 +257,7 @@ def cleantmp(
 
 def solve_ftps(
     params: InputParameters, u: np.ndarray, e_onsite: np.ndarray, delta: BlockGf
-) -> BlockGf:
+) -> forktps.Solver:
     gf_struct = params.gf_struct
     up, dn = params.spin_names
 
@@ -321,4 +321,4 @@ def solve_ftps(
     report("Done!")
     report("")
 
-    return solver.Sigma_w
+    return solver
