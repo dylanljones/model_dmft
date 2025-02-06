@@ -400,6 +400,7 @@ class InputParameters(Parameters):
         "u": _parse_array,
         "eps": _parse_array,
         "h_field": _parse_array,
+        "symmetrize": bool,
         "beta": float,
         "mu": float,
         "n_iw": int,
@@ -430,6 +431,7 @@ class InputParameters(Parameters):
         "conc": "The concentrations of the components as single value (no CPA) or list of numbers.",
         "eps": "The on-site energies of the components.",
         "h_field": "The magnetic Zeeman field of the components.",
+        "symmetrize": "Symmetrize the spin channels (if no magnetic field)",
         "u": "The Hubbard interaction strength (Coulomb repulsion) of the components.",
         "mu": "The chemical potential.",
         "n_w": "Number of mesh points.",
@@ -467,6 +469,7 @@ class InputParameters(Parameters):
         self.u: Union[float, Sequence[float]] = 0.0  # The interaction strengths of the components.
         self.eps: Union[float, Sequence[float]] = 0.0  # The on-site energies of the components.
         self.h_field: Union[float, Sequence[float]] = 0.0  # Magnetic field of the components.
+        self.symmetrize: bool = False  # Symmetrize the spin channels (if no field).
 
         self.beta: Optional[float] = None  # Inverse temperature. If set, use a complex grid.
         # self.dc: bool = True  # Is the double-counting correction U/2 on?
@@ -711,6 +714,13 @@ class InputParameters(Parameters):
         if hasattr(self.h_field, "__len__"):
             assert len(self.h_field) == n_cmpt, "'h' does not match number of components!"
 
+        if self.symmetrize:
+            h = self.h_field
+            if isinstance(h, (int, float)):
+                h = [h]
+            if any(h):
+                raise InputError("Cannot symmetrize with magnetic field!")
+
     def cast_cmpt(self) -> Tuple:
         """Cast the component parameters to numpy arrays."""
         conc = self.conc
@@ -764,6 +774,7 @@ class InputParameters(Parameters):
             "h_field",
             "mu",
             "beta",
+            "symmetrize",
         ]
         mesh_keys = [
             "n_iw",

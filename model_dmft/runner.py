@@ -25,6 +25,7 @@ from .utility import (
     check_broadening,
     check_convergence,
     report,
+    symmetrize_gf,
 )
 
 USE_SRUN = Path.home().resolve().parts[1].lower() == "hpc"
@@ -65,6 +66,7 @@ def print_params(params: InputParameters) -> None:
         report(f"mesh:           {params.w_range}  N: {params.n_w}  eta: {params.eta}")
     else:
         report(f"mesh:           N: {params.n_iw}  beta: {params.beta}")
+    report(f"Symmetrize:     {params.symmetrize}")
     report("")
     report(f"CPA tol:        {params.tol_cpa}")
     report(f"G tol:          {params.gtol}")
@@ -89,6 +91,7 @@ def print_params(params: InputParameters) -> None:
             report(f"N warmup:       {solver.n_warmup_cycles}")
             report(f"N cycles:       {solver.n_cycles}")
             report(f"Length cycle:   {solver.length_cycle}")
+            report(f"Density matrix: {solver.density_matrix}")
             report(f"Tail fit:       {solver.tail_fit}")
             report(f"Fit max moment: {solver.fit_max_moment}")
             report(f"Fit min N:      {solver.fit_min_n}")
@@ -587,7 +590,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
 
                 if mpi.is_master_node():
                     with HDFArchive(out_file, "a") as ar:
-                        ar["sigma_dmft"] = sigma_dmft
+                        # ar["sigma_dmft"] = sigma_dmft
                         # ar[f"error_dmft"] = err_dmft
                         ar["delta"] = delta
                 # Solve impurity problems to obtain new sigma_dmft
@@ -605,19 +608,21 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                 else:
                     solve_impurities_seq(**kwargs)
 
-                # Apply mixing and compute errors
-                # err_dmft = dict()
+                # Symmetrize DMFT self-energies
+                if params.symmetrize:
+                    for cmpt, sig in sigma_dmft:
+                        symmetrize_gf(sig)
+
+                # Apply mixing
                 for cmpt, sig in sigma_dmft:
                     apply_mixing(sigma_old[cmpt], sig, mixing_dmft)
-                    # err_dmft[cmpt] = check_convergence(sigma_old[cmpt], sig)
-                # report("Error DMFT: " + ", ".join([f"{c}: {e:.2e}" for c, e in err_dmft.items()]))
 
                 # Update data of iteration
                 if mpi.is_master_node():
                     with HDFArchive(out_file, "a") as ar:
                         ar["sigma_dmft"] = sigma_dmft
                         # ar[f"error_dmft"] = err_dmft
-                        ar["delta"] = delta
+                        # ar["delta"] = delta
             mpi.barrier()
             report("")
 
@@ -626,8 +631,10 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
             eps_eff = eps + sigma_dmft
             sigma_cpa << cpa.solve_cpa(ht, sigma_cpa, conc, eps_eff, eta=eta, **cpa_kwds)
 
-            # report("")
-            # report("=" * 100)
+            # Symmetrize CPA self-energy
+            if params.symmetrize:
+                symmetrize_gf(sigma_cpa)
+
             report("")
             if mpi.is_master_node():
                 report("Computing coherent Green's function...")

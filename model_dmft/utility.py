@@ -370,3 +370,12 @@ def check_convergence(old: GfLike, new: GfLike, relative=False) -> float:
         if relative:
             error /= max_norm
     return error
+
+
+def symmetrize_gf(gf: BlockGf) -> BlockGf:
+    """Symmetrize the spin components of a BlockGf."""
+    up, dn = list(gf.indices)
+    g = 0.5 * (gf[up] + gf[dn])
+    gf[up] << g
+    gf[dn] << g
+    return gf
