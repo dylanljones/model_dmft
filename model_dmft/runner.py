@@ -354,6 +354,8 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
                 ar["sigma_dmft"] = solver.Sigma_w
 
     elif solver_type == "cthyb":
+        from triqs_cthyb.tail_fit import tail_fit
+
         from .solvers.cthyb import solve_cthyb
 
         solver = solve_cthyb(params, u, e_onsite, delta)
@@ -364,6 +366,24 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
             with HDFArchive(str(tmp_file), "a") as ar:
                 ar["solver"] = solver
                 ar["sigma_dmft"] = solver.Sigma_iw
+
+        if params.solver_params.tail_fit:
+            report("Fitting tail...")
+            if params.solver_params.fit_min_n == 0:
+                fit_min_n = int(0.5 * params.n_iw)
+            else:
+                fit_min_n = params.solver_params.fit_min_n
+            if params.solver_params.fit_max_n == 0:
+                fit_max_n = params.n_iw
+            else:
+                fit_max_n = params.solver_params.fit_max_n
+            fit_max_moment = params.solver_params.fit_max_moment
+            sigma_fitted = solver.Sigma_iw.copy()
+            tail_fit(sigma_fitted, fit_min_n, fit_max_n, fit_max_moment=fit_max_moment)
+            if mpi.is_master_node():
+                with HDFArchive(str(tmp_file), "a") as ar:
+                    ar["sigma_dmft_raw"] = ar["sigma_dmft"]
+                    ar["sigma_dmft"] = sigma_fitted
 
     else:
         raise ValueError(f"Unknown solver type: {solver_type}")
