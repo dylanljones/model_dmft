@@ -156,10 +156,14 @@ def load_state(params: InputParameters) -> Tuple[int, BlockGf, BlockGf]:
                 try:
                     check_compatible_input(out_file, params)
                     it_prev = ar["it"]
-                    # key_sigma_dmft = f"sigma_dmft-{it_prev}"
-                    # key_sigma_cpa = f"sigma_cpa-{it_prev}"
                     key_sigma_dmft = "sigma_dmft"
                     key_sigma_cpa = "sigma_cpa"
+                    if params.load_iter > 0:
+                        it = min(it_prev, params.load_iter)
+                        if f"sigma_dmft-{it}" in ar:
+                            it_prev = it
+                            key_sigma_dmft = f"sigma_dmft-{it_prev}"
+                            key_sigma_cpa = f"sigma_cpa-{it_prev}"
                     if key_sigma_dmft in ar:
                         sigma_dmft = ar[key_sigma_dmft]
                     if key_sigma_cpa in ar:
