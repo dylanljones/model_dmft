@@ -39,6 +39,7 @@ def report_header(text: str, width: int, char: str = "-", fg: str = "") -> None:
 
 
 def write_header(file: str, it: int, mode: str) -> None:
+    """Write a header with a given width to a file."""
     with open(file, mode) as f:
         f.write("\n" + "=" * 100 + "\n")
         f.write(f" Iteration {it}\n")
@@ -146,6 +147,7 @@ def load_state(params: InputParameters) -> Tuple[int, BlockGf, BlockGf]:
     if Path(out_file).exists():
         if params.restart:
             report(f"Found previous file {out_file}, overwriting file and restarting...")
+            # Overwrite previous file
             with HDFArchive(out_file, "w"):
                 pass
         else:
@@ -297,7 +299,28 @@ def write_out_files(params: InputParameters) -> None:
 def hybridization(
     gf: BlockGf, eps: BlockGf, sigma: BlockGf, eta: float = 0.0, name: str = "Δ"
 ) -> BlockGf:
-    """Compute bath hybridization function."""
+    """Compute bath hybridization function Δ(z).
+
+    The bath hybridization function is defined as:
+
+    .. math::
+        Δ_i(z) = z - ε_i - Σ_i(z) - G_i(z)^{-1}
+
+    where `z` are real frequencies with a complex broadening or Matsubara frequencies.
+
+    Parameters
+    ----------
+    gf : BlockGf
+        The Green's function `G_i(z)`.
+    eps : BlockGf
+        The effective onsite energies `ε_i`.
+    sigma : BlockGf
+        The self-energy `Σ_i(z)`.
+    eta : float, optional
+        The broadening parameter, used for real frequencies. The default is 0.0.
+    name : str, optional
+        The name of the hybridization function. The default is "Δ".
+    """
     x = Omega if isinstance(gf.mesh, MeshReFreq) else iOmega_n
     delta = sigma.copy()
     delta.name = name
@@ -314,10 +337,15 @@ def prepare_tmp_file(
     e_onsite: np.ndarray,
     delta: BlockGf,
 ) -> None:
+    """Prepare a temporary file for the impurity solver.
+
+    This function writes the parameters and data to a temporary file that can be used by the
+    impurity solver in a separate process, e.g. using MPI. This is required to run multiple
+    impurity solvers in parallel.
+    """
     sigma = delta.copy()
     sigma.name = "Σ"
     sigma.zero()
-
     with HDFArchive(str(tmp_file), "w") as ar:
         ar["params"] = params
         ar["u"] = u
@@ -327,6 +355,23 @@ def prepare_tmp_file(
 
 
 def solve_impurity(tmp_file: Union[str, Path]) -> None:
+    """Solve the impurity problem using the given parameters and data from a temporary file.
+
+    This method is called by the main program in a separate process. It loads the parameters
+    and data from a temporary file, solves the impurity problem and writes the results back to
+    the temporary file. This is required to run multiple impurity solvers in parallel.
+
+    The solver type is determined by the parameters in the temporary file.
+
+    Available solvers:
+    - forkTPS (ftps): Fork tensor product solver
+    - cthyb: Continuous-time hybridization expansion solver
+
+    Parameters
+    ----------
+    tmp_file : str | Path
+        The path to the temporary file containing the parameters and data.
+    """
     # Load parameters and data from temporary file
     with HDFArchive(str(tmp_file), "r") as ar:
         params = ar["params"]
@@ -368,7 +413,7 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
                 ar["sigma_dmft"] = solver.Sigma_iw
 
         if params.solver_params.tail_fit:
-            report("Fitting tail...")
+            report("Fitting tail of Σ(z)...")
             if params.solver_params.fit_min_n == 0:
                 fit_min_n = int(0.5 * params.n_iw)
             else:
@@ -378,8 +423,24 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
             else:
                 fit_max_n = params.solver_params.fit_max_n
             fit_max_moment = params.solver_params.fit_max_moment
+
+            try:
+                sigma_moments = solver.Sigma_moments
+            except AttributeError:
+                sigma_moments = None
+                report("")
+                report("WARNING: No moments found in solver. Are you using the latest version?")
+                report("")
+
             sigma_fitted = solver.Sigma_iw.copy()
-            tail_fit(sigma_fitted, fit_min_n, fit_max_n, fit_max_moment=fit_max_moment)
+            tail_fit(
+                sigma_fitted,
+                fit_min_n,
+                fit_max_n,
+                fit_max_moment=fit_max_moment,
+                fit_known_moments=sigma_moments,
+            )
+
             if mpi.is_master_node():
                 with HDFArchive(str(tmp_file), "a") as ar:
                     ar["sigma_dmft_raw"] = ar["sigma_dmft"]
@@ -396,7 +457,30 @@ def solve_impurities_seq(
     delta: BlockGf,
     sigma_dmft: BlockGf,
 ) -> None:
-    """Solve the impurity problems sequentially."""
+    """Solve the impurity problems sequentially.
+
+    This method solves the impurity problems sequentially, i.e. one after the other.
+    The method prepares temporary files for each component, solves the impurity problem
+    and loads the results back from the temporary files.
+
+    Parameters
+    ----------
+    params : InputParameters
+        The input parameters.
+    u : np.ndarray
+        The interaction parameters for each component as a 1D array.
+    e_onsite : np.ndarray
+        The effective onsite energies for each component as a 1D array.
+    delta : BlockGf
+        The hybridization function Δ(z) for each component. See the `hybridization` function
+        for details.
+    sigma_dmft : BlockGf
+        The output DMFT self-energy Σ(z) object. The results are written to this TRIQS Gf object.
+
+    See Also
+    --------
+    solve_impurity : Solve the impurity problem using the parameters and data from a temporary file.
+    """
     tmp_dir = Path(params.tmp_dir_path)
     tmp_dir.mkdir(parents=True, exist_ok=True)
     tmp_filepath = str(tmp_dir / "tmp-{cmpt}.h5")
@@ -441,7 +525,46 @@ def solve_impurities(
     verbosity: int = 2,
     use_srun: bool = None,
 ) -> None:
-    """Solve the impurity problems using MPI."""
+    """Solve the impurity problems in parallel using MPI.
+
+    This method solves the impurity problems in parallel using MPI. The number of processes is
+    determined by the number of components and the total number of processes, hence the number
+    of processes per component is `nproc / N_cmpt` where `N_cmpt` is the number of components.
+    The method prepares the temporary files for each component, starts the impurity solvers in
+    separate processes, waits for all processes to finish and loads the results back from the
+    temporary files.
+
+    Parameters
+    ----------
+    params : InputParameters
+        The input parameters.
+    u : np.ndarray
+        The interaction parameters for each component as a 1D array.
+    e_onsite : np.ndarray
+        The effective onsite energies for each component as a 1D array.
+    delta : BlockGf
+        The hybridization function Δ(z) for each component. See the `hybridization` function
+        for details.
+    sigma_dmft : BlockGf
+        The output DMFT self-energy Σ(z) object. The results are written to this TRIQS Gf object.
+    nproc : int
+        The total number of processes to use. The number of processes per component is determined
+        by `nproc / N_cmpt` where `N_cmpt` is the number of components. The number of processes
+        `nproc` must be divisible by the number of components.
+    it : int, optional
+        The current iteration number. Used for logging. The default is None.
+    out_mode : str, optional
+        The mode to open the log files. The default is "a".
+    verbosity : int, optional
+        The verbosity level. The default is 2.
+    use_srun : bool, optional
+        Whether to use the `srun` command to start the processes. If false, the `mpirun` command
+        is used. The default is None, which uses the value of the global variable `USE_SRUN`.
+
+    See Also
+    --------
+    solve_impurity : Solve the impurity problem using the parameters and data from a temporary file.
+    """
     tmp_dir = Path(params.tmp_dir_path)
     tmp_dir.mkdir(parents=True, exist_ok=True)
     tmp_filepath = str(tmp_dir / "tmp-{cmpt}.h5")
@@ -535,6 +658,22 @@ def solve_impurities(
 
 
 def solve(params: InputParameters, n_procs: int = 0) -> None:
+    """Run the DMFT+CPA self-consistency loop.
+
+    This is the main function that runs the DMFT+CPA self-consistency loop. It initializes the
+    DMFT and CPA self-energies, calculates the component Green's functions, solves the impurity
+    problems and updates the self-energies. The loop is repeated until convergence or the maximum
+    number of iterations is reached.
+
+    Parameters
+    ----------
+    params : InputParameters
+        The input parameters.
+    n_procs : int, optional
+        The number of processes to use for the impurity solvers. If 0, the impurity problems are
+        solved sequentially. The number of processes must be divisible by the number of components.
+        The default is 0.
+    """
     start_time = datetime.now()
 
     # ---- MODEL PARAMETERS ------------------------------------------------------------------------
