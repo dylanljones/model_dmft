@@ -35,6 +35,8 @@ __all__ = [
     "FtpsSolverParams",
     "CthybSolverParams",
     "SolverParams",
+    "MaxEntParams",
+    "PadeParams",
     "get_supported_solvers",
 ]
 
@@ -340,24 +342,26 @@ class MaxEntParams(Parameters):
         "error": float,
         "cost_function": str,
         "probability": str,
-        "alpha_mesh": str,
+        "mesh_type_alpha": str,
         "n_alpha": int,
         "alpha_range": _parse_array,
-        "w_mesh": str,
+        "mesh_type_w": str,
         "n_w": int,
         "w_range": _parse_array,
+        "probabilities": str,
     }
 
     __descriptions__ = {
         "error": "Error threshold (default: 1e-4)",
         "cost_function": "Cost function (default: bryan)",
         "probability": "Probability distribution (default: normal)",
-        "alpha_mesh": "Alpha mesh type (default: logarithmic)",
+        "mesh_type_alpha": "Alpha mesh type (default: logarithmic)",
         "n_alpha": "Number of alpha mesh points",
         "alpha_range": "Alpha range",
-        "w_mesh": "Frequency mesh type (default: hyperbolic)",
+        "mesh_type_w": "Frequency mesh type (default: hyperbolic)",
         "n_w": "Number of frequency mesh points",
         "w_range": "Frequency range",
+        "probabilities": "Probability distribution for the MaxEnt solver.",
     }
 
     def __init__(self, **kwargs):
@@ -376,6 +380,45 @@ class MaxEntParams(Parameters):
         self.w_range: Optional[Tuple[float, float]] = (-10, +10)  # The range of real frequencies.
 
         super().__init__(**kwargs)
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}()"
+
+
+# -- Pade input parameters -----------------------------------------------------------------------
+
+
+class PadeParams(Parameters):
+    """Pade parameters.
+
+    This class extends the `Parameters` class to include attributes and methods specific to Pade
+    """
+
+    __types__ = {
+        "n_w": int,
+        "w_range": _parse_array,
+        "n_points": int,
+        "freq_offset": float,
+    }
+
+    __descriptions__ = {
+        "n_w": "Number of frequency mesh points",
+        "w_range": "Frequency range",
+        "n_points": "Number of points for the Pade approximation",
+        "freq_offset": "Frequency offset for the Pade approximation",
+    }
+
+    def __init__(self, **kwargs):
+        self.n_w: Optional[int] = 201  # Number of real frequencies.
+        self.w_range: Optional[Tuple[float, float]] = (-10, +10)  # The range of real frequencies.
+        self.n_points: int = 100  # Number of points for the Pade approximation.
+        self.freq_offset: float = 0.0  # Frequency offset for the Pade approximation.
+        super().__init__(**kwargs)
+
+    @property
+    def mesh(self) -> MeshReFreq:
+        """The frequency mesh used for the pade continuation."""
+        return MeshReFreq(*self.w_range, self.n_w)
 
     def __repr__(self):
         return f"{self.__class__.__name__}()"
@@ -430,15 +473,18 @@ class InputParameters(Parameters):
         "store_iter": "Flag to keep intermediate iteration results.",
         "lattice": "The lattice type.",
         "gf_struct": "The structure of the Greens function.",
+        "half_bandwidth": "The half bandwidth of the lattice.",
         "t": "The hopping parameter (alternative to half_bandwidth).",
         "conc": "The concentrations of the components as single value (no CPA) or list of numbers.",
         "eps": "The on-site energies of the components.",
         "h_field": "The magnetic Zeeman field of the components.",
+        "beta": "The inverse temperature.",
         "symmetrize": "Symmetrize the spin channels (if no magnetic field)",
         "u": "The Hubbard interaction strength (Coulomb repulsion) of the components.",
         "mu": "The chemical potential.",
-        "n_w": "Number of mesh points.",
-        "w_range": "Frequency range.",
+        "n_w": "Number of real mesh points.",
+        "w_range": "Real frequency range.",
+        "n_iw": "Number of Matsubara frequencies.",
         "eta": "Complex broadening.",
         "mixing_dmft": "Mixing of the DMFT self energy.",
         "gtol": "Convergence tolerance for the coherent Green's function.",
@@ -500,6 +546,7 @@ class InputParameters(Parameters):
 
         self.solver_params: Optional[Union[CthybSolverParams, FtpsSolverParams]] = None
         self.maxent_params: Optional[MaxEntParams] = None
+        self.pade_params: Optional[PadeParams] = None
 
         super().__init__(**kwargs)
         if solver is not None:
@@ -680,6 +727,11 @@ class InputParameters(Parameters):
         self.maxent_params = MaxEntParams(**kwargs)
         return self.maxent_params
 
+    def add_pade(self, **kwargs) -> PadeParams:
+        """Add a Pade solver to the input parameters."""
+        self.pade_params = PadeParams(**kwargs)
+        return self.pade_params
+
     def dict(self, include_none: bool = True) -> Dict[str, Any]:
         """Return the input parameters as a dictionary."""
         data = super().dict(include_none)
@@ -749,12 +801,15 @@ class InputParameters(Parameters):
         general = data["general"]
         solver = data.get("solver", dict())
         maxent = data.get("maxent", dict())
+        pade = data.get("pade", dict())
         self.update(general)
         if solver:
             solver_name = solver.pop("type")
             self.add_solver(solver_name, **solver)
         if maxent:
             self.add_maxent(**maxent)
+        if pade:
+            self.add_pade(**pade)
         self.validate()
 
     def dumps(
@@ -806,6 +861,7 @@ class InputParameters(Parameters):
         data.pop("location")
         solver_params = data.pop("solver_params", dict())
         maxent_params = data.pop("maxent_params", dict())
+        pade_params = data.pop("pade_params", dict())
 
         # General section
         general = toml.table()
@@ -862,6 +918,14 @@ class InputParameters(Parameters):
         else:
             maxent = None
 
+        # pade section
+        if pade_params:
+            pade = toml.table()
+            pade.add(toml.nl())
+            pade.update(pade_params)
+        else:
+            pade = None
+
         # Format document
         doc = toml.document()
         frmt = "%Y-%m-%d"
@@ -878,6 +942,9 @@ class InputParameters(Parameters):
         if maxent is not None:
             doc.add(toml.nl())
             doc.add("maxent", maxent)
+        if pade is not None:
+            doc.add(toml.nl())
+            doc.add("pade", pade)
         # doc.add(toml.nl())
 
         # Add comments
@@ -897,7 +964,14 @@ class InputParameters(Parameters):
             if maxent:
                 for key in maxent.keys():
                     try:
-                        solver[key].comment(self.solver_params.__descriptions__[key])
+                        maxent[key].comment(self.maxent_params.__descriptions__[key])
+                    except (AttributeError, KeyError):
+                        pass
+
+            if pade:
+                for key in pade.keys():
+                    try:
+                        pade[key].comment(self.pade_params.__descriptions__[key])
                     except (AttributeError, KeyError):
                         pass
 
@@ -954,11 +1028,25 @@ class InputParameters(Parameters):
             if isinstance(val, tuple):
                 solver[key] = list(val)
 
+        maxent = data.pop("maxent_params", dict())
+        for key, val in maxent.items():
+            if isinstance(val, tuple):
+                maxent[key] = list(val)
+
+        pade = data.pop("pade_params", dict())
+        for key, val in pade.items():
+            if isinstance(val, tuple):
+                pade[key] = list(val)
+
         self = cls()
         self.update(data)
         if solver:
             solver_name = solver.pop("type")
             self.add_solver(solver_name, **solver)
+        if maxent:
+            self.add_maxent(**maxent)
+        if pade:
+            self.add_pade(**pade)
         return self
 
     def __reduce_to_dict__(self) -> Dict[str, Any]:
@@ -975,6 +1063,10 @@ class InputParameters(Parameters):
         for key, val in maxent.items():
             if isinstance(val, list):
                 maxent[key] = tuple(val)
+        pade = data.get("pade_params", dict())
+        for key, val in pade.items():
+            if isinstance(val, list):
+                pade[key] = tuple(val)
         return data
 
     def flatten(self, include_none: bool = True) -> Dict[str, Any]:
@@ -987,11 +1079,19 @@ class InputParameters(Parameters):
     def __getitem__(self, key):
         if key.startswith("solver."):
             return self.solver_params[key.replace("solver.", "")]
+        elif key.startswith("maxent."):
+            return self.maxent_params[key.replace("maxent.", "")]
+        elif key.startswith("pade."):
+            return self.pade_params[key.replace("pade.", "")]
         return super().__getitem__(key)
 
     def __setitem__(self, key, value):
         if key.startswith("solver."):
             self.solver_params[key.replace("solver.", "")] = value
+        elif key.startswith("maxent."):
+            self.maxent_params[key.replace("maxent.", "")] = value
+        elif key.startswith("pade."):
+            self.pade_params[key.replace("pade.", "")] = value
         else:
             super().__setitem__(key, value)
 
@@ -1004,6 +1104,7 @@ register_class(Parameters)
 register_class(FtpsSolverParams)
 register_class(CthybSolverParams)
 register_class(MaxEntParams)
+register_class(PadeParams)
 register_class(InputParameters)
 
 # Register solver input classes
