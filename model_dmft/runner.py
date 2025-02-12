@@ -203,6 +203,7 @@ def update_dataset(archive_file: Union[Path, str], keep_iter: bool = True) -> No
         ar[f"occ-{it}"] = ar["occ"]
         ar[f"err_g-{it}"] = ar["err_g"]
         ar[f"err_sigma-{it}"] = ar["err_sigma"]
+        ar[f"err_occ-{it}"] = ar["err_occ"]
         if "sigma_dmft" in ar:
             ar[f"sigma_dmft-{it}"] = ar["sigma_dmft"]
             ar[f"delta-{it}"] = ar["delta"]
