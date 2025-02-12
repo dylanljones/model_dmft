@@ -141,6 +141,7 @@ def walkdirs(
             raise NotADirectoryError(f"{path} is not a directory!")
         parents.append(path)
 
+    depth = 0
     while parents:
         dir_path = parents.pop(0)
         is_folder = False
@@ -155,7 +156,10 @@ def walkdirs(
             pass
 
         # Check subdirectories if not a project folder
-        if recursive and ((not is_folder) or nested):
+        if (not is_folder) or nested:
             for sub_path in dir_path.iterdir():
                 if sub_path.is_dir() and not sub_path.name.startswith("."):
                     parents.append(sub_path)
+        depth += 1
+        if not recursive and depth > 1:
+            break
