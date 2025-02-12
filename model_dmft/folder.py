@@ -88,8 +88,12 @@ class Folder:
     def remove_tmp_dirs(self) -> None:
         shutil.rmtree(self.params.tmp_dir_path, ignore_errors=True)
 
-    def remove_output_files(self) -> None:
+    def remove_archive_files(self) -> None:
         for file in self.path.glob("*.h5"):
+            file.unlink()
+
+    def remove_output_files(self) -> None:
+        for file in self.path.glob("*.dat"):
             file.unlink()
 
     def remove_log_files(self) -> None:
@@ -102,6 +106,7 @@ class Folder:
         if slurm:
             self.remove_slurm_outputs()
         if data:
+            self.remove_archive_files()
             self.remove_output_files()
         if logs:
             self.remove_log_files()

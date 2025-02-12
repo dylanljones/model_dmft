@@ -219,9 +219,9 @@ def iter_cmd(recursive: bool, paths: List[str]):
 def error_cmd(all: bool, recursive: bool, paths: List[str]):
     folders = get_dirs(*paths, recursive=recursive)
     maxw = max(len(str(folder.path)) for folder in folders) + 1
+    click.echo("")
     for folder in folders:
         p = frmt_file(f"{str(folder.path) + ':':<{maxw}}")
-        click.echo(p)
         s = "Error-G: {g:.10f} Error-Σ: {s:.10f} Error-n: {n:.10f}"
         with folder.archive() as ar:
             if "it" not in ar:
@@ -232,13 +232,15 @@ def error_cmd(all: bool, recursive: bool, paths: List[str]):
                 err_g = ar["err_g"]
                 err_s = ar["err_sigma"]
                 err_n = ar["err_occ"]
-                click.echo(f"  [{max_it:<2}] {s.format(g=err_g, s=err_s, n=err_n)}")
+                click.echo(f"{p}  [{max_it:<2}] {s.format(g=err_g, s=err_s, n=err_n)}")
             else:
+                click.echo(p)
                 for it in range(1, max_it + 1):
                     err_g = ar[f"err_g-{it}"]
                     err_s = ar[f"err_sigma-{it}"]
                     err_n = ar[f"err_occ-{it}"]
                     click.echo(f"  [{it:<2}] {s.format(g=err_g, s=err_s, n=err_n)}")
+    click.echo("")
 
 
 # noinspection PyShadowingBuiltins
@@ -247,10 +249,12 @@ def error_cmd(all: bool, recursive: bool, paths: List[str]):
 def clean_cmd(recursive: bool, paths: List[str]):
     folders = get_dirs(*paths, recursive=recursive)
     maxw = max(len(str(folder.path)) for folder in folders) + 1
+    click.echo("")
     for folder in folders:
         p = frmt_file(f"{str(folder.path) + ':':<{maxw}}")
         click.echo(f"{p} Cleaning directory")
         folder.clear()
+    click.echo("")
 
 
 # noinspection PyShadowingBuiltins
