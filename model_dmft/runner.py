@@ -18,6 +18,7 @@ from triqs.utility import mpi
 from . import cpa
 from .functions import HilbertTransform
 from .input import InputParameters, get_supported_solvers
+from .output import write_out_files
 from .utility import (
     SIGMA,
     apply_mixing,
@@ -206,98 +207,12 @@ def update_dataset(archive_file: Union[Path, str], keep_iter: bool = True) -> No
             ar[f"sigma_dmft-{it}"] = ar["sigma_dmft"]
             ar[f"delta-{it}"] = ar["delta"]
 
-
-def write_out_files(params: InputParameters) -> None:
-    """Write main quantities to plain text output files.
-
-    Parameters
-    ----------
-    params : InputParameters
-        The input parameters.
-    """
-    frmt = "%+.16f"
-    location = Path(params.location)
-    archive_file = str(location / params.output)
-
-    # Load data from archive
-    with HDFArchive(archive_file, "r") as ar:
-        g_coh = ar["g_coh"]
-        g_cmpt = ar["g_cmpt"]
-        sigma_coh = ar["sigma_cpa"]
-        if "sigma_dmft" in ar:
-            sigma_dmft = ar["sigma_dmft"]
-        else:
-            sigma_dmft = None
-
-    omega = np.array(list(g_coh.mesh.values()))
-    if params.is_real_mesh:
-        omega = omega.real
-    else:
-        omega = omega.imag
-
-    # Write DOS file
-    names, items = list(), list()
-    names.append("omega")
-    items.append(omega)
-    for spin, g in g_coh:
-        names.append(f"DOS({spin})")
-        items.append(-g.data[:, 0, 0].imag / np.pi)
-    # Components
-    for name, gf in g_cmpt:
-        for spin, g in gf:
-            names.append(f"PDOS({name}-{spin})")
-            items.append(-g.data[:, 0, 0].imag / np.pi)
-    header = "   ".join(names)
-    data = np.array(items).T
-    np.savetxt(location / "dos.dat", data, header=header, fmt=frmt, delimiter="  ")
-
-    # Write Gf file
-    names, items = list(), list()
-    names.append("omega")
-    items.append(omega)
-    for spin, g in g_coh:
-        names.append(f"Re G({spin})")
-        names.append(f"Im G({spin})")
-        items.append(g.data[:, 0, 0].real)
-        items.append(g.data[:, 0, 0].imag)
-    # Components
-    for name, gf in g_cmpt:
-        for spin, g in gf:
-            names.append(f"Re G({name}-{spin})")
-            names.append(f"Im G({name}-{spin})")
-            items.append(g.data[:, 0, 0].real)
-            items.append(g.data[:, 0, 0].imag)
-    header = "   ".join(names)
-    data = np.array(items).T
-    np.savetxt(location / "gf.dat", data, header=header, fmt=frmt, delimiter="  ")
-
-    # Write coherent self-energy file
-    names, items = list(), list()
-    names.append("omega")
-    items.append(omega)
-    for spin, sig in sigma_coh:
-        names.append(f"Re Sig({spin})")
-        names.append(f"Im Sig({spin})")
-        items.append(sig.data[:, 0, 0].real)
-        items.append(sig.data[:, 0, 0].imag)
-    header = "   ".join(names)
-    data = np.array(items).T
-    np.savetxt(location / "sigma_coh.dat", data, header=header, fmt=frmt, delimiter="  ")
-
-    # Write DMFT self-energy file
-    if sigma_dmft is not None:
-        items = list()
-        items.append(omega)
-        names = ["omega"]
-        for name, sigma in sigma_dmft:
-            for spin, sig in sigma:
-                names.append(f"Re SIG({name}-{spin})")
-                names.append(f"Im SIG({name}-{spin})")
-                items.append(sig.data[:, 0, 0].real)
-                items.append(sig.data[:, 0, 0].imag)
-        header = "   ".join(names)
-        data = np.array(items).T
-        np.savetxt(location / "sigma_dmft.dat", data, header=header, fmt=frmt, delimiter="  ")
+        if "g_coh_real" in ar:
+            ar[f"g_coh_real-{it}"] = ar["g_coh_real"]
+        if "g_cmpt_real" in ar:
+            ar[f"g_cmpt_real-{it}"] = ar["g_cmpt_real"]
+        if "sigma_cpa_real" in ar:
+            ar[f"sigma_cpa_real-{it}"] = ar["sigma_cpa_real"]
 
 
 def hybridization(
@@ -661,6 +576,64 @@ def solve_impurities(
         Path(tmp_file).unlink(missing_ok=True)
 
 
+def anacont_pade(params: InputParameters, gf_iw: BlockGf) -> BlockGf:
+    """Perform analytic continuation using Pade approximation.
+
+    Parameters
+    ----------
+    params : InputParameters
+        The input parameters.
+    gf_iw : BlockGf, optional
+        The input Green's function. If given, the Green's function is used for the continuation.
+    """
+    pade_params = params.pade_params
+    mesh = pade_params.mesh
+    kwargs = dict(n_points=pade_params.n_points, freq_offset=pade_params.freq_offset)
+
+    gf_w = blockgf(mesh=mesh, names=params.spin_names, gf_struct=params.gf_struct, name="G_w")
+    for name, g in gf_iw:
+        gf_w[name].set_from_pade(g, **kwargs)
+    return gf_w
+
+
+def postprocess(params: InputParameters, out_file: str) -> None:
+    """Postprocess the results of the DMFT+CPA calculation.
+
+    This method loads the results from the output archive, runs analytic continuation of the Green's
+    functions and self-energies to real frequencies, and writes the results back to the output.
+
+    Parameters
+    ----------
+    params : InputParameters
+        The input parameters.
+    out_file : str
+        The path to the output archive file.
+    """
+    # Postprocessing
+    if not params.is_real_mesh:
+        if params.pade_params is not None:
+            with HDFArchive(out_file, "r") as ar:
+                sigma_cpa = ar["sigma_cpa"]
+                g_coh = ar["g_coh"]
+                g_cmpt = ar["g_cmpt"]
+
+            report("Analytic continuation of G(iw) to G(ω) using Pade approximants...")
+            g_coh_real = anacont_pade(params, g_coh)
+            names, blocks = list(), list()
+            for cmpt, g in g_cmpt:
+                names.append(cmpt)
+                blocks.append(anacont_pade(params, g))
+            g_cmpt_real = blockgf(g_coh_real.mesh, names=names, blocks=blocks)
+
+            report("Analytic continuation of Σ(iw) to Σ(ω) using Pade approximants...")
+            sigma_cpa_real = anacont_pade(params, sigma_cpa)
+
+            with HDFArchive(out_file, "a") as ar:
+                ar["g_coh_real"] = g_coh_real
+                ar["g_cmpt_real"] = g_cmpt_real
+                ar["sigma_cpa_real"] = sigma_cpa_real
+
+
 def solve(params: InputParameters, n_procs: int = 0) -> None:
     """Run the DMFT+CPA self-consistency loop.
 
@@ -795,11 +768,6 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
             eps_eff = eps + sigma_dmft
             g_cmpt = cpa.gf_component(ht, sigma_cpa, conc, eps_eff, eta=eta, scale=False)
 
-            # Update data of iteration
-            # if mpi.is_master_node():
-            #    with HDFArchive(out_file, "a") as ar:
-            #         ar["g_cmpt"] = g_cmpt
-
             # Solve impurity problems
             if any(u):
                 sigma_old = sigma_dmft.copy()
@@ -896,6 +864,9 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                     ar["err_sigma"] = err_sigma
                     ar["err_occ"] = err_occ
 
+                # Run postprocessing
+                postprocess(params, out_file)
+
                 # Set the latest datasets and remove previous iterations if not needed
                 update_dataset(out_file, keep_iter=params.store_iter)
 
@@ -921,6 +892,9 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                     report("")
                     report(f"Occupation converged in {it} iterations at {now:%H:%M %d-%b-%y}")
                     break
+
+        # Postprocessing
+        postprocess(params, out_file)
 
         # Write output files as plain text
         report("Writing output files...")
