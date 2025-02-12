@@ -222,21 +222,23 @@ def error_cmd(all: bool, recursive: bool, paths: List[str]):
     for folder in folders:
         p = frmt_file(f"{str(folder.path) + ':':<{maxw}}")
         click.echo(p)
+        s = "Error-G: {g:.10f} Error-Σ: {s:.10f} Error-n: {n:.10f}"
         with folder.archive() as ar:
             if "it" not in ar:
                 click.echo("  " + click.style("No iterations!", fg="red"))
                 continue
             max_it = ar["it"]
             if not all:
-                errors = ar[f"error_dmft-{max_it}"]
-                for key, val in errors.items():
-                    click.echo(f"  [{max_it:<2}] Error Σ_{key}={val:11.8f}")
+                err_g = ar[f"err_g-{max_it}"]
+                err_s = ar[f"err_sigma-{max_it}"]
+                err_n = ar[f"err_occ-{max_it}"]
+                click.echo(f"  [{max_it:<2}] {s.format(g=err_g, s=err_s, n=err_n)}")
             else:
                 for it in range(1, max_it + 1):
-                    errors = ar[f"error_dmft-{it}"]
-                    for key, val in errors.items():
-                        click.echo(f"  [{it:<2}] Error Σ_{key}={val:11.8f}")
-                    click.echo("")
+                    err_g = ar[f"err_g-{max_it}"]
+                    err_s = ar[f"err_sigma-{max_it}"]
+                    err_n = ar[f"err_occ-{max_it}"]
+                    click.echo(f"  [{it:<2}] {s.format(g=err_g, s=err_s, n=err_n)}")
 
 
 # noinspection PyShadowingBuiltins
