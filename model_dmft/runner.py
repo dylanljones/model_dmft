@@ -327,9 +327,10 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
 
         # Write results back to temporary file
         mpi.barrier()
-        with HDFArchive(str(tmp_file), "a") as ar:
-            ar["solver"] = solver
-            ar["sigma_dmft"] = solver.Sigma_iw
+        if mpi.is_master_node():
+            with HDFArchive(str(tmp_file), "a") as ar:
+                ar["solver"] = solver
+                ar["sigma_dmft"] = solver.Sigma_iw
 
         if params.solver_params.tail_fit:
             report("Fitting tail of Σ(z)...")
@@ -360,9 +361,10 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
                 fit_known_moments=sigma_moments,
             )
 
-            with HDFArchive(str(tmp_file), "a") as ar:
-                ar["sigma_dmft_raw"] = ar["sigma_dmft"]
-                ar["sigma_dmft"] = sigma_fitted
+            if mpi.is_master_node():
+                with HDFArchive(str(tmp_file), "a") as ar:
+                    ar["sigma_dmft_raw"] = ar["sigma_dmft"]
+                    ar["sigma_dmft"] = sigma_fitted
 
     else:
         raise ValueError(f"Unknown solver type: {solver_type}")
