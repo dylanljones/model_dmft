@@ -136,35 +136,31 @@ class Folder:
 
 
 def walkdirs(
-    *paths: Union[str, Path], recursive: bool = False, check: bool = True, nested: bool = True
+    *paths: Union[str, Path], recursive: bool = False, check: bool = True
 ) -> Iterable[Folder]:
     """Walk through directories and yield project folders."""
-    parents = list()
-    for p in paths:
-        path = Path(p)
-        if not path.is_dir():
-            raise NotADirectoryError(f"{path} is not a directory!")
-        parents.append(path)
+    paths = paths or (".",)  # Use current directory if no path is given
+    for root in paths:
+        root = Path(root)
+        if root.is_dir():
+            try:
+                # Check if an input file is present in the current directory
+                input_file = find_input_file(root, check_content=check)
+                if input_file is not None:
+                    # Found an input file, this is a project folder.
+                    yield Folder(root, input_file=input_file)
+            except FileNotFoundError:
+                pass
 
-    depth = 0
-    while parents:
-        dir_path = parents.pop(0)
-        is_folder = False
-        # Check if an input file is present in the current directory
-        try:
-            input_file = find_input_file(dir_path, check_content=check)
-            if input_file is not None:
-                # Found an input file, this is a project folder.
-                yield Folder(dir_path, input_file=input_file)
-                is_folder = True
-        except FileNotFoundError:
-            pass
-
-        # Check subdirectories if not a project folder
-        if (not is_folder) or nested:
-            for sub_path in dir_path.iterdir():
-                if sub_path.is_dir() and not sub_path.name.startswith("."):
-                    parents.append(sub_path)
-        depth += 1
-        if not recursive and depth > 1:
-            break
+        # Iterate (recursively) over all folders in the given root path
+        iterator = root.rglob("*") if recursive else root.glob("*")
+        for folder in iterator:
+            if folder.is_dir():
+                try:
+                    # Check if an input file is present in the current directory
+                    input_file = find_input_file(folder, check_content=check)
+                    if input_file is not None:
+                        # Found an input file, this is a project folder.
+                        yield Folder(folder, input_file=input_file)
+                except FileNotFoundError:
+                    pass
