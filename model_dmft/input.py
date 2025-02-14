@@ -361,15 +361,12 @@ class MaxEntParams(Parameters):
         "mesh_type_w": "Frequency mesh type (default: hyperbolic)",
         "n_w": "Number of frequency mesh points",
         "w_range": "Frequency range",
-        "probabilities": "Probability distribution for the MaxEnt solver.",
     }
 
     def __init__(self, **kwargs):
         self.error = 1e-4  # Error threshold for the MaxEnt solver.
         self.cost_function: Optional[str] = "bryan"  # Cost function for the MaxEnt solver.
-        self.probability: Optional[str] = (
-            "normal"  # Probability distribution for the MaxEnt solver.
-        )
+        self.probability: Optional[str] = "normal"  # Probability distribution.
         # Alpha mesh
         self.mesh_type_alpha: Optional[str] = "logarithmic"
         self.n_alpha: Optional[int] = 60  # Number of alpha mesh points.

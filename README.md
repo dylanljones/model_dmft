@@ -88,7 +88,7 @@ number of components times the number of MPI processes specified.
 
 ### Input file
 
-The input file uses the [TOML](https://toml.io/en/) file format. It contains two sections: `[general]` and `[solver]`.
+The input file uses the [TOML](https://toml.io/en/) file format. It contains two main sections: `[general]` and `[solver]`.
 
 The `[general]` section contains general parameters that apply to the whole simulation,
 including metadata like the job name, email address, and output file name and general model parameters
@@ -96,6 +96,10 @@ like the lattice type, Green's function structure, and computational parameters 
 
 The `[solver]` section specifies wich solver is used for the impurity problem and
 contains solver-specific parameters.
+
+For post-processing of imaginary mesh calculations on Matsubara frequencies, there are two additional sections:
+`[maxent]` or `[pade]`.
+
 
 A full example of an input file and SLURM script can be found in the [example](example) directory.
 To start a new calculation, copy the folder and modify the parameters in the `inp.toml` file as needed:
@@ -112,6 +116,7 @@ cp <path-to-repo>/example <new-directory>
 | `tmp_dir`        | `str`                    | Temporary directory.                                                        |
 | `n_loops`        | `int`                    | Number of DMFT loops.                                                       |
 | `restart`        | `bool`                   | Restart from previous calculation.                                          |
+| `store_iter`     | `bool`                   | Keep intermediate iteration results.                                        |
 | `lattice`        | `str`                    | Lattice type.                                                               |
 | `gf_struct`      | `List[List[str, int]]`   | Green's function structure.                                                 |
 | `half_bandwidth` | `float`                  | Half bandwidth.                                                             |
@@ -122,10 +127,11 @@ cp <path-to-repo>/example <new-directory>
 | `h_field`        | `float` or `List[float]` | Magnetic field.                                                             |
 | `mu`             | `float`                  | Chemical potential.                                                         |
 | `beta`           | `float`                  | Inverse temperature. If `beta=0` a real frequency calculation is performed. |
-| `n_w`            | `int`                    | Number of real frequency points.                                            |
-| `w_range`        | `List[float]`            | Real frequency range.                                                       |
-| `eta`            | `float`                  | Imaginary broadening used for real frequency calculation.                   |
-| `n_iw`           | `int`                    | Number of Matsubara frequency points.                                       |
+| `symmetrize`     | `bool`                   | Symmetrize the spin channels (if no field).                                 |
+| `n_w`            | `int`                    | Number of real frequency points (if beta not set).                          |
+| `w_range`        | `List[float]`            | Real frequency range (if beta not set).                                     |
+| `eta`            | `float`                  | Imaginary broadening used for real frequency calculation (if beta not set). |
+| `n_iw`           | `int`                    | Number of Matsubara frequency points (if beta set).                         |
 | `method_cpa`     | `str`                    | CPA method.                                                                 |
 | `maxiter_cpa`    | `int`                    | Maximum number of iterations for CPA (if `method_cpa="iter"`).              |
 | `verbosity_cpa`  | `int`                    | Verbosity level of CPA iterations.                                          |
@@ -144,6 +150,7 @@ location        = "."                    # The directory where the simulation is
 output          = "out.h5"               # The name of the output file.
 tmp_dir         = ".tmp/"                # The directory where temporary files are stored.
 n_loops         = 3                      # The total number of iterations to perfom.
+load_iter       = -1                     # Load iteration from which to start the simulation.
 restart         = true                   # Flag if the calculation should resume from previous results or start over.
 
 # Model parameters
@@ -157,6 +164,7 @@ h_field         = 0                      # The magnetic Zeeman field of the comp
 u               = 4                      # The Hubbard interaction strength (Coulomb repulsion) of the components.
 mu              = 0                      # The chemiocal potential
 # beta          = 10                     # The inverse temperature
+symmetrize      = false                  # Symmetrize the spin channels (if no field)
 
 # REAL MESH (if beta is not given)
 n_w             = 3001                   # Number of mesh points
@@ -239,6 +247,7 @@ Parameters for the [CTHYB] solver (experimental).
 | `fit_max_n`      | `int`   | Index of iw up to which to fit.               |
 | `measure_g_l`    | `bool`  | Measure G_l (Legendre)? (default: false)      |
 | `n_l`            | `int`   | Number of Legendre polynomials. (default: 30) |
+| `density_matrix` | `bool`  | Measure the impurity density matrix.          |
 
 ```toml
 [solver]
@@ -254,7 +263,62 @@ fit_min_n       = 0                     # Index of iw from which to start fittin
 fit_max_n       = 0                     # Index of iw up to which to fit (default: n_iw)
 measure_g_l     = false                 # Measure G_l (Legendre) (default: false)
 n_l             = 30                    # Number of Legendre polynomials (default: 30)
+density_matrix  = true                  # Measure the impurity density matrix (default: false)
 ```
+
+
+#### `pade`
+
+Parameters for the Pade analytical continuation.
+
+| Name            | Type          | Description                                  |
+|-----------------|---------------|----------------------------------------------|
+| `n_w`           | `int`         | Number of real frequency points.             |
+| `w_range`       | `List[float]` | Real frequency range.                        |
+| `n_points`      | `int`         | Number of points for the Pade approximation. |
+| `freq_offset`   | `int`         | Frequency offset for the Pade approximation. |
+
+```toml
+[pade]
+
+n_w              = 2001                          # Number of real frequency points
+w_range          = [-6, 6]                       # Range of real frequencies
+n_points         = 100                           # Number of points for the Pade approximation
+freq_offset      = 0                             # Frequency offset for the Pade approximation
+```
+
+
+#### `maxent`
+
+Parameters for the Maximum Entropy analytical continuation.
+
+| Name              | Type          | Description                                  |
+|-------------------|---------------|----------------------------------------------|
+| `error`           | `int`         | Error threshold (default: 1e-4).             |
+| `cost_function`   | `List[float]` | Cost function (default: bryan).              |
+| `probability`     | `int`         | Probability distribution (default: normal)   |
+| `mesh_type_alpha` | `int`         | Alpha mesh type (default: logarithmic).      |
+| `n_alpha`         | `int`         | Number of alpha mesh points (default: 60).   |
+| `alpha_range`     | `int`         | Alpha range (default: [0.01, 2000]).         |
+| `mesh_type_w`     | `int`         | Frequency mesh type (default: hyperbolic).   |
+| `n_w`             | `int`         | Number of real frequency points.             |
+| `w_range`         | `List[float]` | Real frequency range.                        |
+
+
+```toml
+[maxent]
+
+error            = 1e-4                          # Error threshold
+cost_function    = [0.0, 0.0, 0.0]               # Cost function
+probability      = "normal"                      # Probability distribution
+mesh_type_alpha  = "logarithmic"                 # Alpha mesh type
+n_alpha          = 60                            # Number of alpha mesh points
+alpha_range      = [0.01, 2000]                  # Alpha range
+mesh_type_w      = "hyperbolic"                  # Frequency mesh type
+n_w              = 2001                          # Number of real frequency points
+w_range          = [-6, 6]                       # Range of real frequencies
+```
+
 
 [TRIQS]: https://triqs.github.io/triqs/latest/index.html
 [CTHYB]: https://triqs.github.io/cthyb/latest/index.html
