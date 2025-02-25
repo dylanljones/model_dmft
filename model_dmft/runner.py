@@ -377,12 +377,12 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
                     ar["sigma_dmft_raw"] = ar["sigma_dmft"]
                     ar["sigma_dmft"] = sigma_fitted
 
-            end_time = datetime.now()
-            if mpi.is_master_node():
-                report("")
-                report(f"End:      {end_time:%H:%M %d-%b-%y}")
-                report(f"Duration: {end_time - start_time}")
-                report("")
+        end_time = datetime.now()
+        if mpi.is_master_node():
+            report("")
+            report(f"End:      {end_time:%H:%M %d-%b-%y}")
+            report(f"Duration: {end_time - start_time}")
+            report("")
     else:
         raise ValueError(f"Unknown solver type: {solver_type}")
 
