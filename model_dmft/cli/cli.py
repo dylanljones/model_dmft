@@ -305,7 +305,6 @@ def submit_tmp(recursive: bool, paths: List[str]):
     maxw = max(len(str(folder.path)) for folder in folders) + 1
     for folder in folders:
         p = frmt_file(f"{str(folder.path) + ':':<{maxw}}")
-        click.echo(f"{p} Cleaning directory")
         slurm = folder.path / "run.slurm"
         if not slurm:
             click.echo(f"{p} No slurm file found")
