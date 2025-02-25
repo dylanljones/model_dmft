@@ -253,6 +253,7 @@ def hybridization(
 def prepare_tmp_file(
     tmp_file: Union[str, Path],
     params: InputParameters,
+    it: int,
     u: np.ndarray,
     e_onsite: np.ndarray,
     delta: BlockGf,
@@ -268,6 +269,7 @@ def prepare_tmp_file(
     sigma.zero()
     with HDFArchive(str(tmp_file), "w") as ar:
         ar["params"] = params
+        ar["it"] = it
         ar["u"] = u
         ar["e_onsite"] = e_onsite
         ar["delta"] = delta
@@ -298,6 +300,7 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
         u = ar["u"]
         e_onsite = ar["e_onsite"]
         delta = ar["delta"]
+        it = ar["it"]
 
     if u == 0:
         # No interaction, return zero self-energy
@@ -305,6 +308,8 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
         report("")
         return
 
+    if mpi.is_master_node():
+        report(f"Solving impurity problem for iteration {it}")
     solver_type = params.solver
     if solver_type == "ftps":
         from .solvers.ftps import solve_ftps
@@ -372,6 +377,7 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
 
 def solve_impurities_seq(
     params: InputParameters,
+    it: int,
     u: np.ndarray,
     e_onsite: np.ndarray,
     delta: BlockGf,
@@ -409,7 +415,7 @@ def solve_impurities_seq(
     if mpi.is_master_node():
         for i, (cmpt, delt) in enumerate(delta):
             tmp_file = tmp_filepath.format(cmpt=cmpt)
-            prepare_tmp_file(tmp_file, params, u[i], e_onsite[i], delta[cmpt])
+            prepare_tmp_file(tmp_file, params, it, u[i], e_onsite[i], delta[cmpt])
     mpi.barrier()
 
     # --- Solve impurity problems -----
@@ -499,7 +505,7 @@ def solve_impurities(
     # Write parameters and data to temporary files
     for i, (cmpt, delt) in enumerate(delta):
         tmp_file = tmp_filepath.format(cmpt=cmpt)
-        prepare_tmp_file(tmp_file, params, u[i], e_onsite[i], delta[cmpt])
+        prepare_tmp_file(tmp_file, params, it, u[i], e_onsite[i], delta[cmpt])
 
     # --- Solve impurity problems -----
 
@@ -795,7 +801,8 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                     solve_impurities(**kwargs, nproc=n_procs, it=it, use_srun=False)
                     report("Processes done!")
                 else:
-                    solve_impurities_seq(**kwargs)
+                    report("Solving impurity problems sequentially...")
+                    solve_impurities_seq(**kwargs, it=it)
 
                 # Symmetrize DMFT self-energies
                 if params.symmetrize:

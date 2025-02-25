@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import List
 
 import click
+from triqs.utility import mpi
 
 from model_dmft import Folder, InputParameters, walkdirs
 
@@ -87,6 +88,11 @@ def update():
 def solve_impurity_cmd(tmp_file: str):
     """Solve the impurity problem."""
     from model_dmft.runner import solve_impurity
+
+    if mpi.is_master_node():
+        click.echo("#" * 100)
+        click.echo(f"Solving impurity problem for {tmp_file}")
+        click.echo("#" * 100)
 
     solve_impurity(tmp_file)
     sys.exit(0)  # make sure exit code is 0 on success
