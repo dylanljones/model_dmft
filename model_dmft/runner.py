@@ -32,11 +32,11 @@ from .utility import (
 USE_SRUN = Path.home().resolve().parts[1].lower() == "hpc"
 
 
-def report_header(text: str, width: int, char: str = "-", fg: str = "") -> None:
+def report_header(text: str, width: int, char: str = "-") -> None:
     """Print a header with a given width."""
-    report(char * width, fg=fg)
-    report(f"{' ' + text + ' ':{char}^{width}}", fg=fg)
-    report(char * width, fg=fg)
+    report(char * width)
+    report(f"{' ' + text + ' ':{char}^{width}}")
+    report(char * width)
 
 
 def write_header(file: str, it: int, mode: str) -> None:
@@ -307,9 +307,15 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
         report("Skipping...")
         report("")
         return
-
+    start_time = datetime.now()
     if mpi.is_master_node():
-        report(f"Solving impurity problem for iteration {it}")
+        width = 100
+        report("=" * width)
+        report(f" Iteration {it}")
+        report("=" * width)
+        report("")
+        report(f"Start: {start_time:%H:%M %d-%b-%y}")
+
     solver_type = params.solver
     if solver_type == "ftps":
         from .solvers.ftps import solve_ftps
@@ -371,6 +377,12 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
                     ar["sigma_dmft_raw"] = ar["sigma_dmft"]
                     ar["sigma_dmft"] = sigma_fitted
 
+            end_time = datetime.now()
+            if mpi.is_master_node():
+                report("")
+                report(f"End:      {end_time:%H:%M %d-%b-%y}")
+                report(f"Duration: {end_time - start_time}")
+                report("")
     else:
         raise ValueError(f"Unknown solver type: {solver_type}")
 
@@ -393,6 +405,8 @@ def solve_impurities_seq(
     ----------
     params : InputParameters
         The input parameters.
+    it : int
+        The current iteration number. Used for logging.
     u : np.ndarray
         The interaction parameters for each component as a 1D array.
     e_onsite : np.ndarray
@@ -529,7 +543,7 @@ def solve_impurities(
         out_file = stdout_filepath.format(cmpt=cmpt)
         err_file = stderr_filepath.format(cmpt=cmpt)
         # Write header to output file
-        write_header(out_file, it, out_mode)
+        # write_header(out_file, it, out_mode)
         # write_header(err_file, it, out_mode)
 
         # Start process

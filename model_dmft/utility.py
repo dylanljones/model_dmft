@@ -71,10 +71,10 @@ def style(text: Any, fg: str = "", bg: str = "", dim: bool = False) -> str:
     return fg + text + Style.RESET_ALL if s else text
 
 
-def report(text: Any, fg: str = "", bg: str = "", dim: bool = False, once: bool = True) -> None:
+def report(text: Any, once: bool = True) -> None:
     """Print a message to the console."""
     text = str(text)
-    text = style(text, fg=fg, bg=bg, dim=dim)
+    # text = style(text, fg=fg, bg=bg, dim=dim)
     if not once or mpi.is_master_node():
         mpi.report(text)
 
