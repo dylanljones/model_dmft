@@ -202,6 +202,11 @@ def diff_cmd(recursive: bool, paths: List[str]):
 @cli.command(name="iter")
 @multi_path_opts
 def iter_cmd(recursive: bool, paths: List[str]):
+    """Greps for the iteration number in the output files in the given directories.
+
+    RECURSIVE: Search directories recursively. The default is False.
+    PATHS: One or multiple paths to search for calculation directories. The default is '.'.
+    """
     folders = get_dirs(*paths, recursive=recursive)
     maxw = max(len(str(folder.path)) for folder in folders) + 1
     for folder in folders:
@@ -219,6 +224,12 @@ def iter_cmd(recursive: bool, paths: List[str]):
 @click.option("--all", "-a", is_flag=True, default=False, help="Show all line")
 @multi_path_opts
 def error_cmd(all: bool, recursive: bool, paths: List[str]):
+    """Greps for the error in the output files in the given directories.
+
+    ALL: Show all iterations. The default is False (only last iteration).
+    RECURSIVE: Search directories recursively. The default is False.
+    PATHS: One or multiple paths to search for calculation directories. The default is '.'.
+    """
     folders = get_dirs(*paths, recursive=recursive)
     maxw = max(len(str(folder.path)) for folder in folders) + 1
     click.echo("")
@@ -249,6 +260,11 @@ def error_cmd(all: bool, recursive: bool, paths: List[str]):
 @cli.command(name="clean")
 @multi_path_opts
 def clean_cmd(recursive: bool, paths: List[str]):
+    """Remove all output files in the given directories.
+
+    RECURSIVE: Search directories recursively. The default is False.
+    PATHS: One or multiple paths to search for calculation directories. The default is '.'.
+    """
     folders = get_dirs(*paths, recursive=recursive)
     maxw = max(len(str(folder.path)) for folder in folders) + 1
     click.echo("")
@@ -263,6 +279,11 @@ def clean_cmd(recursive: bool, paths: List[str]):
 @cli.command(name="clean-tmp")
 @multi_path_opts
 def clean_tmp(recursive: bool, paths: List[str]):
+    """Remove the temporary files in the given directories.
+
+    RECURSIVE: Search directories recursively. The default is False.
+    PATHS: One or multiple paths to search for calculation directories. The default is '.'.
+    """
     folders = get_dirs(*paths, recursive=recursive)
     maxw = max(len(str(folder.path)) for folder in folders) + 1
     for folder in folders:
@@ -275,6 +296,11 @@ def clean_tmp(recursive: bool, paths: List[str]):
 @cli.command(name="submit")
 @multi_path_opts
 def submit_tmp(recursive: bool, paths: List[str]):
+    """Batch-run the simulations in the given directories using SLURM.
+
+    RECURSIVE: Search directories recursively. The default is False.
+    PATHS: One or multiple paths to search for calculation directories. The default is '.'.
+    """
     folders = get_dirs(*paths, recursive=recursive)
     maxw = max(len(str(folder.path)) for folder in folders) + 1
     for folder in folders:
