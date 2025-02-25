@@ -3,6 +3,7 @@
 # Date:   2024-09-12
 
 import functools
+import subprocess
 import sys
 from pathlib import Path
 from typing import List
@@ -10,6 +11,7 @@ from typing import List
 import click
 
 from model_dmft import Folder, InputParameters, walkdirs
+from model_dmft.utility import WorkingDir
 
 __all__ = ["cli", "get_dirs", "single_path_opts", "multi_path_opts", "frmt_file"]
 
@@ -267,3 +269,23 @@ def clean_tmp(recursive: bool, paths: List[str]):
         p = frmt_file(f"{str(folder.path) + ':':<{maxw}}")
         click.echo(f"{p} Cleaning directory")
         folder.remove_tmp_dirs()
+
+
+# noinspection PyShadowingBuiltins
+@cli.command(name="submit")
+@multi_path_opts
+def submit_tmp(recursive: bool, paths: List[str]):
+    folders = get_dirs(*paths, recursive=recursive)
+    maxw = max(len(str(folder.path)) for folder in folders) + 1
+    for folder in folders:
+        p = frmt_file(f"{str(folder.path) + ':':<{maxw}}")
+        click.echo(f"{p} Cleaning directory")
+        slurm = folder.path / "run.slurm"
+        if not slurm:
+            click.echo(f"{p} No slurm file found")
+            continue
+        with WorkingDir(folder.path):
+            cmd = f"sbatch {slurm.path.name}"
+            stdout = subprocess.check_output(cmd, shell=True)
+            stdout = stdout.decode("utf-8").replace("\n", "")
+            click.echo(f"{p} {stdout}")
