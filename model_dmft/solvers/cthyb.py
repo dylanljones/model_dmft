@@ -18,7 +18,7 @@ def solve_cthyb(
     up, dn = params.spin_names
     solver_params: CthybSolverParams = params.solver_params
 
-    report("Initializing solver.")
+    report("Initializing CTHYB solver...")
 
     # Local Hamiltonian and interaction term
     h_loc0 = e_onsite[0] * ops.n(up, 0) + e_onsite[1] * ops.n(dn, 0)
@@ -56,6 +56,7 @@ def solve_cthyb(
     mpi.barrier()
 
     # Solve impurity problem
+    report("Solving impurity...")
     solver.solve(h_loc0=h_loc0, h_int=h_int, **solve_kwargs)
     report("Done!")
     report("")

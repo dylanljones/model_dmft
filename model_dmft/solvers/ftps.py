@@ -294,7 +294,7 @@ def solve_ftps(
         raise ValueError("Bath construction failed!")
 
     # Construct local and interaction Hamiltonian
-    report("Initializing solver.")
+    report("Initializing FTPS solver....")
     hloc = Hloc(gf_struct)
     hloc.Fill(up, [[e_onsite[0]]])
     hloc.Fill(dn, [[e_onsite[1]]])
