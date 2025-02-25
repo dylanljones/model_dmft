@@ -311,7 +311,7 @@ def submit_tmp(recursive: bool, paths: List[str]):
             click.echo(f"{p} No slurm file found")
             continue
         with WorkingDir(folder.path):
-            cmd = f"sbatch {slurm.path.name}"
+            cmd = f"sbatch {slurm.name}"
             stdout = subprocess.check_output(cmd, shell=True)
             stdout = stdout.decode("utf-8").replace("\n", "")
             click.echo(f"{p} {stdout}")
