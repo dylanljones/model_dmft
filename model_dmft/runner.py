@@ -126,7 +126,7 @@ def check_compatible_input(archive_file: Union[Path, str], params: InputParamete
                 raise ValueError("Number of Matsubara frequencies mismatch.")
 
 
-def load_state(params: InputParameters) -> Tuple[int, BlockGf, BlockGf]:
+def load_state(params: InputParameters) -> Tuple[int, BlockGf, BlockGf, BlockGf, float]:
     """Load the previous state of the calculation from the output archive.
 
     Parameters
@@ -142,10 +142,14 @@ def load_state(params: InputParameters) -> Tuple[int, BlockGf, BlockGf]:
         The previous DMFT self-energy.
     sigma_cpa : BlockGf
         The previous CPA self-energy.
+    gf_coh : BlockGf
+        The previous coherent Green's function.
+    occ : float
+        The previous occupation numbers.
     """
     location = Path(params.location)
     out_file = str(location / params.output)
-    it_prev, sigma_dmft, sigma_cpa = 0, None, None
+    it_prev, sigma_dmft, sigma_cpa, gf_coh, occ = 0, None, None, None, None
 
     if Path(out_file).exists():
         if params.load_iter == 0:
@@ -161,16 +165,24 @@ def load_state(params: InputParameters) -> Tuple[int, BlockGf, BlockGf]:
                     it_prev = ar["it"]
                     key_sigma_dmft = "sigma_dmft"
                     key_sigma_cpa = "sigma_cpa"
+                    key_gf_coh = "g_coh"
+                    key_occ = "occ"
                     if params.load_iter > 0:
                         it = min(it_prev, params.load_iter)
                         if f"sigma_dmft-{it}" in ar:
                             it_prev = it
                             key_sigma_dmft = f"sigma_dmft-{it_prev}"
                             key_sigma_cpa = f"sigma_cpa-{it_prev}"
+                            key_gf_coh = f"g_coh-{it_prev}"
+                            key_occ = f"occ-{it_prev}"
                     if key_sigma_dmft in ar:
                         sigma_dmft = ar[key_sigma_dmft]
                     if key_sigma_cpa in ar:
                         sigma_cpa = ar[key_sigma_cpa]
+                    if key_gf_coh in ar:
+                        gf_coh = ar[key_gf_coh]
+                    if key_occ in ar:
+                        occ = ar[key_occ]
                     if it_prev < params.n_loops:
                         s = f"continuing from previous iteration {it_prev}"
                         report(f"Found previous file {out_file}, {s}...")
@@ -178,7 +190,7 @@ def load_state(params: InputParameters) -> Tuple[int, BlockGf, BlockGf]:
                         report("Already completed all iterations.")
                 except KeyError:
                     pass
-    return it_prev, sigma_dmft, sigma_cpa
+    return it_prev, sigma_dmft, sigma_cpa, gf_coh, occ
 
 
 def update_dataset(archive_file: Union[Path, str], keep_iter: bool = True) -> None:
@@ -463,7 +475,6 @@ def solve_impurities(
     sigma_dmft: BlockGf,
     nproc: int,
     it: int = None,
-    out_mode: str = "a",
     verbosity: int = 2,
     use_srun: bool = None,
 ) -> None:
@@ -495,8 +506,6 @@ def solve_impurities(
         `nproc` must be divisible by the number of components.
     it : int, optional
         The current iteration number. Used for logging. The default is None.
-    out_mode : str, optional
-        The mode to open the log files. The default is "a".
     verbosity : int, optional
         The verbosity level. The default is 2.
     use_srun : bool, optional
@@ -749,9 +758,10 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
     report(f"Starting job '{params.jobname}' at {start_time:{TIME_FRMT}}")
 
     it_prev = 0
+    sigma_cpa_prev, g_coh_prev, occ_prev = None, None, None
     if mpi.is_master_node():
         location.mkdir(parents=True, exist_ok=True)
-        it_prev, sigma_dmft_prev, sigma_cpa_prev = load_state(params)
+        it_prev, sigma_dmft_prev, sigma_cpa_prev, g_coh_prev, occ_prev = load_state(params)
         if it_prev > 0:
             if sigma_dmft_prev:
                 for cmpt, sig in sigma_dmft_prev:
@@ -777,6 +787,12 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
     gf_coh_old = None
     sig_coh_old = None
     occ_old = None
+    if g_coh_prev is not None:
+        gf_coh_old = g_coh_prev.copy()
+    if sigma_cpa_prev is not None:
+        sig_coh_old = sigma_cpa_prev.copy()
+    if occ_prev is not None:
+        occ_old = occ_prev
 
     # Start iterations
     try:
