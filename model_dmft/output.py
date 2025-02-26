@@ -3,16 +3,27 @@
 # Date:   2025-02-12
 
 from pathlib import Path
+from typing import Union
 
 import numpy as np
 
 # noinspection PyPackageRequirements
 from h5 import HDFArchive
-from triqs.gf import BlockGf
+from triqs.gf import BlockGf, MeshImFreq, MeshReFreq
 
 from .input import InputParameters
 
 __all__ = ["write_out_files"]
+
+
+def mesh_to_array(mesh: Union[MeshReFreq, MeshImFreq]) -> np.ndarray:
+    """Convert a mesh to a numpy array of real values."""
+    if isinstance(mesh, MeshImFreq):
+        return np.array([x.value.imag for x in mesh])
+    elif isinstance(mesh, MeshReFreq):
+        return np.array([x.value.real for x in mesh])
+    else:
+        raise ValueError(f"Unknown mesh type '{type(mesh)}'.")
 
 
 def _write_gf(
@@ -20,11 +31,11 @@ def _write_gf(
 ) -> None:
     suffix = "_w" if is_real_mesh else "_iw"
     freq_name = "w" if is_real_mesh else "iw"
-    omega = np.array(list(g_coh.mesh.values()))
+    omega = mesh_to_array(g_coh.mesh)
     # Write Gf file
     names, items = list(), list()
     names.append(freq_name)
-    items.append(omega.real if is_real_mesh else omega.imag)
+    items.append(omega)
     for spin, g in g_coh:
         names.append(f"Re G({spin})")
         names.append(f"Im G({spin})")
@@ -45,11 +56,11 @@ def _write_gf(
 def _write_sigma_cpa(sigma_coh: BlockGf, location: Path, frmt: str, is_real_mesh: bool) -> None:
     suffix = "_w" if is_real_mesh else "_iw"
     freq_name = "w" if is_real_mesh else "iw"
-    omega = np.array(list(sigma_coh.mesh.values()))
+    omega = mesh_to_array(sigma_coh.mesh)
     # Write coherent self-energy file
     names, items = list(), list()
     names.append(freq_name)
-    items.append(omega.real if is_real_mesh else omega.imag)
+    items.append(omega)
     for spin, sig in sigma_coh:
         names.append(f"Re Sig({spin})")
         names.append(f"Im Sig({spin})")
@@ -63,11 +74,11 @@ def _write_sigma_cpa(sigma_coh: BlockGf, location: Path, frmt: str, is_real_mesh
 def _write_sigma_dmft(sigma_dmft: BlockGf, location: Path, frmt: str, is_real_mesh: bool) -> None:
     suffix = "_w" if is_real_mesh else "_iw"
     freq_name = "w" if is_real_mesh else "iw"
-    omega = np.array(list(sigma_dmft.mesh.values()))
+    omega = mesh_to_array(sigma_dmft.mesh)
     # Write DMFT self-energy file
     names, items = list(), list()
     names.append(freq_name)
-    items.append(omega.real if is_real_mesh else omega.imag)
+    items.append(omega)
     for name, sigma in sigma_dmft:
         for spin, sig in sigma:
             names.append(f"Re SIG({name}-{spin})")
@@ -85,7 +96,7 @@ def _write_dos(
     location: Path,
     frmt: str,
 ) -> None:
-    omega = np.array(list(g_coh.mesh.values())).real
+    omega = mesh_to_array(g_coh.mesh)
     names, items = list(), list()
     names.append("omega")
     items.append(omega)

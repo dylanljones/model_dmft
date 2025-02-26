@@ -2,6 +2,7 @@
 # Author: Dylan Jones
 # Date:   2024-08-14
 
+import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -30,6 +31,7 @@ from .utility import (
 )
 
 USE_SRUN = Path.home().resolve().parts[1].lower() == "hpc"
+TIME_FRMT = "%H:%M:%S %d-%b-%y"
 
 
 def report_header(text: str, width: int, char: str = "-") -> None:
@@ -146,7 +148,7 @@ def load_state(params: InputParameters) -> Tuple[int, BlockGf, BlockGf]:
     it_prev, sigma_dmft, sigma_cpa = 0, None, None
 
     if Path(out_file).exists():
-        if params.restart:
+        if params.load_iter == 0:
             report(f"Found previous file {out_file}, overwriting file and restarting...")
             # Overwrite previous file
             with HDFArchive(out_file, "w"):
@@ -314,7 +316,7 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
         report(f" Iteration {it}")
         report("=" * width)
         report("")
-        report(f"Start: {start_time:%H:%M %d-%b-%y}")
+        report(f"Start: {start_time:{TIME_FRMT}}")
 
     solver_type = params.solver
     if solver_type == "ftps":
@@ -380,7 +382,7 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
         end_time = datetime.now()
         if mpi.is_master_node():
             report("")
-            report(f"End:      {end_time:%H:%M %d-%b-%y}")
+            report(f"End:      {end_time:{TIME_FRMT}}")
             report(f"Duration: {end_time - start_time}")
             report("")
     else:
@@ -744,7 +746,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
 
     print_params(params)
     report("")
-    report(f"Starting job '{params.jobname}' at {start_time:%H:%M %d-%b-%y}")
+    report(f"Starting job '{params.jobname}' at {start_time:{TIME_FRMT}}")
 
     it_prev = 0
     if mpi.is_master_node():
@@ -780,10 +782,11 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
     try:
         for it in range(it_prev + 1, n_loops + 1):
             mpi.barrier()
+            iter_start_time = datetime.now()
             report("")
             report_header(f"Iteration {it} / {n_loops}", width=100, char="=")
             report("")
-
+            report(f"Start iteration: {iter_start_time:{TIME_FRMT}}")
             # Calculate local (component) Green's functions
             report("Computing component Green's function G_i(z)...")
             eps_eff = eps + sigma_dmft
@@ -890,29 +893,37 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                 postprocess(params, out_file)
 
                 # Set the latest datasets and remove previous iterations if not needed
-                update_dataset(out_file, keep_iter=params.store_iter)
+                update_dataset(out_file, keep_iter=True)
 
                 report("")
                 s = "Iteration: {it:>2} Error-G: {g:.10f} Error-Σ: {sig:.10f} Error-n: {occ:.10f}"
                 report(s.format(it=it, g=err_g_coh, sig=err_sigma, occ=err_occ))
 
+                iter_end_time = datetime.now()
+                report(f"End iteration: {iter_end_time:{TIME_FRMT}}")
+                report(f"Duration:      {iter_end_time - iter_start_time}")
                 if not has_interaction:
+                    report("")
                     report("No interaction, skipping further iterations.")
+                    report("")
                     break
                 if params.stol and err_sigma < params.stol:
                     now = datetime.now()
                     report("")
-                    report(f"Σ converged in {it} iterations at {now:%H:%M %d-%b-%y}")
+                    report(f"Σ converged in {it} iterations at {now:{TIME_FRMT}}")
+                    report("")
                     break
                 if params.gtol and err_g_coh < params.gtol:
                     now = datetime.now()
                     report("")
-                    report(f"G converged in {it} iterations at {now:%H:%M %d-%b-%y}")
+                    report(f"G converged in {it} iterations at {now:{TIME_FRMT}}")
+                    report("")
                     break
                 if params.occ_tol and err_occ < params.occ_tol:
                     now = datetime.now()
                     report("")
-                    report(f"Occupation converged in {it} iterations at {now:%H:%M %d-%b-%y}")
+                    report(f"Occupation converged in {it} iterations at {now:{TIME_FRMT}}")
+                    report("")
                     break
 
         # Postprocessing
@@ -925,12 +936,11 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
         end_time = datetime.now()
         run_duration = end_time - start_time
         report("")
-        report(f"Finished job '{params.jobname}' at {end_time:%H:%M %d-%b-%y}")
+        report(f"Finished job '{params.jobname}' at {end_time:{TIME_FRMT}}")
         report(f"Total time: {run_duration}")
 
     finally:
         try:
-            pass
-            # shutil.rmtree(params.tmp_dir)
+            shutil.rmtree(params.tmp_dir_path)
         except Exception as e:
             report(f"Error: {e}")
