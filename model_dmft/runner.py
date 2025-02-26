@@ -959,6 +959,8 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
 
     finally:
         try:
-            shutil.rmtree(params.tmp_dir_path)
+            tmp_path = Path(params.tmp_dir_path)
+            if tmp_path.exists():
+                shutil.rmtree(tmp_path)
         except Exception as e:
             report(f"Error: {e}")
