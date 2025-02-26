@@ -804,7 +804,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
             report("")
             report_header(f"Iteration {it} / {n_loops}", width=100, char="=")
             report("")
-            report(f"Start iteration: {iter_start_time:{TIME_FRMT}}")
+            report(f"Start: {iter_start_time:{TIME_FRMT}}")
             # Calculate local (component) Green's functions
             report(f"Computing component Green's functions G_i({freq_name})...")
             eps_eff = eps + sigma_dmft
@@ -895,8 +895,8 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                 gf_coh_old = g_coh.copy()
                 occ_old = occ
 
-                report("")
-                report(f"Writing results of iteration {it} to {out_file}")
+                # report("")
+                # report(f"Writing results of iteration {it} to {out_file}")
                 with HDFArchive(out_file, "a") as ar:
                     ar["it"] = it
                     ar["sigma_cpa"] = sigma_cpa
@@ -918,8 +918,8 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                 report(s.format(it=it, g=err_g_coh, sig=err_sigma, occ=err_occ))
 
                 iter_end_time = datetime.now()
-                report(f"End iteration: {iter_end_time:{TIME_FRMT}}")
-                report(f"Duration:      {iter_end_time - iter_start_time}")
+                report(f"End:       {iter_end_time:{TIME_FRMT}}")
+                report(f"Duration:  {iter_end_time - iter_start_time}")
                 if not has_interaction:
                     report("")
                     report("No interaction, skipping further iterations.")
