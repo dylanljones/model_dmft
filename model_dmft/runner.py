@@ -358,7 +358,8 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
                 ar["sigma_dmft"] = solver.Sigma_iw
 
         if params.solver_params.tail_fit:
-            report("Fitting tail of Σ(z)...")
+            freq_name = "w" if params.is_real_mesh else "iw"
+            report(f"Fitting tail of Σ({freq_name})...")
             if params.solver_params.fit_min_n == 0:
                 fit_min_n = int(0.5 * params.n_iw)
             else:
@@ -750,6 +751,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
 
     # Initialize effective onsite energies as BlockGf
     eps = cpa.initalize_onsite_energy(sigma_cpa, conc, e_onsite)
+    freq_name = "w" if params.is_real_mesh else "iw"
 
     # ---- START OF COMPUTATION --------------------------------------------------------------------
 
@@ -804,7 +806,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
             report("")
             report(f"Start iteration: {iter_start_time:{TIME_FRMT}}")
             # Calculate local (component) Green's functions
-            report("Computing component Green's function G_i(z)...")
+            report(f"Computing component Green's functions G_i({freq_name})...")
             eps_eff = eps + sigma_dmft
             g_cmpt = cpa.gf_component(ht, sigma_cpa, conc, eps_eff, eta=eta, scale=False)
 
@@ -813,7 +815,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                 sigma_old = sigma_dmft.copy()
 
                 # Compute bath hybridization function
-                report("Computing bath hybdridization function Δ(z)...")
+                report(f"Computing bath hybdridization function Δ({freq_name})...")
                 delta = hybridization(g_cmpt, eps, sigma_dmft, eta=eta)
 
                 if mpi.is_master_node():
@@ -826,7 +828,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                     params=params, u=u, e_onsite=e_onsite, delta=delta, sigma_dmft=sigma_dmft
                 )
                 if mpi.is_master_node():
-                    report("Solving for impurity self-energies Σ_i(z)...")
+                    report(f"Solving for impurity self-energies Σ_i({freq_name})...")
                     report("")
 
                 if n_procs > 1:
@@ -864,12 +866,11 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
             if params.symmetrize:
                 symmetrize_gf(sigma_cpa)
 
-            report("")
             if mpi.is_master_node():
-                report("Computing coherent Green's function...")
+                report(f"Computing coherent Green's function G_c({freq_name})...")
                 g_coh = cpa.gf_coherent(ht, sigma_cpa, eta)
 
-                report("Computing component Green's function...")
+                report(f"Computing component Green's functions G_i({freq_name})...")
                 g_cmpt = cpa.gf_component(ht, sigma_cpa, conc, eps_eff, eta, scale=False)
 
                 # Compute occupation numbers
@@ -894,6 +895,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                 gf_coh_old = g_coh.copy()
                 occ_old = occ
 
+                report("")
                 report(f"Writing results of iteration {it} to {out_file}")
                 with HDFArchive(out_file, "a") as ar:
                     ar["it"] = it

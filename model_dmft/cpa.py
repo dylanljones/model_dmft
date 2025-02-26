@@ -331,7 +331,6 @@ def solve_iter(
         The self-consistent CPA self energy `Σ_c`. Same as thew input self energy after
         calling the method.
     """
-    report(f"Solving CPA problem for {len(conc)} components iteratively...")
     is_block, conc, eps = _validate(sigma, conc, eps)
 
     # Skip trivial solution
@@ -344,6 +343,7 @@ def solve_iter(
             sigma.data[:] = eps[0]
         return sigma
 
+    report(f"Solving CPA problem for {len(conc)} components iteratively...")
     # Initial coherent Green's function
     gc = sigma.copy()
     gc.name = "Gc"
