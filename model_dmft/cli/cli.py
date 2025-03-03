@@ -211,12 +211,16 @@ def iter_cmd(recursive: bool, paths: List[str]):
     maxw = max(len(str(folder.path)) for folder in folders) + 1
     for folder in folders:
         p = frmt_file(f"{str(folder.path) + ':':<{maxw}}")
-        with folder.archive() as ar:
-            if "it" not in ar:
-                click.echo(f"{p} " + click.style("No iterations!", fg="red"))
-                continue
-            it = ar["it"]
-            click.echo(f"{p} Last Iteration: {it}")
+        if Path(folder.params.output_path).exists():
+            with folder.archive() as ar:
+                if "it" not in ar:
+                    msg = click.style("No iterations!", fg="red")
+                else:
+                    it = ar["it"]
+                    msg = f"Last Iteration: {it}"
+        else:
+            msg = click.style("No output file!", fg="red")
+        click.echo(f"{p} " + msg)
 
 
 # noinspection PyShadowingBuiltins
@@ -236,23 +240,26 @@ def error_cmd(all: bool, recursive: bool, paths: List[str]):
     for folder in folders:
         p = frmt_file(f"{str(folder.path) + ':':<{maxw}}")
         s = "Error-G: {g:.10f} Error-Σ: {s:.10f} Error-n: {n:.10f}"
-        with folder.archive() as ar:
-            if "it" not in ar:
-                click.echo("  " + click.style("No iterations!", fg="red"))
-                continue
-            max_it = ar["it"]
-            if not all:
-                err_g = ar["err_g"]
-                err_s = ar["err_sigma"]
-                err_n = ar["err_occ"]
-                click.echo(f"{p}  [{max_it:<2}] {s.format(g=err_g, s=err_s, n=err_n)}")
-            else:
-                click.echo(p)
-                for it in range(1, max_it + 1):
-                    err_g = ar[f"err_g-{it}"]
-                    err_s = ar[f"err_sigma-{it}"]
-                    err_n = ar[f"err_occ-{it}"]
-                    click.echo(f"  [{it:<2}] {s.format(g=err_g, s=err_s, n=err_n)}")
+        if not Path(folder.params.output_path).exists():
+            click.echo(f"{p}  " + click.style("No output file!", fg="red"))
+        else:
+            with folder.archive() as ar:
+                if "it" not in ar:
+                    click.echo(f"{p}  " + click.style("No iterations!", fg="red"))
+                    continue
+                max_it = ar["it"]
+                if not all:
+                    err_g = ar["err_g"]
+                    err_s = ar["err_sigma"]
+                    err_n = ar["err_occ"]
+                    click.echo(f"{p}  [{max_it:<2}] {s.format(g=err_g, s=err_s, n=err_n)}")
+                else:
+                    click.echo(p)
+                    for it in range(1, max_it + 1):
+                        err_g = ar[f"err_g-{it}"]
+                        err_s = ar[f"err_sigma-{it}"]
+                        err_n = ar[f"err_occ-{it}"]
+                        click.echo(f"  [{it:<2}] {s.format(g=err_g, s=err_s, n=err_n)}")
     click.echo("")
 
 
