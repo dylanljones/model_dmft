@@ -871,9 +871,6 @@ class InputParameters(Parameters):
         general.add("output", self._output)
         general.add("n_loops", data.pop("n_loops"))
         general.add("load_iter", data.pop("load_iter"))
-        general.add("restart", data.pop("restart"))
-        general.add("store_iter", data.pop("store_iter"))
-        # general.add("use_srun", data.pop("use_srun"))
 
         # general.update(data)
         items = {k: self.get(k) for k in model_keys if self.get(k) is not None}
