@@ -159,7 +159,7 @@ def load_state(params: InputParameters) -> Tuple[int, BlockGf, BlockGf, BlockGf,
                 pass
         else:
             report("Reading data...")
-            with HDFArchive(out_file, "r") as ar:
+            with HDFArchive(out_file, "a") as ar:
                 try:
                     check_compatible_input(out_file, params)
                     it_prev = ar["it"]
@@ -175,6 +175,12 @@ def load_state(params: InputParameters) -> Tuple[int, BlockGf, BlockGf, BlockGf,
                             key_sigma_cpa = f"sigma_cpa-{it_prev}"
                             key_gf_coh = f"g_coh-{it_prev}"
                             key_occ = f"occ-{it_prev}"
+                        # Remove data of later iterations
+                        for key in list(ar.keys()):
+                            for i in range(it_prev + 1, ar["it"]):
+                                if key.endswith(f"-{i}"):
+                                    del ar[key]
+
                     if key_sigma_dmft in ar:
                         sigma_dmft = ar[key_sigma_dmft]
                     if key_sigma_cpa in ar:
@@ -560,8 +566,9 @@ def solve_impurities(
 
         # Start process
         cmd = base_cmd + [executable, "-m", "model_dmft", "solve_impurity", tmp_file]
+        cmd_str = base_cmd + ["model_dmft", "solve_impurity", tmp_file]
         if verbosity > 0:
-            report("> " + " ".join(cmd))
+            report("> " + " ".join(cmd_str))
         p = Popen(cmd, stdout=PIPE, stderr=PIPE)
         procs.append((p, out_file, err_file))
 

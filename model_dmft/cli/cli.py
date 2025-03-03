@@ -302,7 +302,7 @@ def clean_tmp(recursive: bool, paths: List[str]):
 # noinspection PyShadowingBuiltins
 @cli.command(name="submit")
 @multi_path_opts
-def submit_tmp(recursive: bool, paths: List[str]):
+def submit_cmd(recursive: bool, paths: List[str]):
     """Batch-run the simulations in the given directories using SLURM.
 
     RECURSIVE: Search directories recursively. The default is False.
