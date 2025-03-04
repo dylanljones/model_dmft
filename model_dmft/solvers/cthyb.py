@@ -14,7 +14,7 @@ from ..utility import report
 
 def solve_cthyb(
     params: InputParameters, u: np.ndarray, e_onsite: np.ndarray, delta: BlockGf
-) -> triqs_cthyb:
+) -> triqs_cthyb.Solver:
     up, dn = params.spin_names
     solver_params: CthybSolverParams = params.solver_params
 

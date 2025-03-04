@@ -277,6 +277,7 @@ def prepare_tmp_file(
     u: np.ndarray,
     e_onsite: np.ndarray,
     delta: BlockGf,
+    sigma: BlockGf,
 ) -> None:
     """Prepare a temporary file for the impurity solver.
 
@@ -284,16 +285,16 @@ def prepare_tmp_file(
     impurity solver in a separate process, e.g. using MPI. This is required to run multiple
     impurity solvers in parallel.
     """
-    sigma = delta.copy()
-    sigma.name = "Σ"
-    sigma.zero()
+    # sigma = delta.copy()
+    # sigma.name = "Σ"
+    # sigma.zero()
     with HDFArchive(str(tmp_file), "w") as ar:
         ar["params"] = params
         ar["it"] = it
         ar["u"] = u
         ar["e_onsite"] = e_onsite
         ar["delta"] = delta
-        ar["sigma"] = sigma
+        ar["sigma_dmft"] = sigma
 
 
 def solve_impurity(tmp_file: Union[str, Path]) -> None:
@@ -321,6 +322,7 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
         e_onsite = ar["e_onsite"]
         delta = ar["delta"]
         it = ar["it"]
+        sigma = ar["sigma_dmft"]
 
     if u == 0:
         # No interaction, return zero self-energy
@@ -398,14 +400,27 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
                     ar["sigma_dmft_raw"] = ar["sigma_dmft"]
                     ar["sigma_dmft"] = sigma_fitted
 
-        end_time = datetime.now()
+    elif solver_type == "hubbardI":
+        from .solvers.hubbard1 import solve_hubbard
+
+        solver = solve_hubbard(params, u, e_onsite, delta, sigma)
+
+        # Write results back to temporary file
+        mpi.barrier()
         if mpi.is_master_node():
-            report("")
-            report(f"End:      {end_time:{TIME_FRMT}}")
-            report(f"Duration: {end_time - start_time}")
-            report("")
+            with HDFArchive(str(tmp_file), "a") as ar:
+                ar["solver"] = solver
+                ar["sigma_dmft"] = solver.Sigma_iw
+
     else:
         raise ValueError(f"Unknown solver type: {solver_type}")
+
+    if mpi.is_master_node():
+        end_time = datetime.now()
+        report("")
+        report(f"End:      {end_time:{TIME_FRMT}}")
+        report(f"Duration: {end_time - start_time}")
+        report("")
 
 
 def solve_impurities_seq(
@@ -450,7 +465,7 @@ def solve_impurities_seq(
     if mpi.is_master_node():
         for i, (cmpt, delt) in enumerate(delta):
             tmp_file = tmp_filepath.format(cmpt=cmpt)
-            prepare_tmp_file(tmp_file, params, it, u[i], e_onsite[i], delta[cmpt])
+            prepare_tmp_file(tmp_file, params, it, u[i], e_onsite[i], delta[cmpt], sigma_dmft[cmpt])
     mpi.barrier()
 
     # --- Solve impurity problems -----
@@ -537,7 +552,7 @@ def solve_impurities(
     # Write parameters and data to temporary files
     for i, (cmpt, delt) in enumerate(delta):
         tmp_file = tmp_filepath.format(cmpt=cmpt)
-        prepare_tmp_file(tmp_file, params, it, u[i], e_onsite[i], delta[cmpt])
+        prepare_tmp_file(tmp_file, params, it, u[i], e_onsite[i], delta[cmpt], sigma_dmft[cmpt])
 
     # --- Solve impurity problems -----
 
@@ -728,10 +743,10 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
             raise ValueError(f"Solver {solver_type} is not supported. Use one of {supported}.")
 
         if params.is_real_mesh:
-            if solver_type not in ("ftps",):
+            if not solver_params.RE_MESH:
                 raise ValueError(f"Solver {solver_type} is not compatible with real mesh.")
         else:
-            if solver_type not in ("cthyb",):
+            if solver_params.RE_MESH:
                 raise ValueError(f"Solver {solver_type} is not compatible with Matsubara mesh.")
 
         if params.eta <= 0 and solver_type == "ftps":

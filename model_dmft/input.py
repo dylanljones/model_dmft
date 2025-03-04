@@ -34,6 +34,7 @@ __all__ = [
     "InputParameters",
     "FtpsSolverParams",
     "CthybSolverParams",
+    "HubbardISolverParams",
     "SolverParams",
     "MaxEntParams",
     "PadeParams",
@@ -330,6 +331,46 @@ class CthybSolverParams(SolverParams):
         super().__init__(**kwargs)
 
 
+class HubbardISolverParams(SolverParams):
+    """Class for handling HubbardI solver parameters.
+
+    This class extends the `SolverParams` class to include attributes and methods specific
+    to the HubbardI solver.
+    """
+
+    SOLVER = "hubbardI"
+    RE_MESH = False
+
+    __types__ = {
+        "n_tau": int,
+        "legendre_fit": bool,
+        "measure_g_tau": bool,
+        "measure_g_l": bool,
+        "n_l": int,
+        "density_matrix": bool,
+    }
+
+    __descriptions__ = {
+        "n_tau": "Number of imaginary time steps. (default: 10001)",
+        "legendre_fit": "filter noise of G(tau) with G_l from n_l (default: false)",
+        "measure_g_l": "Measure G_l (Legendre) (default: false)",
+        "measure_g_tau": "Measure G_tau (default: false)",
+        "n_l": "Number of Legendre coefficients. (default: 30)",
+        "density_matrix": "Measure the impurity density matrix (default: false)",
+    }
+
+    def __init__(self, **kwargs):
+        self.n_tau: int = 10001  # Number of imaginary time steps.
+        self.legendre_fit: bool = False  # Filter noise of G(tau) with G_l from n_l.
+        self.density_matrix: bool = False  # Measure the impurity density matrix.
+        self.measure_g_tau: bool = True  # Measure G_tau
+        self.measure_g_l: bool = False  # Measure G_l (Legendre)
+        self.n_l: int = 30  # Number of Legendre polynomials.
+        super().__init__(**kwargs)
+
+
+SolversUnion = Union[FtpsSolverParams, CthybSolverParams, HubbardISolverParams]
+
 # -- Maxent input parameters -----------------------------------------------------------------------
 
 
@@ -543,7 +584,7 @@ class InputParameters(Parameters):
         self.stol: Optional[float] = None  # Tolerance for the self energy.
         self.occ_tol: Optional[float] = None  # Tolerance for the occupation number.
 
-        self.solver_params: Optional[Union[CthybSolverParams, FtpsSolverParams]] = None
+        self.solver_params: Optional[SolversUnion] = None
         self.maxent_params: Optional[MaxEntParams] = None
         self.pade_params: Optional[PadeParams] = None
 
@@ -1102,7 +1143,9 @@ register_class(CthybSolverParams)
 register_class(MaxEntParams)
 register_class(PadeParams)
 register_class(InputParameters)
+register_class(HubbardISolverParams)
 
 # Register solver input classes
 register_solver_input(FtpsSolverParams)
 register_solver_input(CthybSolverParams)
+register_solver_input(HubbardISolverParams)
