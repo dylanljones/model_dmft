@@ -1002,7 +1002,7 @@ class InputParameters(Parameters):
         # Format document
         doc = toml.document()
         frmt = "%Y-%m-%d"
-        doc.add(toml.comment(f"Generated on {datetime.now().strftime(frmt)} by triqs_cpa_dmft"))
+        doc.add(toml.comment(f"Generated on {datetime.now().strftime(frmt)}"))
         # doc.add(toml.nl())
         # doc.add(toml_section_comment("General parameters that apply to the whole simulation."))
         doc.add(toml.nl())
