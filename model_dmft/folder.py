@@ -49,17 +49,40 @@ def find_input_file(root: Union[str, Path], check_content: bool = True) -> Union
     return candidates[0]
 
 
+def find_slurm_scripts(root: Union[str, Path]) -> Path:
+    """Search for SLURM scripts in the given directory.
+
+    The SLURM scripts must have the extension .slurm.
+    """
+    candidates = list(Path(root).glob("*.slurm"))
+    if len(candidates) == 0:
+        raise FileNotFoundError(f"No SLURM scripts found in {root}")
+    elif len(candidates) > 1:
+        raise FileNotFoundError(f"Multiple SLURM scripts found in {root}")
+    return candidates[0]
+
+
 class Folder:
     def __init__(self, path: Union[str, Path], input_file: Union[str, Path] = None):
         self.path = Path(path)
         self._input_file = input_file
         self._params = None
+        self._slurm_file = None
 
     @property
     def input_file(self) -> Path:
         if self._input_file is None:
             self._input_file = find_input_file(self.path)
         return self._input_file
+
+    @property
+    def slurm_path(self) -> Path:
+        if self._slurm_file is None:
+            try:
+                self._slurm_file = find_slurm_scripts(self.path)
+            except FileNotFoundError as e:
+                print(e)
+        return self._slurm_file
 
     @property
     def params(self) -> InputParameters:
