@@ -35,6 +35,7 @@ __all__ = [
     "FtpsSolverParams",
     "CthybSolverParams",
     "HubbardISolverParams",
+    "HartreeSolverParams",
     "SolverParams",
     "MaxEntParams",
     "PadeParams",
@@ -369,7 +370,42 @@ class HubbardISolverParams(SolverParams):
         super().__init__(**kwargs)
 
 
-SolversUnion = Union[FtpsSolverParams, CthybSolverParams, HubbardISolverParams]
+class HartreeSolverParams(SolverParams):
+    """Class for handling Hartree-Fock solver parameters.
+
+    This class extends the `SolverParams` class to include attributes and methods specific
+    to the hartree-Fock solver.
+    """
+
+    SOLVER = "hartree"
+    RE_MESH = False
+
+    __types__ = {
+        "one_shot": bool,
+        "method": str,
+        "tol": float,
+        "with_fock": bool,
+        "force_real": bool,
+    }
+
+    __descriptions__ = {
+        "one_shot": "Perform a one-shot or self-consitent root finding (default: False)",
+        "method": "Method used for root finding (default: 'krylov')",
+        "tol": "Tolerance for root finder if one_shot=False (default: 1e-5)",
+        "with_fock": "Include Fock exchange terms in the self-energy (default: False)",
+        "force_real": "Force the self energy from Hartree fock to be real (default: True)",
+    }
+
+    def __init__(self, **kwargs):
+        self.one_shot: bool = False  # Perform a one-shot or self-consitent root finding
+        self.method: str = "krylov"  # Method used for root finding
+        self.tol: float = 1e-5  # tolerance for root finder if one_shot=False.
+        self.with_fock: bool = False  # include Fock exchange terms in the self-energy
+        self.force_real: bool = True  # force the self energy from Hartree fock to be real
+        super().__init__(**kwargs)
+
+
+SolversUnion = Union[FtpsSolverParams, CthybSolverParams, HubbardISolverParams, HartreeSolverParams]
 
 # -- Maxent input parameters -----------------------------------------------------------------------
 
@@ -1149,3 +1185,4 @@ register_class(HubbardISolverParams)
 register_solver_input(FtpsSolverParams)
 register_solver_input(CthybSolverParams)
 register_solver_input(HubbardISolverParams)
+register_solver_input(HartreeSolverParams)

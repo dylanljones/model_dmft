@@ -277,7 +277,6 @@ def prepare_tmp_file(
     u: np.ndarray,
     e_onsite: np.ndarray,
     delta: BlockGf,
-    sigma: BlockGf,
 ) -> None:
     """Prepare a temporary file for the impurity solver.
 
@@ -285,9 +284,9 @@ def prepare_tmp_file(
     impurity solver in a separate process, e.g. using MPI. This is required to run multiple
     impurity solvers in parallel.
     """
-    # sigma = delta.copy()
-    # sigma.name = "Σ"
-    # sigma.zero()
+    sigma = delta.copy()
+    sigma.name = "Σ"
+    sigma.zero()
     with HDFArchive(str(tmp_file), "w") as ar:
         ar["params"] = params
         ar["it"] = it
@@ -322,7 +321,6 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
         e_onsite = ar["e_onsite"]
         delta = ar["delta"]
         it = ar["it"]
-        sigma = ar["sigma_dmft"]
 
     if u == 0:
         # No interaction, return zero self-energy
@@ -403,7 +401,7 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
     elif solver_type == "hubbardI":
         from .solvers.hubbard1 import solve_hubbard
 
-        solver = solve_hubbard(params, u, e_onsite, delta, sigma)
+        solver = solve_hubbard(params, u, e_onsite, delta)
 
         # Write results back to temporary file
         mpi.barrier()
@@ -411,6 +409,21 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
             with HDFArchive(str(tmp_file), "a") as ar:
                 ar["solver"] = solver
                 ar["sigma_dmft"] = solver.Sigma_iw
+
+    elif solver_type == "hartree":
+        from .solvers.hartree import solve_hartree
+
+        solver = solve_hartree(params, u, e_onsite, delta)
+        sigma = delta.copy()
+        for cmpt, delt in delta:
+            sigma[cmpt] << solver.Sigma_HF[cmpt].data[0, 0]
+
+        # Write results back to temporary file
+        mpi.barrier()
+        if mpi.is_master_node():
+            with HDFArchive(str(tmp_file), "a") as ar:
+                ar["solver"] = solver
+                ar["sigma_dmft"] = sigma
 
     else:
         raise ValueError(f"Unknown solver type: {solver_type}")
@@ -465,7 +478,7 @@ def solve_impurities_seq(
     if mpi.is_master_node():
         for i, (cmpt, delt) in enumerate(delta):
             tmp_file = tmp_filepath.format(cmpt=cmpt)
-            prepare_tmp_file(tmp_file, params, it, u[i], e_onsite[i], delta[cmpt], sigma_dmft[cmpt])
+            prepare_tmp_file(tmp_file, params, it, u[i], e_onsite[i], delta[cmpt])
     mpi.barrier()
 
     # --- Solve impurity problems -----
@@ -552,7 +565,7 @@ def solve_impurities(
     # Write parameters and data to temporary files
     for i, (cmpt, delt) in enumerate(delta):
         tmp_file = tmp_filepath.format(cmpt=cmpt)
-        prepare_tmp_file(tmp_file, params, it, u[i], e_onsite[i], delta[cmpt], sigma_dmft[cmpt])
+        prepare_tmp_file(tmp_file, params, it, u[i], e_onsite[i], delta[cmpt])
 
     # --- Solve impurity problems -----
 
