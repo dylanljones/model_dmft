@@ -5,7 +5,8 @@
 import numpy as np
 import triqs.operators as ops
 import triqs_cthyb
-from triqs.gf import BlockGf, Fourier
+from triqs.gf import BlockGf, inverse, iOmega_n
+from triqs.operators.util.extractors import block_matrix_from_op
 from triqs.utility import mpi
 
 from ..input import CthybSolverParams, InputParameters
@@ -17,12 +18,19 @@ def solve_cthyb(
 ) -> triqs_cthyb.Solver:
     up, dn = params.spin_names
     solver_params: CthybSolverParams = params.solver_params
+    gf_struct = params.gf_struct
 
     report("Initializing CTHYB solver...")
 
     # Local Hamiltonian and interaction term
     h_loc0 = e_onsite[0] * ops.n(up, 0) + e_onsite[1] * ops.n(dn, 0)
     h_int = u * ops.n(up, 0) * ops.n(dn, 0)
+
+    # Initialize delta interface
+    g0_iw = delta.copy()
+    h_loc0_mat = block_matrix_from_op(h_loc0, gf_struct)
+    for i, name in enumerate(delta.indices):
+        g0_iw[name] << inverse(iOmega_n - delta[name] - h_loc0_mat[i])
 
     solve_kwargs = {
         "n_warmup_cycles": solver_params.n_warmup_cycles,
@@ -48,11 +56,12 @@ def solve_cthyb(
         gf_struct=params.gf_struct,
         n_iw=params.n_iw,
         n_tau=solver_params.n_tau,
-        delta_interface=True,
+        # delta_interface=True,
         n_l=solver_params.n_l,
     )
     # Set hybridization function (imaginary time)
-    solver.Delta_tau << Fourier(delta)  # type: ignore
+    # solver.Delta_tau << Fourier(delta)  # type: ignore
+    solver.G0_iw << g0_iw  # noqa
     mpi.barrier()
 
     # Solve impurity problem
