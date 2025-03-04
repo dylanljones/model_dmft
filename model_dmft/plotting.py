@@ -92,20 +92,21 @@ def plot_greens_functions(
 
 
 def plot_self_energies(
-    output_file: str, it: int = -1, u: float = None, de: float = None
+    output_file: str, it: int = None
 ) -> Tuple[plt.Figure, Tuple[plt.Axes, plt.Axes]]:
     with HDFArchive(output_file, "r") as ar:
-        try:
+        params = ar["params"]
+        if it is None:
             it = ar["it"]  # Get latest iteration number
-        except KeyError:
-            raise ValueError("No iteration completed.")
+        elif it < 0:
+            it = ar["it"] + it
         try:
             sigma_dmft = ar[f"sigma_dmft-{it}"]  # Get DMFT self-energy
         except KeyError:
             sigma_dmft = None
         sigma_cpa = ar[f"sigma_cpa-{it}"]  # Get CPA self-energy
     title = "Self Energies"
-
+    u = params.u
     # Plot self energies
     x = np.array(list(sigma_cpa.mesh.values()))
     fig, (ax1, ax2) = plt.subplots(nrows=2)
@@ -120,9 +121,7 @@ def plot_self_energies(
             ax1.plot(x, sig[UP].imag.data[:, 0, 0], lw=1.0, label=f"DMFT-{cmpt}")
             ax2.plot(x, sig[DN].imag.data[:, 0, 0], lw=1.0)
     ax1.legend()
-    tit = f"{title} U={u:.1f}" if u else title
-    if de:
-        tit += rf" $\Delta E$={de:.1f}"
+    tit = f"{title} U={u}" if u else title
     ax1.set(xmargin=0, title=tit, ylabel="Im Σ$_{↑}$(ω)")
     ax2.set(xmargin=0, xlabel="ω", ylabel="Im Σ$_{↓}$(ω)")
     fig.tight_layout()
