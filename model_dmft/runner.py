@@ -650,8 +650,9 @@ def solve_impurities(
             break
 
     # Wait to make sure all processes are finished
+    report("Waiting for processes to finish...")
     for p, _, _ in procs:
-        p.wait()
+        p.wait(timeout=10)
 
     # Check for errors
     for p, out_file, err_file in procs:
