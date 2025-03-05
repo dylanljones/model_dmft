@@ -351,6 +351,9 @@ def cancel_cmd(recursive: bool, paths: List[str]):
         try:
             stdout = subprocess.check_output(cmd, shell=True)
             stdout = stdout.decode("utf-8").replace("\n", "")
-            click.echo(f"{p} {stdout}")
+            s = f"{p} Job {last_id} cancelled"
+            if stdout:
+                s += f" ({stdout})"
+            click.echo(s)
         except subprocess.CalledProcessError:
             click.echo(f"{p} {error('Job not found')}")
