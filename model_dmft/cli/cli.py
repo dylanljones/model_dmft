@@ -305,8 +305,9 @@ def clean_tmp(recursive: bool, paths: List[str]):
 
 # noinspection PyShadowingBuiltins
 @cli.command(name="submit")
+@click.option("--clean", "-c", is_flag=True, default=False, help="Clean old slurm files")
 @multi_path_opts
-def submit_cmd(recursive: bool, paths: List[str]):
+def submit_cmd(clean: bool, recursive: bool, paths: List[str]):
     """Batch-run the simulations in the given directories using SLURM.
 
     RECURSIVE: Search directories recursively. The default is False.
@@ -320,6 +321,8 @@ def submit_cmd(recursive: bool, paths: List[str]):
         if not slurm:
             click.echo(f"{p} No slurm file found")
             continue
+        if clean:
+            folder.remove_slurm_outputs(keep_last=False)
         with WorkingDir(folder.path):
             cmd = f"sbatch {slurm.name}"
             stdout = subprocess.check_output(cmd, shell=True)
