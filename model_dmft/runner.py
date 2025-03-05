@@ -667,6 +667,7 @@ def solve_impurities(
                 f.write(err + "\n")
             raise SubprocessError(f"Error in process {p.pid}\n{err}")
 
+    report("Processes done!")
     # ---- End solve ------------------
 
     # Load results back from temporary file
