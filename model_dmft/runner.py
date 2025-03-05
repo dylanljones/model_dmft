@@ -492,6 +492,7 @@ def solve_impurities_seq(
     mpi.barrier()
 
     # --- Solve impurity problems -----
+    report("Solving impurity problems sequentially...")
     for cmpt in sigma_dmft.indices:
         report(f"Solving component {cmpt}...")
         solve_impurity(tmp_filepath.format(cmpt=cmpt))
@@ -617,6 +618,7 @@ def solve_impurities(
     else:
         base_cmd = ["mpirun", "-n", str(n)] if n > 1 else list()
 
+    report("Starting processes...")
     for cmpt in sigma_dmft.indices:
         # Prepare tmp/output file paths
         tmp_file = tmp_filepath.format(cmpt=cmpt)
@@ -638,14 +640,15 @@ def solve_impurities(
     while True:
         received = False
         for p, out_file, _ in procs:
-            with open(out_file, "a") as f:
-                line = p.stdout.readline().decode()
-                if line:
-                    line = line.strip()
-                    if verbosity > 2:
-                        report(f"[{p.pid}] " + line)
-                    f.write(line + "\n")
-                    received = True
+            if p.poll() is None:
+                with open(out_file, "a") as f:
+                    line = p.stdout.readline().decode()
+                    if line:
+                        line = line.strip()
+                        if verbosity > 2:
+                            report(f"[{p.pid}] " + line)
+                        f.write(line + "\n")
+                        received = True
         if not received:
             break
 
@@ -926,11 +929,8 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                     report("")
 
                 if n_procs > 1:
-                    report("Starting processes...")
                     solve_impurities(**kwargs, nproc=n_procs, it=it, use_srun=False)
-                    report("Processes done!")
                 else:
-                    report("Solving impurity problems sequentially...")
                     solve_impurities_seq(**kwargs, it=it)
 
                 # Symmetrize DMFT self-energies
