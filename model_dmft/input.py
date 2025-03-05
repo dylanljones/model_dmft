@@ -515,6 +515,7 @@ class InputParameters(Parameters):
         "n_loops": int,
         # "restart": bool,
         # "store_iter": bool,
+        "use_srun": bool,
         "load_iter": int,
         "half_bandwidth": float,
         "conc": _parse_array,
@@ -545,8 +546,8 @@ class InputParameters(Parameters):
         "n_loops": "The total number of iterations to perform.",
         "load_iter": "Continue from specific iteration (-1 for last iteration, 0 for restart).",
         # "restart": "Flag if the calculation should resume from previous results or start over.",
-        # "use_srun": "Use srun instead of mpirun for parallel jobs",
         # "store_iter": "Flag to keep intermediate iteration results.",
+        "use_srun": "Use srun instead of mpirun for parallel jobs",
         "lattice": "The lattice type.",
         "gf_struct": "The structure of the Greens function.",
         "half_bandwidth": "The half bandwidth of the lattice.",
@@ -586,7 +587,7 @@ class InputParameters(Parameters):
         self.load_iter: int = 0  # Load iteration from which to start the simulation.
         # self.restart: bool = False  # Overwrite existing output file.
         # self.store_iter: bool = True  # Keep intermediate iteration results.
-        # self.use_srun: bool = False  # Use srun instead of mpirun for parallel jobs
+        self.use_srun: bool = False  # Use srun instead of mpirun for parallel jobs
 
         self.lattice: str = "bethe"  # The lattice type.
         self.gf_struct = [("up", 1), ("dn", 1)]  # The Green's function structure.
