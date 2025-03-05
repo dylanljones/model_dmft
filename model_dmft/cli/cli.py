@@ -16,6 +16,10 @@ from model_dmft.utility import WorkingDir
 __all__ = ["cli", "get_dirs", "single_path_opts", "multi_path_opts", "frmt_file"]
 
 
+def error(s):
+    return click.style(s, fg="red")
+
+
 def get_dirs(*paths, recursive=False) -> List[Folder]:
     if not paths:
         paths = (".",)
@@ -321,3 +325,32 @@ def submit_cmd(recursive: bool, paths: List[str]):
             stdout = subprocess.check_output(cmd, shell=True)
             stdout = stdout.decode("utf-8").replace("\n", "")
             click.echo(f"{p} {stdout}")
+
+
+# noinspection PyShadowingBuiltins
+@cli.command(name="cancel")
+@multi_path_opts
+def cancel_cmd(recursive: bool, paths: List[str]):
+    """Cancel the simulations in the given directories using SLURM.
+
+    RECURSIVE: Search directories recursively. The default is False.
+    PATHS: One or multiple paths to search for calculation directories. The default is '.'.
+    """
+    folders = get_dirs(*paths, recursive=recursive)
+    maxw = max(len(str(folder.path)) for folder in folders) + 1
+    for folder in folders:
+        p = frmt_file(f"{str(folder.path) + ':':<{maxw}}")
+        slurm_files = folder.get_slurm_outputs()
+        if not slurm_files:
+            click.echo(f"{p} No slurm outputs found!")
+            continue
+        job_ids = sorted([int(p.stem.replace("slurm-", "")) for p in slurm_files])
+        last_id = job_ids[-1]
+        cmd = f"scancel {last_id}"
+
+        try:
+            stdout = subprocess.check_output(cmd, shell=True)
+            stdout = stdout.decode("utf-8").replace("\n", "")
+            click.echo(f"{p} {stdout}")
+        except subprocess.CalledProcessError:
+            click.echo(f"{p} {error('Job not found')}")

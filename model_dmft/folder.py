@@ -91,7 +91,7 @@ class Folder:
         return self._params
 
     def get_slurm_outputs(self) -> List[Path]:
-        return sorted(self.path.glob("slurm-*.out"))
+        return [Path(p) for p in sorted(self.path.glob("slurm-*.out"))]
 
     def read_slurm_output(self) -> str:
         """Read the last slurm output file."""
