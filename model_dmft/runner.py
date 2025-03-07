@@ -252,6 +252,8 @@ def update_dataset(archive_file: Union[Path, str], keep_iter: bool = True) -> No
             ar[f"g_le-{it}"] = ar["g_le"]
         if "g_ret" in ar:
             ar[f"g_ret-{it}"] = ar["g_ret"]
+        if "g_l" in ar:
+            ar[f"g_l-{it}"] = ar["g_l"]
 
 
 def hybridization(
@@ -383,6 +385,8 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
             with HDFArchive(str(tmp_file), "a") as ar:
                 ar["solver"] = solver
                 ar["sigma_dmft"] = solver.Sigma_iw
+                if params.solver_params.measure_g_l:
+                    ar["g_l"] = solver.G_l
 
         if params.solver_params.tail_fit:
             freq_name = "w" if params.is_real_mesh else "iw"
@@ -509,6 +513,7 @@ def solve_impurities_seq(
 
     # Load results back from temporary file
     g_gr_blocks, g_le_blocks, g_ret_blocks = dict(), dict(), dict()
+    g_l_blocks = dict()
     for cmpt, sig in sigma_dmft:
         tmp_file = tmp_filepath.format(cmpt=cmpt)
         report(f"Loading temporary file {tmp_file}...")
@@ -519,6 +524,8 @@ def solve_impurities_seq(
                 g_gr_blocks[cmpt] = ar["g_gr"]
                 g_le_blocks[cmpt] = ar["g_le"]
                 g_ret_blocks[cmpt] = ar["g_ret"]
+            if "g_l" in ar:
+                g_l_blocks[cmpt] = ar["g_l"]
 
     # Write real time Gf to output file (only for FTPS solver)
     if g_gr_blocks:
@@ -533,6 +540,13 @@ def solve_impurities_seq(
             ar["g_gr"] = gf_gr
             ar["g_le"] = gf_le
             ar["g_ret"] = gf_ret
+
+    if g_l_blocks:
+        names = list(g_l_blocks.keys())
+        blocks = [g_l_blocks[name] for name in names]
+        g_l = blockgf(blocks[0].mesh, names=names, blocks=blocks)
+        with HDFArchive(archive_file, "a") as ar:
+            ar["g_l"] = g_l
 
     # Remove temporary files
     mpi.barrier()
@@ -693,6 +707,7 @@ def solve_impurities(
 
     # Load results back from temporary file
     g_gr_blocks, g_le_blocks, g_ret_blocks = dict(), dict(), dict()
+    g_l_blocks = dict()
     for cmpt, sig in sigma_dmft:
         tmp_file = tmp_filepath.format(cmpt=cmpt)
         with HDFArchive(str(tmp_file), "r") as ar:
@@ -702,6 +717,8 @@ def solve_impurities(
                 g_gr_blocks[cmpt] = ar["g_gr"]
                 g_le_blocks[cmpt] = ar["g_le"]
                 g_ret_blocks[cmpt] = ar["g_ret"]
+            if "g_l" in ar:
+                g_l_blocks[cmpt] = ar["g_l"]
 
     # Write real time Gf to output file (only for FTPS solver)
     if g_gr_blocks:
@@ -716,6 +733,12 @@ def solve_impurities(
             ar["g_gr"] = gf_gr
             ar["g_le"] = gf_le
             ar["g_ret"] = gf_ret
+    if g_l_blocks:
+        names = list(g_l_blocks.keys())
+        blocks = [g_l_blocks[name] for name in names]
+        g_l = blockgf(blocks[0].mesh, names=names, blocks=blocks)
+        with HDFArchive(archive_file, "a") as ar:
+            ar["g_l"] = g_l
 
     # Remove temporary files
     mpi.barrier()
