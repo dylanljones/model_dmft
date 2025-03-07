@@ -387,14 +387,6 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
         if params.solver_params.tail_fit:
             freq_name = "w" if params.is_real_mesh else "iw"
             report(f"Fitting tail of Σ({freq_name})...")
-            if params.solver_params.fit_min_n == 0:
-                fit_min_n = int(0.5 * params.n_iw)
-            else:
-                fit_min_n = params.solver_params.fit_min_n
-            if params.solver_params.fit_max_n == 0:
-                fit_max_n = params.n_iw
-            else:
-                fit_max_n = params.solver_params.fit_max_n
             fit_max_moment = params.solver_params.fit_max_moment
 
             try:
@@ -408,8 +400,10 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
             sigma_fitted = solver.Sigma_iw.copy()
             tail_fit(
                 sigma_fitted,
-                fit_min_n,
-                fit_max_n,
+                fit_min_n=params.solver_params.fit_min_n,
+                fit_max_n=params.solver_params.fit_max_n,
+                fit_min_w=params.solver_params.fit_min_w,
+                fit_max_w=params.solver_params.fit_max_w,
                 fit_max_moment=fit_max_moment,
                 fit_known_moments=sigma_moments,
             )

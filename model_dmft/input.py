@@ -189,6 +189,9 @@ class Parameters(Mapping, ABC):
                 data[k] = v
         return data
 
+    def validate(self) -> None:
+        pass
+
     @classmethod
     def __factory_from_dict__(cls, name: str, d: Dict[str, Any]) -> "Parameters":
         self = cls()
@@ -297,6 +300,8 @@ class CthybSolverParams(SolverParams):
         "fit_max_moment": int,
         "fit_min_n": int,
         "fit_max_n": int,
+        "fit_min_w": float,
+        "fit_max_w": float,
         "measure_g_l": bool,
         "n_l": int,
         "density_matrix": bool,
@@ -309,8 +314,10 @@ class CthybSolverParams(SolverParams):
         "n_tau": "Number of imaginary time steps. (default: 10001)",
         "tail_fit": "Perform tail fit of Sigma and G (default: false)",
         "fit_max_moment": "Highest moment to fit in the tail of Sigma (default: 3)",
-        "fit_min_n": "Index of iw from which to start fitting (default: 0.5*n_iw)",
+        "fit_min_n": "Index of iw from which to start fitting (default: 0.8*n_iw)",
         "fit_max_n": "Index of iw up to which to fit (default: n_iw)",
+        "fit_min_w": "iw from which to start fitting (default: None)",
+        "fit_max_w": "iw up to which to fit (default: None)",
         "measure_g_l": "Measure G_l (Legendre) (default: false)",
         "n_l": "Number of Legendre polynomials. (default: 30)",
         "density_matrix": "Measure the impurity density matrix (default: false)",
@@ -324,8 +331,10 @@ class CthybSolverParams(SolverParams):
         self.n_tau: int = 10001  # Number of imaginary time steps.
         self.tail_fit: bool = False  # Perform tail fit.
         self.fit_max_moment: int = 3  # Highest moment to fit in the tail of Sigma
-        self.fit_min_n: int = 0  # Index of iw from which to start fitting.
-        self.fit_max_n: int = 0  # Index of iw up to which to fit.
+        self.fit_min_n: Optional[int] = None  # Index of iw from which to start fitting.
+        self.fit_max_n: Optional[int] = None  # Index of iw up to which to fit.
+        self.fit_min_w: Optional[float] = None  # iw from which to start fitting.
+        self.fit_max_w: Optional[float] = None  # iw up to which to fit.
         self.measure_g_l: bool = False  # Measure G_l (Legendre)
         self.n_l: int = 30  # Number of Legendre polynomials.
         self.density_matrix: bool = False  # Measure the impurity density matrix.
@@ -840,12 +849,12 @@ class InputParameters(Parameters):
 
         # Check parameter shapes
         n_cmpt = len(self.conc) if hasattr(self.conc, "__len__") else 1
-        if hasattr(self.u, "__len__"):
-            assert len(self.u) == n_cmpt, "'u' does not match number of components!"
-        if hasattr(self.eps, "__len__"):
-            assert len(self.eps) == n_cmpt, "'eps' does not match number of components!"
-        if hasattr(self.h_field, "__len__"):
-            assert len(self.h_field) == n_cmpt, "'h' does not match number of components!"
+        if hasattr(self.u, "__len__") and len(self.u) != n_cmpt:
+            raise InputError("'u' does not match number of components!")
+        if hasattr(self.eps, "__len__") and len(self.eps) != n_cmpt:
+            raise InputError("'eps' does not match number of components!")
+        if hasattr(self.h_field, "__len__") and len(self.h_field) != n_cmpt:
+            raise InputError("'h' does not match number of components!")
 
         if self.symmetrize:
             h = self.h_field
@@ -853,6 +862,13 @@ class InputParameters(Parameters):
                 h = [h]
             if any(h):
                 raise InputError("Cannot symmetrize with magnetic field!")
+
+        if self.solver_params:
+            self.solver_params.validate()
+        if self.maxent_params:
+            self.maxent_params.validate()
+        if self.pade_params:
+            self.pade_params.validate()
 
     def cast_cmpt(self) -> Tuple:
         """Cast the component parameters to numpy arrays."""
