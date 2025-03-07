@@ -379,3 +379,13 @@ def symmetrize_gf(gf: BlockGf) -> BlockGf:
     gf[up] << g
     gf[dn] << g
     return gf
+
+
+def mesh_to_array(mesh: Union[MeshReFreq, MeshImFreq]) -> np.ndarray:
+    """Convert a mesh to a numpy array of real values."""
+    if isinstance(mesh, MeshImFreq):
+        return np.array([x.value.imag for x in mesh])
+    elif isinstance(mesh, MeshReFreq):
+        return np.array([x.value.real for x in mesh])
+    else:
+        raise ValueError(f"Unknown mesh type '{type(mesh)}'.")

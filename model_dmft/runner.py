@@ -30,7 +30,13 @@ from .utility import (
     symmetrize_gf,
 )
 
-USE_SRUN = Path.home().resolve().parts[1].lower() == "hpc"
+MAX_SOLVER_PROCESSES = {
+    "ftps": 8,
+    "cthyb": 32,
+    "hubbardI": 1,
+    "hartree": 1,
+}
+
 TIME_FRMT = "%H:%M:%S %d-%b-%y"
 
 
@@ -106,24 +112,30 @@ def print_params(params: InputParameters) -> None:
     report("")
 
 
+# Error when the previous iteration data is not compatible with the current input parameters
+class IncompatibleDataError(ValueError):
+    def __init__(self, message: str):
+        super().__init__("Cannot continue with previous data: " + message)
+
+
 def check_compatible_input(archive_file: Union[Path, str], params: InputParameters) -> None:
     """Check if the input parameters are compatible with the output archive."""
     with HDFArchive(archive_file, "r") as ar:
         old_params = ar["params"]
         if params.lattice != old_params.lattice:
-            raise ValueError("Lattice mismatch.")
+            raise IncompatibleDataError("Lattice mismatch.")
         if params.gf_struct != old_params.gf_struct:
-            raise ValueError("Green's function structure mismatch.")
+            raise IncompatibleDataError("Green's function structure mismatch.")
         if params.half_bandwidth != old_params.half_bandwidth:
-            raise ValueError("Half bandwidth mismatch.")
+            raise IncompatibleDataError("Half bandwidth mismatch.")
         if params.is_real_mesh:
             if params.w_range != old_params.w_range:
-                raise ValueError("Frequency range mismatch.")
+                raise IncompatibleDataError("Frequency range mismatch.")
             if params.n_w != old_params.n_w:
-                raise ValueError("Number of frequencies mismatch.")
+                raise IncompatibleDataError("Number of frequencies mismatch.")
         else:
             if params.n_iw != old_params.n_iw:
-                raise ValueError("Number of Matsubara frequencies mismatch.")
+                raise IncompatibleDataError("Number of Matsubara frequencies mismatch.")
 
 
 def load_state(params: InputParameters) -> Tuple[int, BlockGf, BlockGf, BlockGf, float]:
@@ -544,7 +556,7 @@ def solve_impurities(
     sigma_dmft: BlockGf,
     nproc: int,
     verbosity: int = 2,
-    use_srun: bool = None,
+    use_srun: bool = False,
 ) -> None:
     """Solve the impurity problems in parallel using MPI.
 
@@ -584,6 +596,23 @@ def solve_impurities(
     --------
     solve_impurity : Solve the impurity problem using the parameters and data from a temporary file.
     """
+    if not mpi.is_master_node():
+        return  # This method should only be called from the master node
+
+    # Warn if number of processes is too high for the solver
+    solver_type = params.solver
+    max_proc = MAX_SOLVER_PROCESSES.get(solver_type, 1)
+    if nproc > max_proc:
+        line1 = f"WARNING: Number of processes {nproc} is too high for solver {solver_type}."
+        line2 = f"         Maximum number of processes per solver is {max_proc}."
+        line = "-" * max(len(line1), len(line2))
+        report("")
+        report(line)
+        report(line1)
+        report(line2)
+        report(line)
+        report("")
+
     tmp_dir = Path(params.tmp_dir_path)
     tmp_dir.mkdir(parents=True, exist_ok=True)
     tmp_filepath = str(tmp_dir / "tmp-{cmpt}.h5")
@@ -591,11 +620,6 @@ def solve_impurities(
 
     stdout_filepath = str(Path(params.location_path) / "solver-{cmpt}.log")
     stderr_filepath = str(Path(params.location_path) / "solver-err-{cmpt}.log")
-    if use_srun is None:
-        use_srun = USE_SRUN
-
-    if not mpi.is_master_node():
-        return  # This method should only be called from the master node
 
     # Write parameters and data to temporary files
     for i, (cmpt, delt) in enumerate(delta):
