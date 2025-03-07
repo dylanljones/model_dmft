@@ -662,7 +662,7 @@ def solve_impurities(
                 with open(out_file, "a") as f:
                     line = p.stdout.readline().decode()
                     if line:
-                        line = line.strip()
+                        line = line.strip("\n")
                         if verbosity > 2:
                             report(f"[{p.pid}] " + line)
                         f.write(line + "\n")
