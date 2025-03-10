@@ -296,14 +296,15 @@ class CthybSolverParams(SolverParams):
         "length_cycle": int,
         "n_warmup_cycles": int,
         "n_tau": int,
+        "measure_g_l": bool,
+        "n_l": int,
+        "legendre_fit": bool,
         "tail_fit": bool,
         "fit_max_moment": int,
         "fit_min_n": int,
         "fit_max_n": int,
         "fit_min_w": float,
         "fit_max_w": float,
-        "measure_g_l": bool,
-        "n_l": int,
         "density_matrix": bool,
     }
 
@@ -312,14 +313,15 @@ class CthybSolverParams(SolverParams):
         "length_cycle": "Length of the cycle (default: 100)",
         "n_warmup_cycles": "Number of warmup cycles (default: 1_000)",
         "n_tau": "Number of imaginary time steps. (default: 10001)",
+        "measure_g_l": "Measure G_l (Legendre) (default: false)",
+        "n_l": "Number of Legendre polynomials. (default: 30)",
+        "legendre_fit": "Fit Green's function and self energy using Legendre Gf (default: false)",
         "tail_fit": "Perform tail fit of Sigma and G (default: false)",
         "fit_max_moment": "Highest moment to fit in the tail of Sigma (default: 3)",
         "fit_min_n": "Index of iw from which to start fitting (default: 0.8*n_iw)",
         "fit_max_n": "Index of iw up to which to fit (default: n_iw)",
         "fit_min_w": "iw from which to start fitting (default: None)",
         "fit_max_w": "iw up to which to fit (default: None)",
-        "measure_g_l": "Measure G_l (Legendre) (default: false)",
-        "n_l": "Number of Legendre polynomials. (default: 30)",
         "density_matrix": "Measure the impurity density matrix (default: false)",
     }
 
@@ -329,16 +331,21 @@ class CthybSolverParams(SolverParams):
         self.n_warmup_cycles: int = 1_000  # Number of warmup cycles.
         self.length_cycle: int = 100  # Length of a cycle.
         self.n_tau: int = 10001  # Number of imaginary time steps.
+        self.measure_g_l: bool = False  # Measure G_l (Legendre)
+        self.n_l: int = 30  # Number of Legendre polynomials.
+        self.legendre_fit: bool = False  # Fit Green's function and self energy using Legendre Gf
         self.tail_fit: bool = False  # Perform tail fit.
         self.fit_max_moment: int = 3  # Highest moment to fit in the tail of Sigma
         self.fit_min_n: Optional[int] = None  # Index of iw from which to start fitting.
         self.fit_max_n: Optional[int] = None  # Index of iw up to which to fit.
         self.fit_min_w: Optional[float] = None  # iw from which to start fitting.
         self.fit_max_w: Optional[float] = None  # iw up to which to fit.
-        self.measure_g_l: bool = False  # Measure G_l (Legendre)
-        self.n_l: int = 30  # Number of Legendre polynomials.
         self.density_matrix: bool = False  # Measure the impurity density matrix.
         super().__init__(**kwargs)
+
+    def validate(self) -> None:
+        if self.tail_fit and self.legendre_fit:
+            raise InputError("Cannot use both 'tail_fit' and 'legendre_fit' at the same time!")
 
 
 class HubbardISolverParams(SolverParams):
