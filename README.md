@@ -21,35 +21,21 @@ pip install "git+ssh://git@git.rz.uni-augsburg.de/jonesdyl/model_dmft"
 The following dependencies are required to run the code and can not be installed via pip:
 
 - [TRIQS]
+
+Additionally, one or multiple of the following solvers are required:
+
 - [CTHYB]
 - [ForkTPS]
+- [HubbardI]
+- [Hartree-Fock]
 
 It is recommended to install [TRIQS] via conda in a separate environment.
 First, create a new environment and activate it:
 ```bash
-conda create -n triqs python=3.10 -y && conda activate triqs
+conda create -n triqs python=3.10 -y && conda activate triqs && conda install -c conda-forge triqs -y
 ```
 
-Then, we can install the [TRIQS] framework:
-```bash
-conda install -c conda-forge triqs=3.1.1 -y
-```
-
-The [ForkTPS] solver isn't public yet, so it can't be installed via conda.
-Follow the instructions in the (private) [ForkTPS] repository to install it.
-
-
-The [CTHYB] solver, however, can be installed via conda:
-```bash
-conda install -c conda-forge triqs_cthyb -y
-```
-
-TL;DR:
-```bash
-conda create -n triqs python=3.12 -y
-conda activate triqs && conda install -c conda-forge triqs=3.1.1 -y
-conda activate triqs && conda install -c conda-forge triqs_cthyb -y
-```
+See the [INSTALLATION.md](INSTALLATION.md) file for more detailed installation instructions including the solvers.
 
 ## Usage
 
@@ -62,7 +48,7 @@ from model_dmft import InputParameters
 from model_dmft.runner import solve
 
 params = InputParameters(solver="ftps")
-params.restart = True
+params.load_iter = -1
 params.location = "directory"
 params.set_mesh_re(-6, 6, 1000, eta=0.02)
 
@@ -180,12 +166,12 @@ tol_cpa        = 1e-06                   # Tolerance for the CPA self-consistenc
 verbosity_cpa  = 1                       # Verbosity level of the CPA iterations.
 
 # DMFT parameters
-mixing_dmft    = 0.1                      # Mixing of the DMFT self energy.
+mixing_dmft    = 0.1                     # Mixing of the DMFT self energy.
 
 # Convergence parameters
-gtol           = 1e-06                    # Convergence tolerance for the coherent Green's function.
-stol           = 1e-06                    # Convergence tolerance for the self energy.
-occ_tol        = 1e-06                    # Occupation tolerance for CPA.
+gtol           = 1e-06                   # Convergence tolerance for the coherent Green's function.
+stol           = 1e-06                   # Convergence tolerance for the self energy.
+occ_tol        = 1e-06                   # Occupation tolerance for CPA.
 ```
 
 #### ``[solver]``
@@ -321,5 +307,7 @@ w_range          = [-6, 6]                       # Range of real frequencies
 
 
 [TRIQS]: https://triqs.github.io/triqs/latest/index.html
-[CTHYB]: https://triqs.github.io/cthyb/latest/index.html
+[CTHYB]: https://github.com/TRIQS/cthyb
+[HubbardI]: https://github.com/TRIQS/hubbardI
+[Hartree-Fock]: https://github.com/TRIQS/hartree_fock
 [ForkTPS]: https://git.rz.uni-augsburg.de/itphy-sw-origin/forktps
