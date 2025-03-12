@@ -9,14 +9,14 @@ pip install "git+ssh://git@git.rz.uni-augsburg.de/jonesdyl/model_dmft"
 
 The following dependencies are required to run the code and can not be installed via pip:
 
-- [TRIQS]
+- [TRIQS](#triqs)
 
 Additionally, one or multiple of the following solvers are required:
 
-- [CTHYB]
-- [HubbardI]
-- [Hartree-Fock]
-- [ForkTPS]
+- [CTHYB](#cthyb)
+- [HubbardI](#hubbardi)
+- [Hartree-Fock](#hartree-fock)
+- [ForkTPS](#forktps)
 
 
 ## TRIQS
