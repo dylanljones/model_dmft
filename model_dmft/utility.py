@@ -372,6 +372,23 @@ def check_convergence(old: GfLike, new: GfLike, relative=False) -> float:
     return error
 
 
+def difference(old: GfLike, new: GfLike) -> float:
+    """Calculate the absolute difference between two Green's functions."""
+    if isinstance(old, Gf):
+        error = float(np.max(np.abs(old.data - new.data)))
+    else:
+        errors = list()
+        for keys in walk_block_paths(old):
+            item_old = old
+            item_new = new
+            for key in keys:
+                item_old = item_old[key]
+                item_new = item_new[key]
+            errors.append(float(np.max(np.abs(item_old.data - item_new.data))))
+        error = max(errors)
+    return error
+
+
 def symmetrize_gf(gf: BlockGf) -> BlockGf:
     """Symmetrize the spin components of a BlockGf."""
     up, dn = list(gf.indices)
