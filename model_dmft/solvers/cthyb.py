@@ -260,7 +260,7 @@ def postprocess_cthyb(
             raise ValueError("No moments found in solver. Are you using the latest version?")
 
         sigma_iw_crm = crm_solve_dyson(
-            solver.G_tau, solver.G0_iw, sigma_moments, solver_params.wmax, solver_params.eps
+            solver.G_tau, solver.G0_iw, sigma_moments, solver_params.crm_wmax, solver_params.crm_eps
         )
 
         sigma_iw = sigma_iw_crm
