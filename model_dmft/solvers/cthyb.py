@@ -42,7 +42,7 @@ def solve_cthyb(
         solve_kwargs["measure_density_matrix"] = True
         solve_kwargs["use_norm_as_weight"] = True
 
-    if solver_params.tail_fit:
+    if solver_params.tail_fit or solver_params.crm_dyson:
         # Used for calculating moments
         solve_kwargs["measure_density_matrix"] = True
         solve_kwargs["use_norm_as_weight"] = True

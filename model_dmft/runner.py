@@ -13,7 +13,19 @@ import numpy as np
 
 # noinspection PyPackageRequirements
 from h5 import HDFArchive
-from triqs.gf import BlockGf, MeshReFreq, Omega, inverse, iOmega_n, make_hermitian
+from triqs.gf import (
+    BlockGf,
+    Gf,
+    MeshDLRImFreq,
+    MeshReFreq,
+    Omega,
+    fit_gf_dlr,
+    inverse,
+    iOmega_n,
+    make_gf_imfreq,
+    make_hermitian,
+)
+from triqs.gf.dlr_crm_dyson_solver import minimize_dyson
 from triqs.gf.tools import fit_legendre as _fit_legendre
 from triqs.utility import mpi
 
@@ -329,6 +341,65 @@ def legendre_fit(
     return g_iw_l, g_tau_l, sigma_iw_l
 
 
+def crm_solve_dyson(
+    g_tau: BlockGf, g0_iw: BlockGf, sigma_moments: dict[str, np.ndarray], w_max: float, eps: float
+) -> BlockGf:
+    """Solve the Dyson equation via a constrained minimization problem (CRM).
+
+    Parameters
+    ----------
+    g_tau : imaginary time BlockGf
+        The imaginary time Green's function measured by the impurity solver.
+    g0_iw : imaginary frequency BlockGf
+        The non-interacting Green's function.
+    sigma_moments : dict[str, np.ndarray]
+        The moments of the self-energy to be used in the CRM solver.
+    w_max : float
+        Spectral width of the impurity problem for DLR basis.
+    eps : float
+        Accuracy of the DLR basis to represent Green’s function
+
+    Returns
+    -------
+    sigma: imaginary frequency BlockGf
+        The self-energy obtained by solving the Dyson equation via CRM.
+
+    References
+    ----------
+    [1] https://arxiv.org/abs/2310.01266.
+    """
+    # Fit DLR Green’s function to imaginary time Green’s function
+    g_dlr_iw = fit_gf_dlr(g_tau, w_max=w_max, eps=eps)
+
+    # Read off G0 at the DLR nodes
+    names = list(g_tau.indices)
+    mesh_iw = MeshDLRImFreq(g_dlr_iw.mesh)
+    g = Gf(mesh=mesh_iw, target_shape=g_dlr_iw[names[0]].target_shape)
+    g0_dlr_iw = BlockGf(name_list=names, block_list=[g, g])
+    for name, g in g0_dlr_iw:
+        for iwn in mesh_iw:
+            g[iwn] = g0_iw[name](iwn.value)
+
+    g = Gf(mesh=mesh_iw, target_shape=g_dlr_iw[names[0]].target_shape)
+    sigma_dlr = BlockGf(name_list=names, block_list=[g, g])
+    n_iw = g0_iw.mesh.n_iw
+
+    # Use the CRM solver to minimize the Dyson error
+    for name, sig in sigma_dlr:
+        s_dlr, s_hf, residual = minimize_dyson(
+            G0_dlr=g0_dlr_iw[name], G_dlr=g_dlr_iw[name], Sigma_moments=sigma_moments[name]
+        )
+        sig << s_dlr  # noqa
+
+    # Since a spectral representable G has no constant we have to manually add the Hartree
+    # shift after the solver is finished again
+    sigma_iw = make_gf_imfreq(sigma_dlr, n_iw=n_iw)
+    for name, sig in sigma_iw:
+        sig += sigma_moments[name][0]
+
+    return sigma_iw
+
+
 def solve_impurity(tmp_file: Union[str, Path]) -> None:
     """Solve the impurity problem using the given parameters and data from a temporary file.
 
@@ -450,6 +521,23 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
                     # Overwrite the raw solver results with the fitted results
                     ar["sigma_dmft_raw"] = ar["sigma_dmft"]
                     ar["sigma_dmft"] = sigma_fitted
+
+        elif solver_params.crm_dyson:
+            report("Solving Dyson equation via constrained minimization problem...")
+            try:
+                sigma_moments = solver.Sigma_moments
+            except AttributeError:
+                raise ValueError("No moments found in solver. Are you using the latest version?")
+
+            sigma_iw_crm = crm_solve_dyson(
+                solver.G_tau, solver.G0_iw, sigma_moments, solver_params.w_max, solver_params.eps
+            )
+
+            if mpi.is_master_node():
+                with HDFArchive(str(tmp_file), "a") as ar:
+                    # Overwrite the raw solver results with the CRM results
+                    ar["sigma_dmft_raw"] = ar["sigma_dmft"]
+                    ar["sigma_dmft"] = sigma_iw_crm
 
     elif solver_type == "hubbardI":
         from .solvers.hubbard1 import solve_hubbard

@@ -306,6 +306,9 @@ class CthybSolverParams(SolverParams):
         "fit_min_w": float,
         "fit_max_w": float,
         "density_matrix": bool,
+        "crm_dyson": bool,
+        "crm_wmax": float,
+        "crm_eps": float,
     }
 
     __descriptions__ = {
@@ -323,6 +326,9 @@ class CthybSolverParams(SolverParams):
         "fit_min_w": "iw from which to start fitting (default: None)",
         "fit_max_w": "iw up to which to fit (default: None)",
         "density_matrix": "Measure the impurity density matrix (default: false)",
+        "crm_dyson": "Solve Dyson equation using constrained minimization problem (default: false)",
+        "crm_wmax": "Spectral width of the impurity problem for DLR basis",
+        "crm_eps": "Accuracy of the DLR basis to represent Green’s function (default: 1e-8)",
     }
 
     def __init__(self, **kwargs):
@@ -341,11 +347,34 @@ class CthybSolverParams(SolverParams):
         self.fit_min_w: Optional[float] = None  # iw from which to start fitting.
         self.fit_max_w: Optional[float] = None  # iw up to which to fit.
         self.density_matrix: bool = False  # Measure the impurity density matrix.
+        self.crm_dyson: bool = False  # Solve Dyson equation using constrained minimization problem
+        self.crm_wmax: Optional[float] = (
+            None  # Spectral width of the impurity problem for DLR basis
+        )
+        self.crm_eps: float = 1e-8  # Accuracy of the DLR basis to represent Green’s function
         super().__init__(**kwargs)
 
     def validate(self) -> None:
-        if self.tail_fit and self.legendre_fit:
-            raise InputError("Cannot use both 'tail_fit' and 'legendre_fit' at the same time!")
+        if self.tail_fit:
+            if self.legendre_fit or self.crm_dyson:
+                raise InputError(
+                    "Cannot use 'tail_fit', 'legendre_fit' or 'crm_dyson' at the same time!"
+                )
+        if self.legendre_fit:
+            if self.tail_fit or self.crm_dyson:
+                raise InputError(
+                    "Cannot use 'tail_fit', 'legendre_fit' or 'crm_dyson' at the same time!"
+                )
+
+        if self.crm_dyson:
+            if self.tail_fit or self.legendre_fit:
+                raise InputError(
+                    "Cannot use 'tail_fit', 'legendre_fit' or 'crm_dyson' at the same time!"
+                )
+            if self.crm_wmax is None:
+                raise InputError("Parameter 'crm_wmax' is required for 'crm_dyson'!")
+            if self.crm_eps is None:
+                raise InputError("Parameter 'crm_eps' is required for 'crm_dyson'!")
 
 
 class HubbardISolverParams(SolverParams):
