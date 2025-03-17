@@ -346,11 +346,12 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
 
         solver = solve_cthyb(params, u, e_onsite, delta)
 
-        sigma_post, g_l = postprocess_cthyb(params, solver)
-
-        # Write results back to temporary file
         mpi.barrier()
         if mpi.is_master_node():
+            # Run post-processing of the solver results
+            sigma_post, g_l = postprocess_cthyb(params, solver)
+
+            # Write results back to temporary file
             with HDFArchive(str(tmp_file), "a") as ar:
                 ar["solver"] = solver
                 if sigma_post is not None:
