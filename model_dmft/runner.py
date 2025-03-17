@@ -13,20 +13,7 @@ import numpy as np
 
 # noinspection PyPackageRequirements
 from h5 import HDFArchive
-from triqs.gf import (
-    BlockGf,
-    Gf,
-    MeshDLRImFreq,
-    MeshReFreq,
-    Omega,
-    fit_gf_dlr,
-    inverse,
-    iOmega_n,
-    make_gf_imfreq,
-    make_hermitian,
-)
-from triqs.gf.dlr_crm_dyson_solver import minimize_dyson
-from triqs.gf.tools import fit_legendre as _fit_legendre
+from triqs.gf import BlockGf, MeshReFreq, Omega, inverse, iOmega_n
 from triqs.utility import mpi
 
 from . import cpa
@@ -299,107 +286,6 @@ def hybridization(
     return delta
 
 
-def apply_legendre_filter(g_tau: BlockGf, order: int = 100, g_l_cut: float = 1e-19) -> BlockGf:
-    """Filter binned imaginary time Green's function using a Legendre filter.
-
-    Parameters
-    ----------
-    g_tau : TRIQS imaginary time Block Green's function
-    order : int
-        Legendre expansion order in the filter
-    g_l_cut : float
-        Legendre coefficient cut-off
-
-    Returns
-    -------
-    g_l : TRIQS Legendre Block Green's function
-        Fitted Green's function on a Legendre mesh
-    """
-    l_g_l = []
-    for _, g in g_tau:
-        g_l = _fit_legendre(g, order=order)
-        g_l.data[:] *= np.abs(g_l.data) > g_l_cut
-        g_l.enforce_discontinuity(np.identity(g.target_shape[0]))
-        l_g_l.append(g_l)
-    g_l = BlockGf(name_list=list(g_tau.indices), block_list=l_g_l, name="G_l")
-    return g_l
-
-
-def legendre_fit(
-    g0_iw: BlockGf, g_iw: BlockGf, g_tau: BlockGf, g_l: BlockGf
-) -> Tuple[BlockGf, BlockGf, BlockGf]:
-    """Fit the Green's functions and self energy using the Legendre Green's function."""
-    g_iw_l = g_iw.copy()
-    g_tau_l = g_tau.copy()
-    for name, g in g_l:
-        g.enforce_discontinuity(np.identity(g.target_shape[0]))
-        g_iw_l[name].set_from_legendre(g)
-        g_tau_l[name].set_from_legendre(g)
-
-    g_iw_l << make_hermitian(g_iw_l)
-    sigma_iw_l = inverse(g0_iw) - inverse(g_iw_l)
-    return g_iw_l, g_tau_l, sigma_iw_l
-
-
-def crm_solve_dyson(
-    g_tau: BlockGf, g0_iw: BlockGf, sigma_moments: dict[str, np.ndarray], w_max: float, eps: float
-) -> BlockGf:
-    """Solve the Dyson equation via a constrained minimization problem (CRM).
-
-    Parameters
-    ----------
-    g_tau : imaginary time BlockGf
-        The imaginary time Green's function measured by the impurity solver.
-    g0_iw : imaginary frequency BlockGf
-        The non-interacting Green's function.
-    sigma_moments : dict[str, np.ndarray]
-        The moments of the self-energy to be used in the CRM solver.
-    w_max : float
-        Spectral width of the impurity problem for DLR basis.
-    eps : float
-        Accuracy of the DLR basis to represent Green’s function
-
-    Returns
-    -------
-    sigma: imaginary frequency BlockGf
-        The self-energy obtained by solving the Dyson equation via CRM.
-
-    References
-    ----------
-    [1] https://arxiv.org/abs/2310.01266.
-    """
-    # Fit DLR Green’s function to imaginary time Green’s function
-    g_dlr_iw = fit_gf_dlr(g_tau, w_max=w_max, eps=eps)
-
-    # Read off G0 at the DLR nodes
-    names = list(g_tau.indices)
-    mesh_iw = MeshDLRImFreq(g_dlr_iw.mesh)
-    g = Gf(mesh=mesh_iw, target_shape=g_dlr_iw[names[0]].target_shape)
-    g0_dlr_iw = BlockGf(name_list=names, block_list=[g, g])
-    for name, g in g0_dlr_iw:
-        for iwn in mesh_iw:
-            g[iwn] = g0_iw[name](iwn.value)
-
-    g = Gf(mesh=mesh_iw, target_shape=g_dlr_iw[names[0]].target_shape)
-    sigma_dlr = BlockGf(name_list=names, block_list=[g, g])
-    n_iw = g0_iw.mesh.n_iw
-
-    # Use the CRM solver to minimize the Dyson error
-    for name, sig in sigma_dlr:
-        s_dlr, s_hf, residual = minimize_dyson(
-            G0_dlr=g0_dlr_iw[name], G_dlr=g_dlr_iw[name], Sigma_moments=sigma_moments[name]
-        )
-        sig << s_dlr  # noqa
-
-    # Since a spectral representable G has no constant we have to manually add the Hartree
-    # shift after the solver is finished again
-    sigma_iw = make_gf_imfreq(sigma_dlr, n_iw=n_iw)
-    for name, sig in sigma_iw:
-        sig += sigma_moments[name][0]
-
-    return sigma_iw
-
-
 def solve_impurity(tmp_file: Union[str, Path]) -> None:
     """Solve the impurity problem using the given parameters and data from a temporary file.
 
@@ -432,7 +318,6 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
         report("")
         return
 
-    freq_name = "w" if params.is_real_mesh else "iw"
     start_time = datetime.now()
     if mpi.is_master_node():
         width = 100
@@ -443,7 +328,6 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
         report(f"Start: {start_time:{TIME_FRMT}}")
 
     solver_type = params.solver
-    solver_params = params.solver_params
     if solver_type == "ftps":
         from .solvers.ftps import solve_ftps
 
@@ -458,86 +342,25 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
                 ar["g_ret"] = solver.G_ret
 
     elif solver_type == "cthyb":
-        from triqs_cthyb.tail_fit import tail_fit
-
-        from .solvers.cthyb import solve_cthyb
+        from .solvers.cthyb import postprocess_cthyb, solve_cthyb
 
         solver = solve_cthyb(params, u, e_onsite, delta)
+
+        sigma_post, g_l = postprocess_cthyb(params, solver)
 
         # Write results back to temporary file
         mpi.barrier()
         if mpi.is_master_node():
             with HDFArchive(str(tmp_file), "a") as ar:
                 ar["solver"] = solver
-                ar["sigma_dmft"] = solver.Sigma_iw
-
-        # Postprocess the raw solver results
-        # ------------------------------------
-        if solver_params.legendre_fit:
-            if solver_params.measure_g_l:
-                # G_l measured, use to fit tail of Sigma
-                g_l = solver.G_l
-            else:
-                # Compute Legendre Gf by filtering binned imaginary time Green's function
-                report("Applying Legendre filter...")
-                g_l = apply_legendre_filter(solver.G_tau, order=solver_params.n_l)
-
-            # Fit the Green's functions and self energy using the Legendre Green's function
-            report("Performing Legendre fit...")
-            g_iw_l, g_tau_l, sigma_iw_l = legendre_fit(solver.G0_iw, solver.G_iw, solver.G_tau, g_l)
-            if mpi.is_master_node():
-                with HDFArchive(str(tmp_file), "a") as ar:
+                if sigma_post is not None:
+                    ar["sigma_dmft_raw"] = solver.Sigma_iw
+                    ar["sigma_dmft"] = sigma_post
+                else:
+                    ar["sigma_dmft"] = solver.Sigma_iw
+                if g_l is not None:
                     # Store the Legendre Green's functions
                     ar["g_l"] = g_l
-                    # Overwrite the raw solver results with the fitted results
-                    ar["sigma_dmft_raw"] = ar["sigma_dmft"]
-                    ar["sigma_dmft"] = sigma_iw_l
-
-        elif solver_params.tail_fit:
-            report(f"Performing tail fit of of Σ({freq_name})...")
-            fit_max_moment = params.solver_params.fit_max_moment
-
-            try:
-                sigma_moments = solver.Sigma_moments
-            except AttributeError:
-                sigma_moments = None
-                report("")
-                report("WARNING: No moments found in solver. Are you using the latest version?")
-                report("")
-
-            sigma_fitted = solver.Sigma_iw.copy()
-            tail_fit(
-                sigma_fitted,
-                fit_min_n=params.solver_params.fit_min_n,
-                fit_max_n=params.solver_params.fit_max_n,
-                fit_min_w=params.solver_params.fit_min_w,
-                fit_max_w=params.solver_params.fit_max_w,
-                fit_max_moment=fit_max_moment,
-                fit_known_moments=sigma_moments,
-            )
-
-            if mpi.is_master_node():
-                with HDFArchive(str(tmp_file), "a") as ar:
-                    # Overwrite the raw solver results with the fitted results
-                    ar["sigma_dmft_raw"] = ar["sigma_dmft"]
-                    ar["sigma_dmft"] = sigma_fitted
-
-        elif solver_params.crm_dyson:
-            report("Solving Dyson equation via constrained minimization problem...")
-            try:
-                sigma_moments = solver.Sigma_moments
-            except AttributeError:
-                raise ValueError("No moments found in solver. Are you using the latest version?")
-
-            sigma_iw_crm = crm_solve_dyson(
-                solver.G_tau, solver.G0_iw, sigma_moments, solver_params.w_max, solver_params.eps
-            )
-
-            if mpi.is_master_node():
-                with HDFArchive(str(tmp_file), "a") as ar:
-                    # Overwrite the raw solver results with the CRM results
-                    ar["sigma_dmft_raw"] = ar["sigma_dmft"]
-                    ar["sigma_dmft"] = sigma_iw_crm
 
     elif solver_type == "hubbardI":
         from .solvers.hubbard1 import solve_hubbard
