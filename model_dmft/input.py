@@ -246,36 +246,52 @@ class FtpsSolverParams(SolverParams):
     __descriptions__ = {
         "bath_fit": "DiscretizeBath vs BathFitter.",
         "n_bath": "The number of bath sites used by the FTPS solver.",
-        "time_steps": "Number of time steps for the time evolution.",
-        "dt": "Time step for the time evolution.",
-        "method": 'Time evolution method, "TDVP", "TDVP_2" or "TEBD".',
-        "sweeps": "Number of DMRG sweeps (default 15).",
-        "tw": "Truncated weight for every link. (default 1e-9).",
-        "maxm": "Maximum bond dimension. (default 100).",
-        "nmax": "Maximal Number of Krylov vectors created. (default 40).",
+        "enforce_gap": "Enforce a gap in the bath spectrum",
+        "ignore_weight": "Ignore bath states with weight below this threshold (default: 0.0)",
+        "sweeps": "Number of DMRG sweeps (default: 15)",
+        "dmrg_maxm": "Maximum bond dimension for DMRG (default: 100)",
+        "dmrg_maxmI": "Maximum imp-imp bond dimension for DMRG (default: 100)",
+        "dmrg_maxmIB": "Maximum imp-bath bond dimension for DMRG (default: 100)",
+        "dmrg_maxmB": "Maximum bath-bath bond dimension for DMRG (default: 100)",
+        "dmrg_tw": "Truncated weight for every link (default: 1e-9)",
+        "dmrg_nmax": "Maximal Number of Krylov vectors created for DMRG (default: 2)",
+        "dt": "Time step for the time evolution",
+        "time_steps": "Number of time steps for the time evolution",
+        "method": 'Time evolution method, "TDVP", "TDVP_2" or "TEBD"',
+        "maxm": "Maximum bond dimension. (default 100)",
+        "maxmI": "Maximum imp-imp bond dimension. (default 100)",
+        "maxmIB": "Maximum imp-bath bond dimension. (default 100)",
+        "maxmB": "Maximum bath-bath bond dimension. (default 100)",
+        "tw": "Truncated weight for every link. (default 1e-9)",
+        "nmax": "Maximal Number of Krylov vectors created. (default 40)",
     }
 
     def __init__(self, **kwargs):
         # General
         self.bath_fit: bool = True  # DiscretizeBath vs BathFitter
         self.n_bath: int = 64  # Number of bath sites.
-
-        # Solve parameters
-        # Path where to store temporary files for tevo states, default is '.tmp/'.
-        # self.state_storage: Optional[str] = ".tmp/"
-
-        # Tevo parameters
-        self.time_steps: Optional[int] = None  # Number of time steps for the time evolution.
-        self.dt: float = 0.1  # Time step for the time evolution.
-        self.method: Optional[str] = "TDVP_2"  # Time evolution method, "TDVP", "TDVP_2" or "TEBD"
+        self.enforce_gap: Optional[List[float]] = None  # Enforce a gap in the bath spectrum.
+        self.ignore_weight: float = 0.0  # Ignore bath states with weight below this threshold.
 
         # DMRG parameters
-        self.sweeps: Optional[int] = 15  # Number of DMRG sweeps (default 15)
+        self.sweeps: Optional[int] = 15  # Number of DMRG sweeps
+        self.dmrg_maxm: Optional[int] = None  # Maximum bond dimension for DMRG
+        self.dmrg_maxmI: Optional[int] = None  # Maximum imp-imp bond dimension for DMRG
+        self.dmrg_maxmIB: Optional[int] = None  # Maximum imp-bath bond dimension for DMRG
+        self.dmrg_maxmB: Optional[int] = None  # Maximum bath-bath bond dimension for DMRG
+        self.dmrg_tw: Optional[float] = None  # Truncated weight for every link for DMRG
+        self.dmrg_nmax: Optional[int] = None  # Maximal Number of Krylov vectors created for DMRG
 
-        # Used for Tevo and DMRG parameters
-        self.tw: Optional[float] = 1e-9  # Truncated weight for every link. (default 1e-9)
-        self.maxm: Optional[int] = 100  # Maximum bond dimension. (default 100)
-        self.nmax: Optional[int] = 40  # Maximal Number of Krylov vectors created. (default 40)
+        # Tevo parameters
+        self.dt: float = 0.1  # Time step for the time evolution.
+        self.time_steps: Optional[int] = None  # Number of time steps for the time evolution.
+        self.method: Optional[str] = "TDVP_2"  # Time evolution method, "TDVP", "TDVP_2" or "TEBD"
+        self.tw: Optional[float] = 1e-9  # Truncated weight for every link for Tevo
+        self.maxm: Optional[int] = 100  # Maximum bond dimension for Tevo
+        self.maxmI: Optional[int] = 100  # Maximum imp-imp bond dimension for Tevo
+        self.maxmIB: Optional[int] = 100  # Maximum imp-bath bond dimension for Tevo
+        self.maxmB: Optional[int] = 100  # Maximum bath-bath bond dimension for Tevo
+        self.nmax: Optional[int] = 40  # Maximal Number of Krylov vectors created for Tevo
 
         super().__init__(**kwargs)
 

@@ -263,10 +263,26 @@ def solve_ftps(
 
     mesh = delta.mesh
     solve_params: FtpsSolverParams = params.solver_params
-    # Prepare parameters for solver
-    bath_fit = solve_params["bath_fit"]
-    nbath = solve_params["n_bath"]
 
+    # Parameters for sector search
+    sector = DMRGParams(maxmI=50, maxmIB=50, maxmB=50, tw=1e-10, nmax=5, sweeps=5)
+
+    # Parameters for DMRG
+    dmrg = DMRGParams(
+        sweeps=solve_params.sweeps,
+        prep_imagTevo=True,
+        prep_method="TEBD",
+        prep_time_steps=5,
+        napph=2,
+        maxm=solve_params.dmrg_maxm or solve_params.maxm,
+        maxmI=solve_params.dmrg_maxmI or solve_params.maxmI,
+        maxmIB=solve_params.dmrg_maxmIB or solve_params.maxmIB,
+        maxmB=solve_params.dmrg_maxmB or solve_params.maxmB,
+        tw=solve_params.dmrg_tw or solve_params.tw,
+        nmax=solve_params.dmrg_nmax or solve_params.nmax,
+    )
+
+    # Parameters for time evolution
     time_steps = solve_params.time_steps
     if time_steps is None:
         time_steps = 1  # dummy, use TimeStepEstimation to estimate later
@@ -274,26 +290,21 @@ def solve_ftps(
     else:
         use_estimator = False
 
-    common = dict(tw=solve_params["tw"], maxm=solve_params["maxm"], nmax=solve_params["nmax"])
     tevo = TevoParams(
-        time_steps=time_steps,
         dt=solve_params.dt,
+        time_steps=time_steps,
         method=solve_params.method,
-        **common,
+        maxm=solve_params.maxm,
+        maxmI=solve_params.maxmI,
+        maxmIB=solve_params.maxmIB,
+        maxmB=solve_params.maxmB,
+        tw=solve_params.tw,
+        nmax=solve_params.nmax,
     )
-    dmrg = DMRGParams(
-        sweeps=solve_params["sweeps"],
-        prep_imagTevo=True,
-        prep_method="TEBD",
-        prep_time_steps=5,
-        napph=2,
-        **common,
-    )
-    sector = DMRGParams(maxmI=50, maxmIB=50, maxmB=50, tw=1e-10, nmax=5, sweeps=5)
 
     # Construct bath
     report("Constructing bath.")
-    bath = construct_bath(delta, params.eta, nbath, bath_fit=bath_fit)
+    bath = construct_bath(delta, params.eta, solve_params.n_bath, bath_fit=solve_params.bath_fit)
     if not check_bath(bath, delta, params.eta, plot=False):
         raise ValueError("Bath construction failed!")
 
