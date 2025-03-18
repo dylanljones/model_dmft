@@ -9,9 +9,9 @@ import numpy as np
 from numpy.typing import ArrayLike
 from triqs.gf import BlockGf, Gf, inverse
 
-from .convergence import norm_max_difference
+from .convergence import max_difference
 from .functions import Ht
-from .utility import GfLike, blockgf, report, toarray
+from .utility import GfLike, apply_mixing, blockgf, report, toarray
 
 __all__ = [
     "generate_cmpt_names",
@@ -296,6 +296,7 @@ def solve_iter(
     eta: float = 0.0,
     name: str = "Σ_cpa",
     tol: float = 1e-6,
+    mixing: float = 1.0,
     maxiter: int = 1000,
     verbosity: int = 1,
 ) -> GfLike:
@@ -321,6 +322,9 @@ def solve_iter(
         The tolerance for the convergence of the CPA self-energy.
         The iteration stops when the norm between the old and new self-energy
         .math:`|Σ_new - Σ_old|` is smaller than `tol`.
+    mixing : float, optional
+        The mixing parameter for the self-energy update. The new self-energy is
+        computed as `Σ_new = (1 - mixing) * Σ_old + mixing * Σ_new`.
     maxiter : int, optional
         The maximum number of iterations, by default 1000.
     verbosity : {0, 1, 2} int, optional
@@ -385,19 +389,24 @@ def solve_iter(
         # Update self energy via Dyson: Σ = G_0^{-1} - <G>^{-1}
         sigma << g0_inv - inverse(gc)
 
-        # Check for convergence
-        diff = norm_max_difference(sigma_old, sigma, relative=True)
-        if verbosity > 1:
-            report(f"CPA iteration {it + 1}: Error={diff}")
+        # Apply mixing
+        apply_mixing(sigma_old, sigma, mixing)
 
-        if np.all(diff <= tol):
+        # Check for convergence
+        diff = max_difference(sigma_old, sigma, norm_temp=True, relative=False)
+        if verbosity > 1:
+            report(f"CPA iteration {it + 1}: Error={diff:.10f}")
+
+        if diff <= tol:
             if verbosity > 0:
-                report(f"CPA converged in {it + 1} iterations!")
+                report(f"CPA converged in {it + 1} iterations (Error: {diff:.10f})")
             break
         sigma_old = sigma.copy()
     else:
         if verbosity > 0:
             report(f"CPA did not converge after {maxiter} iterations")
+
+    report("")
 
     sigma_out = sigma.copy()
     sigma_out.name = name

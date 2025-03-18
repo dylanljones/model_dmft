@@ -12,7 +12,9 @@ from .input import InputParameters
 from .utility import TIME_FRMT, GfLike, report, walk_block_paths
 
 
-def max_difference(old: GfLike, new: GfLike, norm_temp: bool = None) -> float:
+def max_difference(
+    old: GfLike, new: GfLike, norm_temp: bool = True, relative: bool = False
+) -> float:
     """Calculate the maximum difference between two Green's functions using the Frobenius norm.
 
     The Frobenius norm is calculated over the grid points of the Green's function. The result is
@@ -27,7 +29,9 @@ def max_difference(old: GfLike, new: GfLike, norm_temp: bool = None) -> float:
         The new quantity (Gf or self energy).
     norm_temp : bool, optional
         If `True` the norm is divided by an additional `sqrt(beta)` to account for temperature
-        scaling. The default is `True`.
+        scaling. . Only used if `relative=False`. The default is `True`.
+    relative : bool, optional
+        If `True` the error is normalized by the old value. The default is `False`.
 
     Returns
     -------
@@ -36,11 +40,23 @@ def max_difference(old: GfLike, new: GfLike, norm_temp: bool = None) -> float:
     """
     if isinstance(old, BlockGf):
         diff = 0.0
-        for name, g in old:
-            diff += max_difference(old[name], new[name], norm_temp)
+        if relative:
+            for name, g in old:
+                diff = max(diff, max_difference(old[name], new[name], norm_temp, relative=True))
+        else:
+            for name, g in old:
+                diff += max_difference(old[name], new[name], norm_temp, relative=False)
         return diff
 
     assert old.mesh == new.mesh, "Meshes of inputs do not match."
+    assert old.target_shape == new.target_shape, "Target shapes of inputs do not match."
+
+    if relative:
+        # Use a simple relative error instead
+        norm_grid = np.linalg.norm(old.data - new.data, axis=tuple(range(1, old.data.ndim)))
+        norm_old = np.linalg.norm(old.data, axis=tuple(range(1, old.data.ndim)))
+        return np.linalg.norm(norm_grid, axis=0) / np.linalg.norm(norm_old, axis=0)
+
     mesh = old.mesh
     n_points = len(mesh)
 
@@ -63,8 +79,6 @@ def max_difference(old: GfLike, new: GfLike, norm_temp: bool = None) -> float:
     else:
         raise NotImplementedError(f"Mesh type {type(mesh)} not supported.")
 
-    if norm_temp is None:
-        norm_temp = True
     if isinstance(mesh, (MeshImFreq, MeshImTime)) and norm_temp:
         norm = norm / np.sqrt(mesh.beta)
 
@@ -101,7 +115,8 @@ def calculate_convergences(
     g_old: Union[BlockGf, None],
     sigma_old: Union[BlockGf, None],
     occ_old: Union[float, None],
-    relative: bool = True,
+    norm_temp: bool = True,
+    relative: bool = False,
 ) -> Tuple[float, float, float]:
     """Calculate the convergence metrics for Green's functions, self-energies and occupations.
 
@@ -119,6 +134,9 @@ def calculate_convergences(
         The old self-energy.
     occ_old : float or None
         The old occupation numbers.
+    norm_temp : bool, optional
+        If `True` the error is normalized by the temperature. Only used if `relative=False`.
+        The default is `True`.
     relative : bool, optional
         If `True` the error is normalized by the old value. The default is `True`.
 
@@ -136,12 +154,12 @@ def calculate_convergences(
     err_g, err_sigma, err_occ = err_default, err_default, err_default
 
     if g_old is not None:
-        # err_g = max_difference(g_old, g_new, norm_temp)
-        err_g = norm_max_difference(g_old, g_new, relative)
+        err_g = max_difference(g_old, g_new, norm_temp, relative)
+        # err_g = norm_max_difference(g_old, g_new, relative)
 
     if sigma_old is not None:
-        # err_sigma = max_difference(sigma_old, sigma_new, norm_temp)
-        err_sigma = norm_max_difference(sigma_old, sigma_new, relative)
+        err_sigma = max_difference(sigma_old, sigma_new, norm_temp, relative)
+        # err_sigma = norm_max_difference(sigma_old, sigma_new, relative)
 
     if occ_old is not None:
         err_occ = abs(occ_new - occ_old)

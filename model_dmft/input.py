@@ -680,7 +680,7 @@ class InputParameters(Parameters):
 
         self.method_cpa: str = "iter"  # The CPA method.
         self.maxiter_cpa: Optional[int] = 1_000  # Maximum number of iterations if method is 'iter'.
-        self.verbosity_cpa: Optional[int] = 0  # Verbosity level for the CPA if method is 'iter'.
+        self.verbosity_cpa: Optional[int] = 1  # Verbosity level for the CPA if method is 'iter'.
 
         self.mixing_dmft: float = 1.0  # Mixing parameter for the DMFT self-energy.
         self.mixing_cpa: float = 1.0  # Mixing parameter for the CPA self-energy.

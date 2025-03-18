@@ -437,7 +437,7 @@ def _load_tmp_files(sigma_dmft: BlockGf, tmp_filepath: str, archive_file: str) -
     # Load main results from temporary file
     for cmpt, sig in sigma_dmft:
         tmp_file = tmp_filepath.format(cmpt=cmpt)
-        report(f"Loading temporary file {tmp_file}...")
+        # report(f"Loading temporary file {tmp_file}...")
         with HDFArchive(str(tmp_file), "r") as ar:
             if "sigma_dmft" in ar:
                 sig << ar["sigma_dmft"]  # noqa
@@ -778,11 +778,13 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
     # tol_dmft = params.tol_dmft
 
     # CPA parameters
-    cpa_kwds = dict()
-    cpa_kwds["method"] = params.method_cpa
-    cpa_kwds["tol"] = params.tol_cpa
-    cpa_kwds["maxiter"] = params.maxiter_cpa
-    cpa_kwds["verbosity"] = params.verbosity_cpa
+    cpa_kwds = {
+        "method": params.method_cpa,
+        "tol": params.tol_cpa,
+        "maxiter": params.maxiter_cpa,
+        "mixing": params.mixing_cpa,
+        "verbosity": params.verbosity_cpa,
+    }
 
     # Check compatibility of solver
     solver_type = params.solver
@@ -937,8 +939,6 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                 occ_up = density[up][0, 0].real
                 occ_dn = density[dn][0, 0].real
                 occ = g_coh.total_density().real
-                report(f"Occupation: total={occ:.4f} up={occ_up:.4f} dn={occ_dn:.4f}")
-
                 # Check convergence and copy data for next iteration
                 err_g, err_sigma, err_occ = calculate_convergences(
                     g_coh, sigma_cpa, occ, g_coh_prev, sigma_cpa_prev, occ_prev, relative=True
@@ -964,6 +964,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                 update_dataset(out_file, keep_iter=True)
 
                 report("")
+                report(f"Occupation:   total={occ:.4f} up={occ_up:.4f} dn={occ_dn:.4f}")
                 s = "Iteration: {it:>2} Error-G: {g:.10f} Error-Σ: {sig:.10f} Error-n: {occ:.10f}"
                 report(s.format(it=it, g=err_g, sig=err_sigma, occ=err_occ))
 
