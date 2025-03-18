@@ -14,7 +14,7 @@ import forktps
 import numpy as np
 import triqs.operators as ops
 from forktps.BathFitting import BathFitter
-from forktps.DiscreteBath import DiscretizeBath, SigmaDyson
+from forktps.DiscreteBath import DiscretizeBath, SigmaDyson, TimeStepEstimation
 from forktps.solver import DMRGParams, TevoParams
 from forktps.solver_core import Bath, HInt, Hloc  # noqa
 from triqs.gf import BlockGf
@@ -266,26 +266,30 @@ def solve_ftps(
     # Prepare parameters for solver
     bath_fit = solve_params["bath_fit"]
     nbath = solve_params["n_bath"]
+
+    time_steps = solve_params.time_steps
+    if time_steps is None:
+        time_steps = 1  # dummy, use TimeStepEstimation to estimate later
+        use_estimator = True
+    else:
+        use_estimator = False
+
     common = dict(tw=solve_params["tw"], maxm=solve_params["maxm"], nmax=solve_params["nmax"])
     tevo = TevoParams(
-        time_steps=solve_params["time_steps"],
-        dt=solve_params["dt"],
-        method=solve_params["method"],
+        time_steps=time_steps,
+        dt=solve_params.dt,
+        method=solve_params.method,
         **common,
     )
-    dmrg = DMRGParams(sweeps=solve_params["sweeps"], **common)
-    solve_kwds = {
-        "eta": params.eta,
-        "tevo": tevo,
-        "params_GS": dmrg,
-        "params_partSector": dmrg,
-        "measurements": [ops.n(up, 0), ops.n(dn, 0)],  # Only measure impurity Gfs
-    }
-    tmp_dir = params.tmp_dir_path
-    Path(tmp_dir).mkdir(parents=True, exist_ok=True)
-    if not tmp_dir.endswith("/"):
-        tmp_dir += "/"
-    solve_kwds["state_storage"] = tmp_dir
+    dmrg = DMRGParams(
+        sweeps=solve_params["sweeps"],
+        prep_imagTevo=True,
+        prep_method="TEBD",
+        prep_time_steps=5,
+        napph=2,
+        **common,
+    )
+    sector = DMRGParams(maxmI=50, maxmIB=50, maxmB=50, tw=1e-10, nmax=5, sweeps=5)
 
     # Construct bath
     report("Constructing bath.")
@@ -294,6 +298,8 @@ def solve_ftps(
         raise ValueError("Bath construction failed!")
 
     # Construct local and interaction Hamiltonian
+    report("")
+    report("")
     report("Initializing FTPS solver....")
     hloc = Hloc(gf_struct)
     hloc.Fill(up, [[e_onsite[0]]])
@@ -304,6 +310,27 @@ def solve_ftps(
     solver = forktps.Solver(gf_struct, mesh.omega_min, mesh.omega_max, len(mesh))
     solver.b = bath  # Add bath to solver
     solver.e0 = hloc  # Add local Hamiltonian to solver
+
+    # calculate time_steps
+    if use_estimator:
+        mpi.report("Estimating time steps...")
+        time_steps = TimeStepEstimation(bath, eta=params.eta, dt=solve_params.dt)
+        s = "TimeStepEstimation returned {} with given bath, 'eta' = {} and 'dt' = {}"
+        mpi.report(s.format(time_steps, params.eta, solve_params.dt))
+        tevo.time_steps = time_steps
+
+    solve_kwds = {
+        "eta": params.eta,
+        "tevo": tevo,
+        "params_GS": dmrg,
+        "params_partSector": sector,
+        "measurements": [ops.n(up, 0), ops.n(dn, 0)],  # Only measure impurity Gfs
+    }
+    tmp_dir = params.tmp_dir_path
+    Path(tmp_dir).mkdir(parents=True, exist_ok=True)
+    if not tmp_dir.endswith("/"):
+        tmp_dir += "/"
+    solve_kwds["state_storage"] = tmp_dir
 
     # Run solver
     report("Solving impurity...")

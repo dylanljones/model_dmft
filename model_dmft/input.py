@@ -265,7 +265,7 @@ class FtpsSolverParams(SolverParams):
         # self.state_storage: Optional[str] = ".tmp/"
 
         # Tevo parameters
-        self.time_steps: int = 100  # Number of time steps for the time evolution.
+        self.time_steps: Optional[int] = None  # Number of time steps for the time evolution.
         self.dt: float = 0.1  # Time step for the time evolution.
         self.method: Optional[str] = "TDVP_2"  # Time evolution method, "TDVP", "TDVP_2" or "TEBD"
 
