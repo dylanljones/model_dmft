@@ -582,10 +582,13 @@ def solve_impurities(
 
     # Warn if number of processes is too high for the solver
     solver_type = params.solver
+    n = nproc / params.n_cmpt
+    if n % 1 != 0:
+        raise ValueError("Number of processes must be divisible by number of components.")
+    n = max(1, int(n))
     max_proc = params.solver_params.MAX_PROCESSES
-
-    if nproc > max_proc:
-        line1 = f"WARNING: Number of processes {nproc} is too high for solver {solver_type}."
+    if n > max_proc:
+        line1 = f"WARNING: Number of processes {n} is too high for solver {solver_type}."
         line2 = f"         Maximum number of processes per solver is {max_proc}."
         line = "-" * max(len(line1), len(line2))
         report("")
@@ -612,11 +615,6 @@ def solve_impurities(
 
     procs = list()
     executable = sys.executable  # Use current Python executable for subprocesses
-    n = nproc / params.n_cmpt
-    if n % 1 != 0:
-        raise ValueError("Number of processes must be divisible by number of components.")
-    n = max(1, int(n))
-
     if use_srun:
         base_cmd = ["srun", "--exact", "--exclusive", f"--ntasks={n}"]
     else:
