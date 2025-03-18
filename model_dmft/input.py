@@ -214,6 +214,7 @@ class SolverParams(Parameters):
 
     SOLVER: str
     RE_MESH: bool
+    MAX_PROCESSES = 1
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -232,6 +233,7 @@ class FtpsSolverParams(SolverParams):
 
     SOLVER = "ftps"
     RE_MESH = True
+    MAX_PROCESSES = 8
 
     __types__ = {
         "n_bath": int,
@@ -306,6 +308,7 @@ class CthybSolverParams(SolverParams):
 
     SOLVER = "cthyb"
     RE_MESH = False
+    MAX_PROCESSES = 32
 
     __types__ = {
         "n_cycles": int,
@@ -402,6 +405,7 @@ class HubbardISolverParams(SolverParams):
 
     SOLVER = "hubbardI"
     RE_MESH = False
+    MAX_PROCESSES = 1
 
     __types__ = {
         "n_tau": int,
@@ -440,6 +444,7 @@ class HartreeSolverParams(SolverParams):
 
     SOLVER = "hartree"
     RE_MESH = False
+    MAX_PROCESSES = 1
 
     __types__ = {
         "one_shot": bool,

@@ -31,13 +31,6 @@ from .utility import (
     symmetrize_gf,
 )
 
-MAX_SOLVER_PROCESSES = {
-    "ftps": 8,
-    "cthyb": 32,
-    "hubbardI": 1,
-    "hartree": 1,
-}
-
 
 def report_header(text: str, width: int, char: str = "-") -> None:
     """Print a header with a given width."""
@@ -589,7 +582,8 @@ def solve_impurities(
 
     # Warn if number of processes is too high for the solver
     solver_type = params.solver
-    max_proc = MAX_SOLVER_PROCESSES.get(solver_type, 1)
+    max_proc = params.solver_params.MAX_PROCESSES
+
     if nproc > max_proc:
         line1 = f"WARNING: Number of processes {nproc} is too high for solver {solver_type}."
         line2 = f"         Maximum number of processes per solver is {max_proc}."
