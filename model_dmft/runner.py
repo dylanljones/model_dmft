@@ -17,15 +17,16 @@ from triqs.gf import BlockGf, MeshReFreq, Omega, inverse, iOmega_n
 from triqs.utility import mpi
 
 from . import cpa
+from .convergence import calculate_convergences
 from .functions import HilbertTransform
 from .input import InputParameters, get_supported_solvers
 from .output import write_out_files
 from .utility import (
     SIGMA,
+    TIME_FRMT,
     apply_mixing,
     blockgf,
     check_broadening,
-    check_convergence,
     report,
     symmetrize_gf,
 )
@@ -36,8 +37,6 @@ MAX_SOLVER_PROCESSES = {
     "hubbardI": 1,
     "hartree": 1,
 }
-
-TIME_FRMT = "%H:%M:%S %d-%b-%y"
 
 
 def report_header(text: str, width: int, char: str = "-") -> None:
@@ -865,18 +864,6 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
     for file in Path(params.location_path).glob("solver-*.log"):
         file.unlink(missing_ok=True)
 
-    gf_coh_old = None
-    sig_coh_old = None
-    occ_old = None
-    if g_coh_prev is not None:
-        gf_coh_old = g_coh_prev.copy()
-    if sigma_cpa_prev is not None:
-        sig_coh_old = sigma_cpa_prev.copy()
-    if occ_prev is not None:
-        occ_old = occ_prev
-
-    err_g_coh, err_sigma, err_occ = 1.0, 1.0, 1.0
-
     # Start iterations
     try:
         for it in range(it_prev + 1, n_loops + 1):
@@ -958,17 +945,11 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                 occ = g_coh.total_density().real
                 report(f"Occupation: total={occ:.4f} up={occ_up:.4f} dn={occ_dn:.4f}")
 
-                # Check convergence
-                if gf_coh_old is not None:
-                    err_g_coh = check_convergence(gf_coh_old, g_coh, relative=True)
-                if sig_coh_old is not None:
-                    err_sigma = check_convergence(sig_coh_old, sigma_cpa, relative=True)
-                if occ_old is not None:
-                    err_occ = abs(occ - occ_old) / occ_old
-
-                sig_coh_old = sigma_cpa.copy()
-                gf_coh_old = g_coh.copy()
-                occ_old = occ
+                # Check convergence and copy data for next iteration
+                err_g, err_sigma, err_occ = calculate_convergences(
+                    g_coh, sigma_cpa, occ, g_coh_prev, sigma_cpa_prev, occ_prev, relative=True
+                )
+                sigma_cpa_prev, g_coh_prev, occ_prev = sigma_cpa.copy(), g_coh.copy(), occ
 
                 # report("")
                 # report(f"Writing results of iteration {it} to {out_file}")
@@ -978,7 +959,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                     ar["g_coh"] = g_coh
                     ar["g_cmpt"] = g_cmpt
                     ar["occ"] = occ
-                    ar["err_g"] = err_g_coh
+                    ar["err_g"] = err_g
                     ar["err_sigma"] = err_sigma
                     ar["err_occ"] = err_occ
 
@@ -990,7 +971,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
 
                 report("")
                 s = "Iteration: {it:>2} Error-G: {g:.10f} Error-Σ: {sig:.10f} Error-n: {occ:.10f}"
-                report(s.format(it=it, g=err_g_coh, sig=err_sigma, occ=err_occ))
+                report(s.format(it=it, g=err_g, sig=err_sigma, occ=err_occ))
 
                 iter_end_time = datetime.now()
                 report(f"End:       {iter_end_time:{TIME_FRMT}}")
@@ -1006,7 +987,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                     report(f"Σ converged in {it} iterations at {now:{TIME_FRMT}}")
                     report("")
                     break
-                if params.gtol and err_g_coh < params.gtol:
+                if params.gtol and err_g < params.gtol:
                     now = datetime.now()
                     report("")
                     report(f"G converged in {it} iterations at {now:{TIME_FRMT}}")

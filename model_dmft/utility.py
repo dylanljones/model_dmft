@@ -20,6 +20,8 @@ MeshLike = Union[MeshReFreq, MeshImFreq, MeshReTime, MeshImTime]
 
 # Names for up/down - Allowed pairs are: 'up'/'down' or 'up'/'dn'
 UP, DN = "up", "dn"
+# Default time format for time stamps
+TIME_FRMT = "%H:%M:%S %d-%b-%y"
 
 SIGMA = np.array([-0.5, +0.5])
 
@@ -347,46 +349,6 @@ def fill_gf(gf: GfLike, data: np.ndarray) -> None:
                     g[k].data[...] = v[...]
 
         _fill_block(gf, data)
-
-
-def check_convergence(old: GfLike, new: GfLike, relative=False) -> float:
-    if isinstance(old, Gf):
-        error = float(np.linalg.norm(old.data - new.data))
-        if relative:
-            error /= np.linalg.norm(old.data)
-    else:
-        norms = list()
-        max_norm = 0
-        for keys in walk_block_paths(old):
-            item_old = old
-            item_new = new
-            for key in keys:
-                item_old = item_old[key]
-                item_new = item_new[key]
-            norms.append(np.linalg.norm(item_old.data - item_new.data))
-            max_norm = max(max_norm, np.linalg.norm(item_old.data))
-        error = max(norms)
-
-        if relative:
-            error /= max_norm
-    return error
-
-
-def difference(old: GfLike, new: GfLike) -> float:
-    """Calculate the absolute difference between two Green's functions."""
-    if isinstance(old, Gf):
-        error = float(np.max(np.abs(old.data - new.data)))
-    else:
-        errors = list()
-        for keys in walk_block_paths(old):
-            item_old = old
-            item_new = new
-            for key in keys:
-                item_old = item_old[key]
-                item_new = item_new[key]
-            errors.append(float(np.max(np.abs(item_old.data - item_new.data))))
-        error = max(errors)
-    return error
 
 
 def symmetrize_gf(gf: BlockGf) -> BlockGf:
