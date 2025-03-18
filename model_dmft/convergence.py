@@ -36,17 +36,11 @@ def max_difference(
     Returns
     -------
     float
-        The maximum difference between the two Green's functions.
+        The maximum difference between the two Green's functions. If the inputs are BlockGfs the
+        highest error of the blocks is returned.
     """
     if isinstance(old, BlockGf):
-        diff = 0.0
-        if relative:
-            for name, g in old:
-                diff = max(diff, max_difference(old[name], new[name], norm_temp, relative=True))
-        else:
-            for name, g in old:
-                diff += max_difference(old[name], new[name], norm_temp, relative=False)
-        return diff
+        return max([max_difference(old[name], new[name], norm_temp, relative) for name, g in old])
 
     assert old.mesh == new.mesh, "Meshes of inputs do not match."
     assert old.target_shape == new.target_shape, "Target shapes of inputs do not match."
