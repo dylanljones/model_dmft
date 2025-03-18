@@ -9,8 +9,9 @@ import numpy as np
 from numpy.typing import ArrayLike
 from triqs.gf import BlockGf, Gf, inverse
 
+from .convergence import norm_max_difference
 from .functions import Ht
-from .utility import GfLike, blockgf, check_convergence, report, toarray
+from .utility import GfLike, blockgf, report, toarray
 
 __all__ = [
     "generate_cmpt_names",
@@ -385,7 +386,7 @@ def solve_iter(
         sigma << g0_inv - inverse(gc)
 
         # Check for convergence
-        diff = check_convergence(sigma_old, sigma)
+        diff = norm_max_difference(sigma_old, sigma, relative=True)
         if verbosity > 1:
             report(f"CPA iteration {it + 1}: Error={diff}")
 
