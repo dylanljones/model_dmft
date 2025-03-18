@@ -894,7 +894,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                     report("")
 
                 if n_procs > 1:
-                    solve_impurities(**kwargs, nproc=n_procs, it=it, use_srun=params.use_srun)
+                    solve_impurities(**kwargs, nproc=n_procs, it=it)
                 else:
                     solve_impurities_seq(**kwargs, it=it)
 

@@ -236,12 +236,24 @@ class FtpsSolverParams(SolverParams):
     MAX_PROCESSES = 8
 
     __types__ = {
+        "bath_fit": bool,
         "n_bath": int,
-        "time_steps": int,
-        "dt": float,
+        "enforce_gap": _parse_array,
+        "ignore_weight": float,
         "sweeps": int,
-        "tw": float,
+        "dmrg_maxm": int,
+        "dmrg_maxmI": int,
+        "dmrg_maxmIB": int,
+        "dmrg_maxmB": int,
+        "dmrg_tw": float,
+        "dmrg_nmax": int,
+        "dt": float,
+        "time_steps": int,
         "maxm": int,
+        "maxmI": int,
+        "maxmIB": int,
+        "maxmB": int,
+        "tw": float,
         "nmax": int,
     }
 
@@ -288,12 +300,12 @@ class FtpsSolverParams(SolverParams):
         self.dt: float = 0.1  # Time step for the time evolution.
         self.time_steps: Optional[int] = None  # Number of time steps for the time evolution.
         self.method: Optional[str] = "TDVP_2"  # Time evolution method, "TDVP", "TDVP_2" or "TEBD"
-        self.tw: Optional[float] = 1e-9  # Truncated weight for every link for Tevo
         self.maxm: Optional[int] = 100  # Maximum bond dimension for Tevo
         self.maxmI: Optional[int] = 100  # Maximum imp-imp bond dimension for Tevo
         self.maxmIB: Optional[int] = 100  # Maximum imp-bath bond dimension for Tevo
         self.maxmB: Optional[int] = 100  # Maximum bath-bath bond dimension for Tevo
         self.nmax: Optional[int] = 40  # Maximal Number of Krylov vectors created for Tevo
+        self.tw: Optional[float] = 1e-9  # Truncated weight for every link for Tevo
 
         super().__init__(**kwargs)
 
@@ -579,9 +591,6 @@ class InputParameters(Parameters):
 
     __types__ = {
         "n_loops": int,
-        # "restart": bool,
-        # "store_iter": bool,
-        "use_srun": bool,
         "load_iter": int,
         "half_bandwidth": float,
         "conc": _parse_array,
@@ -611,9 +620,6 @@ class InputParameters(Parameters):
         "tmpdir": "The directory where temporary files are stored. (default: '.tmp/')",
         "n_loops": "The total number of iterations to perform.",
         "load_iter": "Continue from specific iteration (-1 for last iteration, 0 for restart).",
-        # "restart": "Flag if the calculation should resume from previous results or start over.",
-        # "store_iter": "Flag to keep intermediate iteration results.",
-        "use_srun": "Use srun instead of mpirun for parallel jobs",
         "lattice": "The lattice type.",
         "gf_struct": "The structure of the Greens function.",
         "half_bandwidth": "The half bandwidth of the lattice.",
@@ -651,9 +657,6 @@ class InputParameters(Parameters):
         self.tmpdir: str = ".tmp/"  # Directory to store temporary files
         self.n_loops: int = 10  # Number of iterations.
         self.load_iter: int = 0  # Load iteration from which to start the simulation.
-        # self.restart: bool = False  # Overwrite existing output file.
-        # self.store_iter: bool = True  # Keep intermediate iteration results.
-        self.use_srun: bool = False  # Use srun instead of mpirun for parallel jobs
 
         self.lattice: str = "bethe"  # The lattice type.
         self.gf_struct = [("up", 1), ("dn", 1)]  # The Green's function structure.

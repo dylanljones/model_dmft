@@ -99,10 +99,9 @@ cp <path-to-repo>/example <new-directory>
 | `jobname`        | `str`                    | Name of the job.                                                            |
 | `location`       | `str`                    | Location of the job.                                                        |
 | `output`         | `str`                    | Name of the output file.                                                    |
-| `tmp_dir`        | `str`                    | Temporary directory.                                                        |
+| `tmpdir`         | `str`                    | Temporary directory.                                                        |
 | `n_loops`        | `int`                    | Number of DMFT loops.                                                       |
-| `restart`        | `bool`                   | Restart from previous calculation.                                          |
-| `store_iter`     | `bool`                   | Keep intermediate iteration results.                                        |
+| `load_iter`      | `int`                    | Continue from specific iteration (-1 for last iteration, 0 for restart).    |
 | `lattice`        | `str`                    | Lattice type.                                                               |
 | `gf_struct`      | `List[List[str, int]]`   | Green's function structure.                                                 |
 | `half_bandwidth` | `float`                  | Half bandwidth.                                                             |
@@ -136,8 +135,7 @@ location        = "."                    # The directory where the simulation is
 output          = "out.h5"               # The name of the output file.
 tmp_dir         = ".tmp/"                # The directory where temporary files are stored.
 n_loops         = 3                      # The total number of iterations to perfom.
-load_iter       = -1                     # Load iteration from which to start the simulation.
-restart         = true                   # Flag if the calculation should resume from previous results or start over.
+load_iter       = -1                     # Continue from specific iteration (-1 for last iteration, 0 for restart).
 
 # Model parameters
 lattice         = "bethe"                # The lattice type
@@ -176,27 +174,38 @@ occ_tol        = 1e-06                   # Occupation tolerance for CPA.
 
 #### ``[solver]``
 
-| Name   | Type               | Description                               |
-|--------|--------------------|-------------------------------------------|
-| `type` | `{'ftps', 'cthyb}` | The solver used for the impurity problem. |
-| ...    | ...                | Solver-specific parameters.               |
+| Name   | Type                                       | Description                               |
+|--------|--------------------------------------------|-------------------------------------------|
+| `type` | `{'ftps', 'cthyb', 'hubbardI', 'hartree'}` | The solver used for the impurity problem. |
+| ...    | ...                                        | Solver-specific parameters.               |
 
 
 #### `ftps`
 
 Parameters for the [ForkTPS] solver.
 
-| Name          | Type    | Description                                            |
-|---------------|---------|--------------------------------------------------------|
-| `bath_fit`    | `bool`  | DiscretizeBath vs BathFitter                           |
-| `n_bath`      | `int`   | Number of bath sites.                                  |
-| `time_steps`  | `int`   | Number of time steps for the time evolution.           |
-| `dt`          | `float` | Time step for the time evolution.                      |
-| `method`      | `str`   | Time evolution method, "TDVP", "TDVP_2" or "TEBD"      |
-| `sweeps`      | `int`   | Number of DMRG sweeps.                                 |
-| `tw`          | `float` | Truncated weight for every link. (default 1e-9)        |
-| `maxm`        | `int`   | Maximum bond dimension. (default 100)                  |
-| `nmax`        | `int`   | Maximal Number of Krylov vectors created. (default 40) |
+| Name            | Type           | Description                                                                             |
+|-----------------|----------------|-----------------------------------------------------------------------------------------|
+| `bath_fit`      | `bool`         | DiscretizeBath vs BathFitter                                                            |
+| `n_bath`        | `int`          | Number of bath sites                                                                    |
+| `enforce_gap`   | `List[float]`  | Enforce a gap in the bath spectrum (default: None)                                      |
+| `ignore_weight` | `float`        | Ignore bath states with weight below this threshold (default: 0.0)                      |
+| `sweeps`        | `int`          | Number of DMRG sweeps (default: 15)                                                     |
+| `dmrg_maxm`     | `int`          | Maximum bond dimension for DMRG, if not specified `maxm` (default: None)                |
+| `dmrg_maxmI`    | `int`          | Maximum imp-imp bond dimension for DMRG, if not specified `maxmI` (default: None)       |
+| `dmrg_maxmIB`   | `int`          | Maximum imp-bath bond dimension for DMRG, if not specified `maxmIB` (default: None)     |
+| `dmrg_maxmB`    | `int`          | Maximum bath-bath bond dimension for DMRG, if not specified `maxmB` (default: None)     |
+| `dmrg_nmax`     | `int`          | Maximal Number of Krylov vectors for DMRG, if not specified `nmax` (default: None)      |
+| `dmrg_tw`       | `float`        | Truncated weight for DMRG, if not specified `tw` (default: None)                        |
+| `dt`            | `float`        | Time step for the time evolution (default: 0.1)                                         |
+| `time_steps`    | `int`          | Number of time steps for the time evolution, optimized if not specified (default: None) |
+| `method`        | `str`          | Time evolution method, "TDVP", "TDVP_2" or "TEBD" (default: "TDVP_2")                   |
+| `maxm`          | `int`          | Maximum bond dimension. (default 100)                                                   |
+| `maxmI`         | `int`          | Maximum imp-imp bond dimension. (default 100)                                           |
+| `maxmIB`        | `int`          | Maximum imp-bath bond dimension. (default 100)                                          |
+| `maxmB`         | `int`          | Maximum bath-bath bond dimension. (default 100)                                         |
+| `nmax`          | `int`          | Maximal Number of Krylov vectors created. (default 40)                                  |
+| `tw`            | `float`        | Truncated weight for every link. (default 1e-9)                                         |
 
 ```toml
 [solver]
@@ -204,13 +213,10 @@ type            = "ftps"                 # Solver used to solve impurity problem
 
 bath_fit        = true                   # DiscretizeBath vs BathFitter
 n_bath          = 20                     # The number of bath sites used by the FTPS solver
-# Tevo parameters
 time_steps      = 100                    # Number of time steps for the time evolution.
 dt              = 0.1                    # Time step for the time evolution.
 method          = "TDVP_2"               # Time evolution method, "TDVP", "TDVP_2" or "TEBD"
-# DMRG parameters
 sweeps          = 10                     # Number of DMRG sweeps (default 15)
-# Used for Tevo and DMRG parameters
 tw              = 1e-9                   # Truncated weight for every link. (default 1e-9)
 maxm            = 100                    # Maximum bond dimension. (default 100)
 nmax            = 40                     # Maximal Number of Krylov vectors created. (default 40)
@@ -219,37 +225,92 @@ nmax            = 40                     # Maximal Number of Krylov vectors crea
 
 #### `cthyb`
 
-Parameters for the [CTHYB] solver (experimental).
+Parameters for the [CTHYB] solver.
 
-| Name             | Type    | Description                                   |
-|------------------|---------|-----------------------------------------------|
-| `n_cycles`       | `int`   | Number of Quantum Monte Carlo cycles.         |
-| `n_warmup_cycle` | `int`   | Number of warmup cycles.                      |
-| `length_cycle`   | `int`   | Length of the cycle.                          |
-| `n_tau`          | `int`   | Number of imaginary time steps.               |
-| `tail_fit `      | `bool`  | Perform tail fit of Sigma and G.              |
-| `fit_max_moment` | `int`   | Highest moment to fit in the tail of Sigma.   |
-| `fit_min_n`      | `int`   | Index of iw from which to start fitting.      |
-| `fit_max_n`      | `int`   | Index of iw up to which to fit.               |
-| `measure_g_l`    | `bool`  | Measure G_l (Legendre)? (default: false)      |
-| `n_l`            | `int`   | Number of Legendre polynomials. (default: 30) |
-| `density_matrix` | `bool`  | Measure the impurity density matrix.          |
+| Name             | Type    | Description                                                                  |
+|------------------|---------|------------------------------------------------------------------------------|
+| `n_cycles`       | `int`   | Number of Quantum Monte Carlo cycles (default: 10_000)                       |
+| `n_warmup_cycle` | `int`   | Number of warmup cycles (default: 1_000)                                     |
+| `length_cycle`   | `int`   | Length of the cycle (default: 100)                                           |
+| `n_tau`          | `int`   | Number of imaginary time steps (default: 10_001)                             |
+| `density_matrix` | `bool`  | Measure the impurity density matrix (default: False)                         |
+| `measure_g_l`    | `bool`  | Measure G_l (Legendre) (default: False)                                      |
+| `n_l`            | `int`   | Number of Legendre polynomials. (default: 30)                                |
+| `legendre_fit`   | `bool`  | Fit Green's function and self energy using Legendre Gf (default: false)      |
+| `tail_fit `      | `bool`  | Perform tail fit of Sigma and G (default: False)                             |
+| `fit_max_moment` | `int`   | Highest moment to fit in the tail of Sigma (default: 3)                      |
+| `fit_min_n`      | `int`   | Index of iw from which to start fitting (default: 0.8*n_iw)                  |
+| `fit_max_n`      | `int`   | Index of iw up to which to fit (default: n_iw)                               |
+| `fit_min_w`      | `float` | iw from which to start fitting (default: None)                               |
+| `fit_max_w`      | `float` | iw up to which to fit (default: None)                                        |
+| `crm_dyson`      | `bool`  | Solve Dyson equation using constrained minimization problem (default: false) |
+| `crm_wmax`       | `float` | Spectral width of the impurity problem for DLR basis (default: None)         |
+| `crm_eps`        | `float` | Accuracy of the DLR basis to represent Green’s function (default: 1e-8)      |
 
 ```toml
 [solver]
-type            = "cthyb"               # Solver used to solve impurity problem
+type            = "cthyb"                # Solver used to solve impurity problem
 
-n_cycles        = 5000                  # Number of Quantum Monte Carlo cycles (default 10_000)
-n_warmup_cycle  = 1000                  # Number of warmup cycles (default: 1_000)
-length_cycle    = 100                   # Length of the cycle (default: 100)
-n_tau           = 10001                 # Number of imaginary time steps. (default: 10001)
-tail_fit        = false                 # Perform tail fit of Sigma and G (default: false)
-fit_max_moment  = 3                     # Highest moment to fit in the tail of Sigma (default: 3)
-fit_min_n       = 0                     # Index of iw from which to start fitting (default: 0.5*n_iw)
-fit_max_n       = 0                     # Index of iw up to which to fit (default: n_iw)
-measure_g_l     = false                 # Measure G_l (Legendre) (default: false)
-n_l             = 30                    # Number of Legendre polynomials (default: 30)
-density_matrix  = true                  # Measure the impurity density matrix (default: false)
+n_cycles        = 5000                   # Number of Quantum Monte Carlo cycles (default 10_000)
+n_warmup_cycle  = 1000                   # Number of warmup cycles (default: 1_000)
+length_cycle    = 100                    # Length of the cycle (default: 100)
+n_tau           = 10001                  # Number of imaginary time steps. (default: 10001)
+tail_fit        = false                  # Perform tail fit of Sigma and G (default: false)
+fit_max_moment  = 3                      # Highest moment to fit in the tail of Sigma (default: 3)
+fit_min_n       = 0                      # Index of iw from which to start fitting (default: 0.5*n_iw)
+fit_max_n       = 0                      # Index of iw up to which to fit (default: n_iw)
+measure_g_l     = false                  # Measure G_l (Legendre) (default: false)
+n_l             = 30                     # Number of Legendre polynomials (default: 30)
+density_matrix  = true                   # Measure the impurity density matrix (default: false)
+```
+
+
+#### `hubbardI`
+
+Parameters for the [HubbardI] solver (experimental).
+
+| Name             | Type    | Description                                                                  |
+|------------------|---------|------------------------------------------------------------------------------|
+| `n_tau`          | `int`   | Number of imaginary time steps (default: 10_001)                             |
+| `density_matrix` | `bool`  | Measure the impurity density matrix (default: False)                         |
+| `measure_g_l`    | `bool`  | Measure G_l (Legendre) (default: False)                                      |
+| `measure_g_tau`  | `bool`  | Measure G_tau (default: False)                                               |
+| `legendre_fit`   | `bool`  | Fit Green's function and self energy using Legendre Gf (default: false)      |
+| `n_l`            | `int`   | Number of Legendre polynomials. (default: 30)                                |
+
+```toml
+[solver]
+type            = "hubbardI"             # Solver used to solve impurity problem
+
+n_tau           = 10001                  # Number of imaginary time steps. (default: 10001)
+measure_g_l     = true                   # Measure G_l (Legendre) (default: false)
+n_l             = 30                     # Number of Legendre polynomials (default: 30)
+density_matrix  = true                   # Measure the impurity density matrix (default: false)
+legendre_fit    = true                   # Fit Green's function and self energy using Legendre Gf (default: false)
+```
+
+
+#### `hartree`
+
+Parameters for the [Hartree-Fock] solver (experimental).
+
+| Name         | Type    | Description                                                         |
+|--------------|---------|---------------------------------------------------------------------|
+| `one_shot`   | `bool`  | Perform a one-shot or self-consitent root finding (default: False)  |
+| `method`     | `str`   | Method used for root finding (default: 'krylov')                    |
+| `tol`        | `float` | Tolerance for root finder if one_shot=False (default: 1e-5)         |
+| `with_fock`  | `bool`  | Include Fock exchange terms in the self-energy (default: False)     |
+| `force_real` | `bool`  | Force the self energy from Hartree fock to be real (default: True)  |
+
+```toml
+[solver]
+type            = "hartree"              # Solver used to solve impurity problem
+
+one_shot        = false                  # Perform a one-shot or self-consitent root finding (default: False)
+method          = "krylov"               # Method used for root finding (default: 'krylov')
+tol             = 1e-5                   # Tolerance for root finder if one_shot=False (default: 1e-5)
+with_fock       = false                  # Include Fock exchange terms in the self-energy (default: False)
+force_real      = true                   # Force the self energy from Hartree fock to be real (default: True)
 ```
 
 
@@ -267,10 +328,10 @@ Parameters for the Pade analytical continuation.
 ```toml
 [pade]
 
-n_w              = 2001                          # Number of real frequency points
-w_range          = [-6, 6]                       # Range of real frequencies
-n_points         = 100                           # Number of points for the Pade approximation
-freq_offset      = 0                             # Frequency offset for the Pade approximation
+n_w             = 2001                   # Number of real frequency points
+w_range         = [-6, 6]                # Range of real frequencies
+n_points        = 100                    # Number of points for the Pade approximation
+freq_offset     = 1e-3                   # Frequency offset for the Pade approximation
 ```
 
 
@@ -294,15 +355,15 @@ Parameters for the Maximum Entropy analytical continuation.
 ```toml
 [maxent]
 
-error            = 1e-4                          # Error threshold
-cost_function    = [0.0, 0.0, 0.0]               # Cost function
-probability      = "normal"                      # Probability distribution
-mesh_type_alpha  = "logarithmic"                 # Alpha mesh type
-n_alpha          = 60                            # Number of alpha mesh points
-alpha_range      = [0.01, 2000]                  # Alpha range
-mesh_type_w      = "hyperbolic"                  # Frequency mesh type
-n_w              = 2001                          # Number of real frequency points
-w_range          = [-6, 6]                       # Range of real frequencies
+error           = 1e-4                   # Error threshold
+cost_function   = [0.0, 0.0, 0.0]        # Cost function
+probability     = "normal"               # Probability distribution
+mesh_type_alpha = "logarithmic"          # Alpha mesh type
+n_alpha         = 60                     # Number of alpha mesh points
+alpha_range     = [0.01, 2000]           # Alpha range
+mesh_type_w     = "hyperbolic"           # Frequency mesh type
+n_w             = 2001                   # Number of real frequency points
+w_range         = [-6, 6]                # Range of real frequencies
 ```
 
 
