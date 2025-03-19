@@ -18,12 +18,12 @@ from triqs.gf import (
     make_hermitian,
 )
 from triqs.gf.dlr_crm_dyson_solver import minimize_dyson
-from triqs.gf.tools import fit_legendre as _fit_legendre
 from triqs.operators.util.extractors import block_matrix_from_op
 from triqs.utility import mpi
 from triqs_cthyb.tail_fit import tail_fit
 
 from ..input import CthybSolverParams, InputParameters
+from ..legendre import apply_legendre_filter
 from ..utility import report
 
 
@@ -85,32 +85,6 @@ def solve_cthyb(
     report("")
 
     return solver
-
-
-def apply_legendre_filter(g_tau: BlockGf, order: int = 100, g_l_cut: float = 1e-19) -> BlockGf:
-    """Filter binned imaginary time Green's function using a Legendre filter.
-
-    Parameters
-    ----------
-    g_tau : TRIQS imaginary time Block Green's function
-    order : int
-        Legendre expansion order in the filter
-    g_l_cut : float
-        Legendre coefficient cut-off
-
-    Returns
-    -------
-    g_l : TRIQS Legendre Block Green's function
-        Fitted Green's function on a Legendre mesh
-    """
-    l_g_l = []
-    for _, g in g_tau:
-        g_l = _fit_legendre(g, order=order)
-        g_l.data[:] *= np.abs(g_l.data) > g_l_cut
-        g_l.enforce_discontinuity(np.identity(g.target_shape[0]))
-        l_g_l.append(g_l)
-    g_l = BlockGf(name_list=list(g_tau.indices), block_list=l_g_l, name="G_l")
-    return g_l
 
 
 def legendre_fit(
