@@ -7,6 +7,7 @@
 # import logging
 import shutil
 from contextlib import contextmanager
+from itertools import product
 from pathlib import Path
 from typing import ContextManager, Iterable, Union
 
@@ -22,13 +23,21 @@ from triqs.plot.mpl_interface import plt
 from triqs.utility import mpi
 
 from ..input import FtpsSolverParams, InputParameters
-from ..utility import report, toarray
+from ..utility import GfLike, report, toarray
 
 # logger = logging.getLogger(__name__)
 
 
 # noinspection PyIncorrectDocstring
-def construct_bath(delta: BlockGf, eta: float, nbath: int, bath_fit: bool = None, **kwds) -> Bath:
+def construct_bath(
+    delta: BlockGf,
+    eta: float,
+    nbath: int,
+    bath_fit: bool = None,
+    enforce_gap: list = None,
+    ignore_weight: float = 0.0,
+    **kwds,
+) -> Bath:
     """Construct the bath from the hybridization function Δ.
 
     Parameters
@@ -43,6 +52,12 @@ def construct_bath(delta: BlockGf, eta: float, nbath: int, bath_fit: bool = None
         Whether to use a discrete bath or fit the bath to the hybridization function.
         If None, a discrete bath is used if the broadening ´eta´ is smaller than the
         mesh discretization.
+    enforce_gap : list of float, optional
+        Enforce a gap in the bath spectrum. Only used for a discrete bath when `bath_fit=False`.
+        The default is None.
+    ignore_weight : float, optional
+        Ignore bath states with weight below this threshold. Only used when fitting the bath when
+        `bath_fit=True`. The default is 0.0.
     **kwds
         Additional keyword arguments passed to `DiscretizeBath` or `FitBath`.
         See Additional Parameters for more information.
@@ -63,8 +78,6 @@ def construct_bath(delta: BlockGf, eta: float, nbath: int, bath_fit: bool = None
         The step size used for fitting. Default: None
     ignoreL : float, optional
         Ignore the L-th bath site. Default: None
-    ignoreWeight : float, optional
-        Ignore bath sites with weight below the given threshold. Default: None
     fixNb : bool, optional
         Fix the number of bath sites to the given value. Default: False
     """
@@ -76,13 +89,13 @@ def construct_bath(delta: BlockGf, eta: float, nbath: int, bath_fit: bool = None
         if mpi.is_master_node():
             report(f"Using discrete bath with {nbath} sites.")
             # logger.info("Using discrete bath with %s bath sites.", nbath)
-        return DiscretizeBath(delta, Nb=nbath, **kwds)
+        return DiscretizeBath(delta, Nb=nbath, gap=enforce_gap, **kwds)
 
     # Try to fit bath hybridization function without fixing nbath
-    bath = BathFitter(Nb=None).FitBath(delta, eta=eta, **kwds)
+    bath = BathFitter(Nb=None).FitBath(delta, eta=eta, ignoreWeight=ignore_weight, **kwds)
     if bath.N // bath.NArms > nbath:
         # If the number of bath sites is too large, use given nbath
-        bath = BathFitter(Nb=nbath).FitBath(delta, eta=eta, **kwds)
+        bath = BathFitter(Nb=nbath).FitBath(delta, eta=eta, ignoreWeight=ignore_weight, **kwds)
 
     if mpi.is_master_node():
         report(f"Fitted bath using {bath.N} bath sites ({bath.NArms} arms).")
@@ -255,6 +268,19 @@ def cleantmp(
             rm_tmpdirs()
 
 
+def make_positive_definite(g: GfLike, eps: float = 0.0) -> GfLike:
+    """Make the input positive definite."""
+    if isinstance(g, BlockGf):
+        for name, gf in g:
+            make_positive_definite(gf, eps)
+        return g
+
+    for orb, w in product(range(g.target_shape[0]), g.mesh):
+        if g[orb, orb][w].imag > eps:
+            g[orb, orb][w] = g[orb, orb][w].real + 0.0j
+    return g
+
+
 def solve_ftps(
     params: InputParameters, u: np.ndarray, e_onsite: np.ndarray, delta: BlockGf
 ) -> forktps.Solver:
@@ -304,7 +330,17 @@ def solve_ftps(
 
     # Construct bath
     report("Constructing bath.")
-    bath = construct_bath(delta, params.eta, solve_params.n_bath, bath_fit=solve_params.bath_fit)
+
+    # Ensure delta is positive definite
+    delta = make_positive_definite(delta, eps=0.0)
+
+    bath = construct_bath(
+        delta,
+        params.eta,
+        solve_params.n_bath,
+        bath_fit=solve_params.bath_fit,
+        ignore_weight=solve_params.ignore_weight,
+    )
     if not check_bath(bath, delta, params.eta, plot=False):
         raise ValueError("Bath construction failed!")
 
