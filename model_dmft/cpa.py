@@ -11,7 +11,8 @@ from triqs.gf import BlockGf, Gf, inverse
 
 from .convergence import max_difference
 from .functions import Ht
-from .utility import GfLike, apply_mixing, blockgf, report, toarray
+from .mixer import apply_mixing
+from .utility import GfLike, blockgf, report, toarray
 
 __all__ = [
     "generate_cmpt_names",
@@ -225,8 +226,8 @@ def solve_vca(
     """
     is_block, conc, eps = _validate(sigma, conc, eps)
     if is_block:
-        for i, name in enumerate(sigma.indices):
-            sigma[name].data[:] = np.sum(eps[:, i] * conc)
+        for i, (name, sig) in enumerate(sigma):
+            sig.data[:] = np.sum(eps[:, i] * conc)
     else:
         sigma.data[:] = np.sum(eps * conc)
 
@@ -257,9 +258,9 @@ def solve_ata(
 
     # Unperturbated Green's function (uses VCA)
     if is_block:
-        for i, name in enumerate(sigma_vca.indices):
-            sigma_vca[name].data[:] = np.sum(eps[:, i] * conc)
-            g0[name] << ht(sigma_vca[name], eta=eta)
+        for i, (name, sig) in enumerate(sigma_vca):
+            sig.data[:] = np.sum(eps[:, i] * conc)
+            g0[name] << ht(sig, eta=eta)
     else:
         sigma_vca.data[:] = np.sum(eps * conc)
         g0 << ht(sigma_vca, eta=eta)
@@ -342,8 +343,8 @@ def solve_iter(
     if len(conc) == 1:
         report("Single component, skipping CPA!")
         if is_block:
-            for i, name in enumerate(sigma.indices):
-                sigma[name].data[:] = eps[0, i]
+            for i, (name, sig) in enumerate(sigma):
+                sig.data[:] = eps[0, i]
         else:
             sigma.data[:] = eps[0]
         return sigma

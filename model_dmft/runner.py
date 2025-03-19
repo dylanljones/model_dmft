@@ -20,11 +20,11 @@ from . import cpa
 from .convergence import calculate_convergences
 from .functions import HilbertTransform
 from .input import InputParameters, get_supported_solvers
+from .mixer import apply_mixing
 from .output import write_out_files
 from .utility import (
     SIGMA,
     TIME_FRMT,
-    apply_mixing,
     blockgf,
     check_broadening,
     report,
