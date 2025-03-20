@@ -126,6 +126,7 @@ def blockgf(
     indices: List[int] = None,
     target_shape: List[int] = None,
     gf_struct: GfStruct = None,
+    target_gf: BlockGf = None,
     blocks: Union[GfLike, List[GfLike]] = None,
     copy: bool = False,
     name: str = "G",
@@ -147,6 +148,9 @@ def blockgf(
     gf_struct : GfStruct, optional
         The structure of the Green's functions. If provided, `names` and `indices` and
         `target_shape` are ignored.
+    target_gf: BlockGf, optional
+        Other block Green's function to copy the structure from. If provided, `names`, `indices` and
+        `target_shape` are ignored.
     blocks : Gf or BlockGf or List[Gf] or List[BlockGf], optional
         The blocks used to fill the BlockGf. If a single Gf or BlockGf is given is used for all
         blocks of the resulting BlockGf.
@@ -161,7 +165,10 @@ def blockgf(
     BlockGf
         The new BlockGf object.
     """
-    if gf_struct is not None:
+    if target_gf is not None:
+        names = list(target_gf.indices)
+        target_shape = list(target_gf[names[0]].target_shape)
+    elif gf_struct is not None:
         names = [name for name, _ in gf_struct]
         norbs = np.unique([norbs for _, norbs in gf_struct])
         assert len(norbs) == 1, "All Gfs must have the same number of orbitals."
