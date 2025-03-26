@@ -581,9 +581,12 @@ def solve_impurities(
     if not mpi.is_master_node():
         return  # This method should only be called from the master node
 
-    # Warn if number of processes is too high for the solver
     solver_type = params.solver
-    n = nproc / params.n_cmpt
+    # Compute number of processes per interacting component
+    n_u = sum(1 for ui in u if ui != 0)
+    n = nproc / n_u
+
+    # Warn if number of processes is too high for the solver
     if n % 1 != 0:
         raise ValueError("Number of processes must be divisible by number of components.")
     n = max(1, int(n))
@@ -609,20 +612,18 @@ def solve_impurities(
 
     # Write parameters and data to temporary files
     for i, (cmpt, delt) in enumerate(delta):
+        u_cmpt = u[i]
         tmp_file = tmp_filepath.format(cmpt=cmpt)
-        _prepare_tmp_file(tmp_file, params, it, u[i], e_onsite[i], delta[cmpt])
+        _prepare_tmp_file(tmp_file, params, it, u_cmpt, e_onsite[i], delta[cmpt])
 
     # --- Solve impurity problems -----
 
     procs = list()
     executable = sys.executable  # Use current Python executable for subprocesses
-    if use_srun:
-        base_cmd = ["srun", "--exact", "--exclusive", f"--ntasks={n}"]
-    else:
-        base_cmd = ["mpirun", "-n", str(n)] if n > 1 else list()
 
     report("Starting processes...")
-    for cmpt in sigma_dmft.indices:
+    for i, cmpt in enumerate(sigma_dmft.indices):
+        u_cmpt = u[i]
         # Prepare tmp/output file paths
         tmp_file = tmp_filepath.format(cmpt=cmpt)
         out_file = stdout_filepath.format(cmpt=cmpt)
@@ -630,6 +631,13 @@ def solve_impurities(
         # Write header to output file
         # write_header(out_file, it, out_mode)
         # write_header(err_file, it, out_mode)
+        if u_cmpt == 0:
+            base_cmd = list()
+        else:
+            if use_srun:
+                base_cmd = ["srun", "--exact", "--exclusive", f"--ntasks={n}"]
+            else:
+                base_cmd = ["mpirun", "-n", str(n)] if n > 1 else list()
 
         # Start process
         cmd = base_cmd + [executable, "-m", "model_dmft", "solve_impurity", tmp_file]
