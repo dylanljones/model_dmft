@@ -1,12 +1,46 @@
 # -*- coding: utf-8 -*-
 # Author: Dylan Jones
-# Date:   2025-02-10
+# Date:   2025-03-20
+
+from typing import List
 
 import numpy as np
-from triqs.gf import BlockGf, MeshImTime
+from triqs.gf import BlockGf, MeshImTime, MeshReFreq
 
 from .input import InputParameters
-from .utility import blockgf
+from .utility import blockgf, report
+
+
+def anacont_pade(
+    gf_iw: BlockGf, w_range: List[float], n_w: int, n_points: int, eta: float = 1e-3
+) -> BlockGf:
+    """Perform analytic continuation using Pade approximation.
+
+    Parameters
+    ----------
+    gf_iw : BlockGf
+        The input Green's function. If given, the Green's function is used for the continuation.
+    w_range : array_like
+        The frequency range to evaluate the Green's function
+    n_w : int
+        The number of frequency points to evaluate.
+    n_points : int
+        The number of frequency points to evaluate.
+    eta : float
+        The imaginary broadening.
+    """
+    kwargs = dict(n_points=n_points, freq_offset=eta)
+    names = list(gf_iw.indices)
+    mesh = MeshReFreq(w_range, n_w)
+
+    min_iw = gf_iw.mesh(0).value.imag
+    if eta > min_iw:
+        report("Warning: eta is larger than the minimum Matsubara frequency.")
+
+    gf_w = blockgf(mesh=mesh, names=names, target_gf=gf_iw, name="G_w")
+    for name, g in gf_iw:
+        gf_w[name].set_from_pade(g, **kwargs)
+    return gf_w
 
 
 def anacont_maxent(params: InputParameters, g_iw: BlockGf) -> tuple:

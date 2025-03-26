@@ -22,6 +22,7 @@ from .functions import HilbertTransform
 from .input import InputParameters, get_supported_solvers
 from .mixer import apply_mixing
 from .output import write_out_files
+from .postprocessing import anacont_pade
 from .utility import (
     SIGMA,
     TIME_FRMT,
@@ -679,26 +680,6 @@ def solve_impurities(
     _load_tmp_files(sigma_dmft, tmp_filepath, archive_file)
 
 
-def anacont_pade(params: InputParameters, gf_iw: BlockGf) -> BlockGf:
-    """Perform analytic continuation using Pade approximation.
-
-    Parameters
-    ----------
-    params : InputParameters
-        The input parameters.
-    gf_iw : BlockGf, optional
-        The input Green's function. If given, the Green's function is used for the continuation.
-    """
-    pade_params = params.pade_params
-    mesh = pade_params.mesh
-    kwargs = dict(n_points=pade_params.n_points, freq_offset=pade_params.freq_offset)
-
-    gf_w = blockgf(mesh=mesh, names=params.spin_names, gf_struct=params.gf_struct, name="G_w")
-    for name, g in gf_iw:
-        gf_w[name].set_from_pade(g, **kwargs)
-    return gf_w
-
-
 def postprocess(params: InputParameters, out_file: str) -> None:
     """Postprocess the results of the DMFT+CPA calculation.
 
@@ -715,21 +696,29 @@ def postprocess(params: InputParameters, out_file: str) -> None:
     # Postprocessing
     if not params.is_real_mesh:
         if params.pade_params is not None:
+            pade_params = params.pade_params
+            pade_kwargs = dict(
+                w_range=pade_params.w_range,
+                n_w=pade_params.n_w,
+                n_points=pade_params.n_points,
+                eta=pade_params.freq_offset,
+            )
+
             with HDFArchive(out_file, "r") as ar:
                 sigma_cpa = ar["sigma_cpa"]
                 g_coh = ar["g_coh"]
                 g_cmpt = ar["g_cmpt"]
 
             report("Analytic continuation of G(iw) to G(ω) using Pade approximants...")
-            g_coh_real = anacont_pade(params, g_coh)
+            g_coh_real = anacont_pade(g_coh, **pade_kwargs)
             names, blocks = list(), list()
             for cmpt, g in g_cmpt:
                 names.append(cmpt)
-                blocks.append(anacont_pade(params, g))
+                blocks.append(anacont_pade(g, **pade_kwargs))
             g_cmpt_real = blockgf(g_coh_real.mesh, names=names, blocks=blocks)
 
             report("Analytic continuation of Σ(iw) to Σ(ω) using Pade approximants...")
-            sigma_cpa_real = anacont_pade(params, sigma_cpa)
+            sigma_cpa_real = anacont_pade(sigma_cpa, **pade_kwargs)
 
             with HDFArchive(out_file, "a") as ar:
                 ar["g_coh_real"] = g_coh_real
