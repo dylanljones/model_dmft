@@ -611,6 +611,7 @@ class InputParameters(Parameters):
         "gtol": float,
         "stol": float,
         "occ_tol": float,
+        "n_conv": int,
     }
 
     __descriptions__ = {
@@ -639,6 +640,7 @@ class InputParameters(Parameters):
         "gtol": "Convergence tolerance for the coherent Green's function.",
         "stol": "Convergence tolerance for the self energy.",
         "occ_tol": "Convergence tolerance for the occupation number.",
+        "n_conv": "Number of iterations for convergence (default: 1)",
         "mixing_cpa": "Mixing of the CPA self energy.",
         "method_cpa": "Method used for computing the CPA self energy.",
         "maxiter_cpa": "Number of iterations for computing the CPA self energy.",
@@ -689,6 +691,7 @@ class InputParameters(Parameters):
         self.gtol: Optional[float] = None  # Tolerance for the coherent Green's function.
         self.stol: Optional[float] = None  # Tolerance for the self energy.
         self.occ_tol: Optional[float] = None  # Tolerance for the occupation number.
+        self.n_conv: Optional[int] = 1  # Number of iterations for convergence.
 
         self.solver_params: Optional[SolversUnion] = None
         self.maxent_params: Optional[MaxEntParams] = None

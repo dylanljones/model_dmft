@@ -971,24 +971,52 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                     report("No interaction, skipping further iterations.")
                     report("")
                     break
-                if params.stol and err_sigma < params.stol:
-                    now = datetime.now()
-                    report("")
-                    report(f"Σ converged in {it} iterations at {now:{TIME_FRMT}}")
-                    report("")
-                    break
-                if params.gtol and err_g < params.gtol:
-                    now = datetime.now()
-                    report("")
-                    report(f"G converged in {it} iterations at {now:{TIME_FRMT}}")
-                    report("")
-                    break
-                if params.occ_tol and err_occ < params.occ_tol:
-                    now = datetime.now()
-                    report("")
-                    report(f"Occupation converged in {it} iterations at {now:{TIME_FRMT}}")
-                    report("")
-                    break
+
+                # Check if last n iterations converged
+                if it > params.n_conv:
+                    converged = False
+                    # Load n previous errors from archive
+                    errors = dict(sigma=list(), gf=list(), occ=list())
+                    conv_names = ["Σ", "G", "Occupation"]
+                    tolerances = [params.stol, params.gtol, params.occ_tol]
+                    with HDFArchive(out_file, "r") as ar:
+                        for it_hist in range(it - params.n_conv, it + 1):
+                            errors["sigma"].append(ar[f"err_sigma-{it_hist}"])
+                            errors["gf"].append(ar[f"err_g-{it_hist}"])
+                            errors["occ"].append(ar[f"err_occ-{it_hist}"])
+
+                    # Check if all errors are below tolerance
+                    for key, name, tol in zip(errors.keys(), conv_names, tolerances):
+                        if tol and all(err < tol for err in errors[key]):
+                            now = datetime.now()
+                            report("")
+                            report(f"{name} converged in {it} iterations at {now:{TIME_FRMT}}")
+                            report("")
+                            converged = True
+                            break
+
+                    if converged:
+                        # Stop iterations if converged
+                        break
+
+                # if params.stol and err_sigma < params.stol:
+                #     now = datetime.now()
+                #     report("")
+                #     report(f"Σ converged in {it} iterations at {now:{TIME_FRMT}}")
+                #     report("")
+                #     break
+                # if params.gtol and err_g < params.gtol:
+                #     now = datetime.now()
+                #     report("")
+                #     report(f"G converged in {it} iterations at {now:{TIME_FRMT}}")
+                #     report("")
+                #     break
+                # if params.occ_tol and err_occ < params.occ_tol:
+                #     now = datetime.now()
+                #     report("")
+                #     report(f"Occupation converged in {it} iterations at {now:{TIME_FRMT}}")
+                #     report("")
+                #     break
 
         # Postprocessing
         postprocess(params, out_file)
