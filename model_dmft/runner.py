@@ -985,15 +985,18 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                             errors["gf"].append(ar[f"err_g-{it_hist}"])
                             errors["occ"].append(ar[f"err_occ-{it_hist}"])
 
-                    # Check if all errors are below tolerance
+                    # Check if all errors are below tolerance and are decreasing
                     for key, name, tol in zip(errors.keys(), conv_names, tolerances):
-                        if tol and all(err < tol for err in errors[key]):
-                            now = datetime.now()
-                            report("")
-                            report(f"{name} converged in {it} iterations at {now:{TIME_FRMT}}")
-                            report("")
-                            converged = True
-                            break
+                        errs = errors[key]
+                        if tol and all(err < tol for err in errs):
+                            # Make sure error is decreasing
+                            if all(errs[i + 1] < errs[i] for i in range(params.n_conv - 1)):
+                                now = datetime.now()
+                                report("")
+                                report(f"{name} converged in {it} iterations at {now:{TIME_FRMT}}")
+                                report("")
+                                converged = True
+                                break
 
                     if converged:
                         # Stop iterations if converged
