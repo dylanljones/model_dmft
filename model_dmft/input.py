@@ -892,7 +892,7 @@ class InputParameters(Parameters):
     def validate(self) -> None:
         """Validate the input parameters."""
         # Check solver mesh compatibility
-        if self.u:
+        if any(self.u):
             if self.solver_params is None:
                 raise InputError("No solver set! Use `InputParameters.add_solver` to add a solver.")
 
