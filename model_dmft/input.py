@@ -765,9 +765,18 @@ class InputParameters(Parameters):
         return self.beta is None
 
     @property
+    def is_interacting(self) -> bool:
+        """Flag indicating if the system is interacting (U parameter set)."""
+        if isinstance(self.u, float):
+            return self.u != 0.0
+        else:
+            return any(self.u)
+
+    @property
     def mesh(self) -> Union[MeshImFreq, MeshReFreq]:
         """The frequency mesh used for the calculation."""
         if self.is_real_mesh:
+            print(self.w_range)
             mesh = MeshReFreq(*self.w_range, self.n_w)
         else:
             mesh = MeshImFreq(beta=self.beta, S="Fermion", n_max=self.n_iw)
@@ -892,7 +901,7 @@ class InputParameters(Parameters):
     def validate(self) -> None:
         """Validate the input parameters."""
         # Check solver mesh compatibility
-        if any(self.u):
+        if self.is_interacting:
             if self.solver_params is None:
                 raise InputError("No solver set! Use `InputParameters.add_solver` to add a solver.")
 
