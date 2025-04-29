@@ -187,11 +187,11 @@ def postprocess_cthyb(
     sigma_iw = None
     g_l = None
 
+    if solver_params.measure_g_l:
+        g_l = solver.G_l
+
     if solver_params.legendre_fit:
-        if solver_params.measure_g_l:
-            # G_l measured, use to fit tail of Sigma
-            g_l = solver.G_l
-        else:
+        if g_l is None:
             # Compute Legendre Gf by filtering binned imaginary time Green's function
             report("Applying Legendre filter...")
             g_l = apply_legendre_filter(solver.G_tau, order=solver_params.n_l)

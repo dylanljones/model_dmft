@@ -63,11 +63,18 @@ def find_slurm_scripts(root: Union[str, Path]) -> Path:
 
 
 class Folder:
-    def __init__(self, path: Union[str, Path], input_file: Union[str, Path] = None):
+    def __init__(
+        self,
+        path: Union[str, Path],
+        input_file: Union[str, Path] = None,
+        assert_exists: bool = False,
+    ):
         self.path = Path(path)
         self._input_file = input_file
         self._params = None
         self._slurm_file = None
+        if assert_exists:
+            self.assert_exists()
 
     @property
     def input_file(self) -> Path:
@@ -89,6 +96,15 @@ class Folder:
         if self._params is None:
             self._params = InputParameters(self.input_file)
         return self._params
+
+    def exists(self) -> bool:
+        """Check if the folder exists."""
+        return self.path.exists()
+
+    def assert_exists(self) -> None:
+        """Assert that the folder exists."""
+        if not self.exists():
+            raise FileNotFoundError(f"Folder '{self.path}' does not exist!")
 
     def get_slurm_outputs(self) -> List[Path]:
         return [Path(p) for p in sorted(self.path.glob("slurm-*.out"))]

@@ -349,7 +349,8 @@ def solve_iter(
             sigma.data[:] = eps[0]
         return sigma
 
-    report(f"Solving CPA problem for {len(conc)} components iteratively...")
+    if verbosity > 0:
+        report(f"Solving CPA problem for {len(conc)} components iteratively...")
     # Initial coherent Green's function
     gc = sigma.copy()
     gc.name = "Gc"

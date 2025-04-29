@@ -600,6 +600,7 @@ class InputParameters(Parameters):
         "symmetrize": bool,
         "beta": float,
         "mu": float,
+        "occ": float,
         "n_iw": int,
         "n_w": int,
         "w_range": _parse_array,
@@ -632,6 +633,7 @@ class InputParameters(Parameters):
         "symmetrize": "Symmetrize the spin channels (if no magnetic field)",
         "u": "The Hubbard interaction strength (Coulomb repulsion) of the components.",
         "mu": "The chemical potential.",
+        "occ": "The target total occupation.",
         "n_w": "Number of real mesh points.",
         "w_range": "Real frequency range.",
         "n_iw": "Number of Matsubara frequencies.",
@@ -671,8 +673,8 @@ class InputParameters(Parameters):
 
         self.beta: Optional[float] = None  # Inverse temperature. If set, use a complex grid.
         # self.dc: bool = True  # Is the double-counting correction U/2 on?
-        self.mu: float = 0.0  # The chemical potential.
-
+        self.mu: Optional[float] = None  # The chemical potential.
+        self.occ: Optional[float] = None  # The target total occupation number.
         # Imaginary mesh
         self.n_iw: Optional[int] = None  # Number of Matsubara frequencies.
         # Real mesh
@@ -776,7 +778,6 @@ class InputParameters(Parameters):
     def mesh(self) -> Union[MeshImFreq, MeshReFreq]:
         """The frequency mesh used for the calculation."""
         if self.is_real_mesh:
-            print(self.w_range)
             mesh = MeshReFreq(*self.w_range, self.n_w)
         else:
             mesh = MeshImFreq(beta=self.beta, S="Fermion", n_max=self.n_iw)
@@ -935,6 +936,10 @@ class InputParameters(Parameters):
             if any(h):
                 raise InputError("Cannot symmetrize with magnetic field!")
 
+        # Mu or occ can't be both set
+        if self.mu is not None and self.occ is not None:
+            raise InputError("Cannot set both 'mu' and 'occ'! Use one of them.")
+
         if self.solver_params:
             self.solver_params.validate()
         if self.maxent_params:
@@ -997,6 +1002,7 @@ class InputParameters(Parameters):
             "eps",
             "h_field",
             "mu",
+            "occ",
             "beta",
             "symmetrize",
         ]

@@ -232,6 +232,8 @@ def update_dataset(archive_file: Union[Path, str], keep_iter: bool = True) -> No
         if "sigma_dmft" in ar:
             ar[f"sigma_dmft-{it}"] = ar["sigma_dmft"]
             ar[f"delta-{it}"] = ar["delta"]
+        if "sigma_dmft_raw" in ar:
+            ar[f"sigma_dmft_raw-{it}"] = ar["sigma_dmft_raw"]
 
         if "g_coh_real" in ar:
             ar[f"g_coh_real-{it}"] = ar["g_coh_real"]
@@ -243,6 +245,8 @@ def update_dataset(archive_file: Union[Path, str], keep_iter: bool = True) -> No
             ar[f"g_ret-{it}"] = ar["g_ret"]
         if "g_l" in ar:
             ar[f"g_l-{it}"] = ar["g_l"]
+        if "g_tau" in ar:
+            ar[f"g_tau-{it}"] = ar["g_tau"]
 
 
 def hybridization(
@@ -347,6 +351,7 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
             # Write results back to temporary file
             with HDFArchive(str(tmp_file), "a") as ar:
                 ar["solver"] = solver
+                ar["g_tau"] = solver.G_tau
                 if sigma_post is not None:
                     ar["sigma_dmft_raw"] = solver.Sigma_iw
                     ar["sigma_dmft"] = sigma_post
@@ -433,7 +438,8 @@ def _load_tmp_files(sigma_dmft: BlockGf, tmp_filepath: str, archive_file: str) -
     if not mpi.is_master_node():
         return
 
-    g_ret_blocks, g_l_blocks = dict(), dict()
+    g_tau_blocks, g_ret_blocks, g_l_blocks = dict(), dict(), dict()
+    sigma_dmft_raw, save_raw = sigma_dmft.copy(), False
 
     # Load main results from temporary file
     for cmpt, sig in sigma_dmft:
@@ -442,10 +448,20 @@ def _load_tmp_files(sigma_dmft: BlockGf, tmp_filepath: str, archive_file: str) -
         with HDFArchive(str(tmp_file), "r") as ar:
             if "sigma_dmft" in ar:
                 sig << ar["sigma_dmft"]  # noqa
+            if "sigma_dmft_raw" in ar:
+                save_raw = True
+                sigma_dmft_raw[cmpt] << ar["sigma_dmft_raw"]  # noqa
             if "g_ret" in ar:
                 g_ret_blocks[cmpt] = ar["g_ret"]
             if "g_l" in ar:
                 g_l_blocks[cmpt] = ar["g_l"]
+            if "g_tau" in ar:
+                g_tau_blocks[cmpt] = ar["g_tau"]
+
+    if save_raw:
+        # Write raw sigma_dmft to output file
+        with HDFArchive(archive_file, "a") as ar:
+            ar["sigma_dmft_raw"] = sigma_dmft_raw
 
     if g_ret_blocks:
         # Write real time Gf to output file (only for FTPS solver)
@@ -462,6 +478,14 @@ def _load_tmp_files(sigma_dmft: BlockGf, tmp_filepath: str, archive_file: str) -
         g_l = blockgf(blocks[0].mesh, names=names, blocks=blocks)
         with HDFArchive(archive_file, "a") as ar:
             ar["g_l"] = g_l
+
+    if g_tau_blocks:
+        # Write Legendre Gf to output file (only for CTHYB solver)
+        names = list(g_tau_blocks.keys())
+        blocks = [g_tau_blocks[name] for name in names]
+        g_tau = blockgf(blocks[0].mesh, names=names, blocks=blocks)
+        with HDFArchive(archive_file, "a") as ar:
+            ar["g_tau"] = g_tau
 
     # Remove temporary files
     for cmpt, sig in sigma_dmft:
@@ -758,8 +782,10 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
     gf_struct = params.gf_struct
     conc, u, eps, h_field = params.cast_cmpt()
     mu = params.mu
+    if params.occ is not None and params.mu is None:
+        raise NotImplementedError("Chemical potential optimization is not implemented yet.")
 
-    e_onsite = eps + h_field * SIGMA - mu - u / 2  # Shape: ([N_cmpt, N_spin])
+    e_onsite = eps + h_field * SIGMA - u / 2  # Shape: ([N_cmpt, N_spin])
 
     # ---- COMPUTATIONAL PARAMETERS ----------------------------------------------------------------
     location = Path(params.location)
@@ -866,7 +892,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
             report(f"Start: {iter_start_time:{TIME_FRMT}}")
             # Calculate local (component) Green's functions
             report(f"Computing component Green's functions G_i({freq_name})...")
-            eps_eff = eps + sigma_dmft
+            eps_eff = eps + sigma_dmft - mu
             g_cmpt = cpa.gf_component(ht, sigma_cpa, conc, eps_eff, eta=eta, scale=False)
 
             # Solve impurity problems
@@ -875,7 +901,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
 
                 # Compute bath hybridization function
                 report(f"Computing bath hybdridization function Δ({freq_name})...")
-                delta = hybridization(g_cmpt, eps, sigma_dmft, eta=eta)
+                delta = hybridization(g_cmpt, eps - mu, sigma_dmft, eta=eta)
 
                 if mpi.is_master_node():
                     with HDFArchive(out_file, "a") as ar:
@@ -915,7 +941,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
 
             # Solve CPA self-consistent equations and update coherent potential (sigm_cpa)
             # sigma_cpa_old = sigma_cpa.copy()
-            eps_eff = eps + sigma_dmft
+            eps_eff = eps + sigma_dmft - mu
             sigma_cpa << cpa.solve_cpa(ht, sigma_cpa, conc, eps_eff, eta=eta, **cpa_kwds)
 
             # Symmetrize CPA self-energy
