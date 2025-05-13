@@ -362,27 +362,53 @@ class CthybSolverParams(SolverParams):
         "crm_eps": "Accuracy of the DLR basis to represent Green’s function (default: 1e-8)",
     }
 
+    __defaults__ = {
+        "n_cycles": 10_000,
+        "length_cycle": 100,
+        "n_warmup_cycles": 1_000,
+        "n_tau": None,
+        "measure_g_l": False,
+        "n_l": 30,
+        "legendre_fit": False,
+        "tail_fit": False,
+        "fit_max_moment": 3,
+        "fit_min_n": None,
+        "fit_max_n": None,
+        "fit_min_w": None,
+        "fit_max_w": None,
+        "density_matrix": None,
+        "crm_dyson": None,
+        "crm_wmax": None,
+        "crm_eps": 1e-8,
+    }
+
     def __init__(self, **kwargs):
         # General
-        self.n_cycles: int = 10_000  # Number of QMC cycles.
         self.n_warmup_cycles: int = 1_000  # Number of warmup cycles.
+        self.n_cycles: int = 10_000  # Number of QMC cycles.
         self.length_cycle: int = 100  # Length of a cycle.
-        self.n_tau: int = 10001  # Number of imaginary time steps.
-        self.measure_g_l: bool = False  # Measure G_l (Legendre)
-        self.n_l: int = 30  # Number of Legendre polynomials.
-        self.legendre_fit: bool = False  # Fit Green's function and self energy using Legendre Gf
-        self.tail_fit: bool = False  # Perform tail fit.
-        self.fit_max_moment: int = 3  # Highest moment to fit in the tail of Sigma
+        self.n_tau: Optional[int] = None  # Number of imaginary time steps.
+        self.measure_g_l: Optional[bool] = None  # Measure G_l (Legendre)
+        self.n_l: Optional[int] = None  # Number of Legendre polynomials.
+        self.legendre_fit: Optional[bool] = (
+            None  # Fit Green's function and self energy using Legendre Gf
+        )
+        self.tail_fit: Optional[bool] = None  # Perform tail fit.
+        self.fit_max_moment: Optional[int] = None  # Highest moment to fit in the tail of Sigma
         self.fit_min_n: Optional[int] = None  # Index of iw from which to start fitting.
         self.fit_max_n: Optional[int] = None  # Index of iw up to which to fit.
         self.fit_min_w: Optional[float] = None  # iw from which to start fitting.
         self.fit_max_w: Optional[float] = None  # iw up to which to fit.
-        self.density_matrix: bool = False  # Measure the impurity density matrix.
-        self.crm_dyson: bool = False  # Solve Dyson equation using constrained minimization problem
+        self.density_matrix: Optional[bool] = None  # Measure the impurity density matrix.
+        self.crm_dyson: Optional[bool] = (
+            None  # Solve Dyson equation using constrained minimization problem
+        )
         self.crm_wmax: Optional[float] = (
             None  # Spectral width of the impurity problem for DLR basis
         )
-        self.crm_eps: float = 1e-8  # Accuracy of the DLR basis to represent Green’s function
+        self.crm_eps: Optional[float] = (
+            None  # Accuracy of the DLR basis to represent Green’s function
+        )
         super().__init__(**kwargs)
 
     def validate(self) -> None:
@@ -1023,6 +1049,7 @@ class InputParameters(Parameters):
             "gtol",
             "stol",
             "occ_tol",
+            "n_conv",
         ]
 
         self.validate()
