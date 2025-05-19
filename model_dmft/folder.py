@@ -83,6 +83,13 @@ class Folder:
         return self._input_file
 
     @property
+    def output_file(self) -> Path:
+        file = self.path / self.params.output
+        if not file.exists():
+            raise FileNotFoundError(f"Output file '{file}' not found!")
+        return file
+
+    @property
     def slurm_path(self) -> Path:
         if self._slurm_file is None:
             try:
@@ -154,9 +161,7 @@ class Folder:
 
     @contextmanager
     def archive(self, mode: str = "r") -> ContextManager[HDFArchive]:
-        file = self.path / self.params.output
-        if not file.exists():
-            raise FileNotFoundError(f"Output file '{file}' not found!")
+        file = self.output_file
         with HDFArchive(str(file), mode) as ar:
             yield ar
 
