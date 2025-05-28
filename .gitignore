@@ -6,7 +6,8 @@ app/
 img/
 app_test/
 *.h5
-dev_*.py
+dev*.py
+main*.py
 tmp*.py
 
 
