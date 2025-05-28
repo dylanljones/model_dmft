@@ -340,6 +340,7 @@ class CthybSolverParams(SolverParams):
         "crm_dyson": bool,
         "crm_wmax": float,
         "crm_eps": float,
+        "correct_hartree": bool,
     }
 
     __descriptions__ = {
@@ -360,6 +361,7 @@ class CthybSolverParams(SolverParams):
         "crm_dyson": "Solve Dyson equation using constrained minimization problem (default: false)",
         "crm_wmax": "Spectral width of the impurity problem for DLR basis",
         "crm_eps": "Accuracy of the DLR basis to represent Green’s function (default: 1e-8)",
+        "correct_hartree": "Correct Hartree term in the self-energy (default: false)",
     }
 
     __defaults__ = {
@@ -409,6 +411,7 @@ class CthybSolverParams(SolverParams):
         self.crm_eps: Optional[float] = (
             None  # Accuracy of the DLR basis to represent Green’s function
         )
+        self.correct_hartree: Optional[bool] = None  # Correct Hartree term in the self-energy
         super().__init__(**kwargs)
 
     def validate(self) -> None:

@@ -346,7 +346,7 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
         mpi.barrier()
         if mpi.is_master_node():
             # Run post-processing of the solver results
-            sigma_post, g_l = postprocess_cthyb(params, solver)
+            sigma_post, g_l = postprocess_cthyb(params, solver, u)
 
             # Write results back to temporary file
             with HDFArchive(str(tmp_file), "a") as ar:
