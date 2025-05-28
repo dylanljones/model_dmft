@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import ContextManager, Iterable, List, Union
 
 import tomlkit
-from h5 import HDFArchive
 
+from .archive import Archive
 from .input import InputParameters
 
 __all__ = ["Folder", "walkdirs"]
@@ -160,9 +160,9 @@ class Folder:
             self.remove_tmp_dirs()
 
     @contextmanager
-    def archive(self, mode: str = "r") -> ContextManager[HDFArchive]:
+    def archive(self, mode: str = "r") -> ContextManager[Archive]:
         file = self.output_file
-        with HDFArchive(str(file), mode) as ar:
+        with Archive(str(file), mode) as ar:
             yield ar
 
     def load_output(self, *keys, it: int = -1) -> dict:
