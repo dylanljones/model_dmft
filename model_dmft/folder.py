@@ -85,8 +85,8 @@ class Folder:
     @property
     def output_file(self) -> Path:
         file = self.path / self.params.output
-        if not file.exists():
-            raise FileNotFoundError(f"Output file '{file}' not found!")
+        # if not file.exists():
+        #     raise FileNotFoundError(f"Output file '{file}' not found!")
         return file
 
     @property

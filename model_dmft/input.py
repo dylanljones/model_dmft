@@ -34,6 +34,7 @@ __all__ = [
     "InputParameters",
     "FtpsSolverParams",
     "CthybSolverParams",
+    "CtSegSolverParams",
     "HubbardISolverParams",
     "HartreeSolverParams",
     "SolverParams",
@@ -437,6 +438,137 @@ class CthybSolverParams(SolverParams):
                 raise InputError("Parameter 'crm_eps' is required for 'crm_dyson'!")
 
 
+class CtSegSolverParams(SolverParams):
+    """
+    Class for handling CTSEG solver parameters.
+
+    This class extends the `SolverParams` class to include attributes and methods specific
+    to the CTSEG solver.
+    """
+
+    SOLVER = "ctseg"
+    RE_MESH = False
+    MAX_PROCESSES = 32
+
+    __types__ = {
+        "n_cycles": int,
+        "length_cycle": int,
+        "n_warmup_cycles": int,
+        "n_tau": int,
+        "n_tau_bosonic": int,
+        "measure_f_tau": bool,
+        "n_l": int,
+        "legendre_fit": bool,
+        "tail_fit": bool,
+        "fit_max_moment": int,
+        "fit_min_n": int,
+        "fit_max_n": int,
+        "fit_min_w": float,
+        "fit_max_w": float,
+        "density_matrix": bool,
+        "crm_dyson": bool,
+        "crm_wmax": float,
+        "crm_eps": float,
+        "correct_hartree": bool,
+    }
+
+    __descriptions__ = {
+        "n_cycles": "Number of Quantum Monte Carlo cycles (default 10_000)",
+        "length_cycle": "Length of the cycle (default: 100)",
+        "n_warmup_cycles": "Number of warmup cycles (default: 1_000)",
+        "n_tau": "Number of imaginary time steps. (default: 10001)",
+        "n_tau_bosonic": "Number of time slices for bosonic functions. (default: 10001)",
+        "measure_f_tau": "Measure improved estimator F(tau)",
+        "n_l": "Number of Legendre polynomials. (default: 30)",
+        "legendre_fit": "Fit Green's function and self energy using Legendre Gf (default: false)",
+        "tail_fit": "Perform tail fit of Sigma and G (default: false)",
+        "fit_max_moment": "Highest moment to fit in the tail of Sigma (default: 3)",
+        "fit_min_n": "Index of iw from which to start fitting (default: 0.8*n_iw)",
+        "fit_max_n": "Index of iw up to which to fit (default: n_iw)",
+        "fit_min_w": "iw from which to start fitting (default: None)",
+        "fit_max_w": "iw up to which to fit (default: None)",
+        "density_matrix": "Measure the impurity density matrix (default: false)",
+        "crm_dyson": "Solve Dyson equation using constrained minimization problem (default: false)",
+        "crm_wmax": "Spectral width of the impurity problem for DLR basis",
+        "crm_eps": "Accuracy of the DLR basis to represent Green’s function (default: 1e-8)",
+        "correct_hartree": "Correct Hartree term in the self-energy (default: false)",
+    }
+
+    __defaults__ = {
+        "n_cycles": 10_000,
+        "length_cycle": 100,
+        "n_warmup_cycles": 1_000,
+        "n_tau": None,
+        "n_tau_bosonic": None,
+        "measure_f_tau": True,
+        "n_l": 30,
+        "legendre_fit": False,
+        "tail_fit": False,
+        "fit_max_moment": 3,
+        "fit_min_n": None,
+        "fit_max_n": None,
+        "fit_min_w": None,
+        "fit_max_w": None,
+        "density_matrix": None,
+        "crm_dyson": None,
+        "crm_wmax": None,
+        "crm_eps": 1e-8,
+    }
+
+    def __init__(self, **kwargs):
+        # General
+        self.n_warmup_cycles: int = 1_000  # Number of warmup cycles.
+        self.n_cycles: int = 10_000  # Number of QMC cycles.
+        self.length_cycle: int = 100  # Length of a cycle.
+        self.n_tau: int = 10001  # Number of time slices for fermionic functions
+        self.n_tau_bosonic: int = 10001  # Number of time slices for bosonic functions
+        self.measure_f_tau: bool = True  # Measure improved estimator F(tau)
+        self.n_l: Optional[int] = None  # Number of Legendre polynomials.
+        self.legendre_fit: Optional[bool] = (
+            None  # Fit Green's function and self energy using Legendre Gf
+        )
+        self.tail_fit: Optional[bool] = None  # Perform tail fit.
+        self.fit_max_moment: Optional[int] = None  # Highest moment to fit in the tail of Sigma
+        self.fit_min_n: Optional[int] = None  # Index of iw from which to start fitting.
+        self.fit_max_n: Optional[int] = None  # Index of iw up to which to fit.
+        self.fit_min_w: Optional[float] = None  # iw from which to start fitting.
+        self.fit_max_w: Optional[float] = None  # iw up to which to fit.
+        self.density_matrix: Optional[bool] = None  # Measure the impurity density matrix.
+        self.crm_dyson: Optional[bool] = (
+            None  # Solve Dyson equation using constrained minimization problem
+        )
+        self.crm_wmax: Optional[float] = (
+            None  # Spectral width of the impurity problem for DLR basis
+        )
+        self.crm_eps: Optional[float] = (
+            None  # Accuracy of the DLR basis to represent Green’s function
+        )
+        self.correct_hartree: Optional[bool] = None  # Correct Hartree term in the self-energy
+        super().__init__(**kwargs)
+
+    def validate(self) -> None:
+        if self.tail_fit:
+            if self.legendre_fit or self.crm_dyson:
+                raise InputError(
+                    "Cannot use 'tail_fit', 'legendre_fit' or 'crm_dyson' at the same time!"
+                )
+        if self.legendre_fit:
+            if self.tail_fit or self.crm_dyson:
+                raise InputError(
+                    "Cannot use 'tail_fit', 'legendre_fit' or 'crm_dyson' at the same time!"
+                )
+
+        if self.crm_dyson:
+            if self.tail_fit or self.legendre_fit:
+                raise InputError(
+                    "Cannot use 'tail_fit', 'legendre_fit' or 'crm_dyson' at the same time!"
+                )
+            if self.crm_wmax is None:
+                raise InputError("Parameter 'crm_wmax' is required for 'crm_dyson'!")
+            if self.crm_eps is None:
+                raise InputError("Parameter 'crm_eps' is required for 'crm_dyson'!")
+
+
 class HubbardISolverParams(SolverParams):
     """Class for handling HubbardI solver parameters.
 
@@ -512,7 +644,13 @@ class HartreeSolverParams(SolverParams):
         super().__init__(**kwargs)
 
 
-SolversUnion = Union[FtpsSolverParams, CthybSolverParams, HubbardISolverParams, HartreeSolverParams]
+SolversUnion = Union[
+    FtpsSolverParams,
+    CthybSolverParams,
+    CtSegSolverParams,
+    HubbardISolverParams,
+    HartreeSolverParams,
+]
 
 # -- Maxent input parameters -----------------------------------------------------------------------
 
@@ -1301,6 +1439,7 @@ class InputParameters(Parameters):
 register_class(Parameters)
 register_class(FtpsSolverParams)
 register_class(CthybSolverParams)
+register_class(CtSegSolverParams)
 register_class(MaxEntParams)
 register_class(PadeParams)
 register_class(InputParameters)
@@ -1309,5 +1448,6 @@ register_class(HubbardISolverParams)
 # Register solver input classes
 register_solver_input(FtpsSolverParams)
 register_solver_input(CthybSolverParams)
+register_solver_input(CtSegSolverParams)
 register_solver_input(HubbardISolverParams)
 register_solver_input(HartreeSolverParams)

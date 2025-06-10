@@ -100,6 +100,13 @@ conda install -c conda-forge triqs -y
 
 ## CTHYB
 
+The [CTHYB] solver is available on Anaconda:
+```bash
+conda install -c conda-forge triqs_cthyb
+```
+
+Alternatively, you can install the latest version from the source code:
+
 1. Clone the latest stable version of the [CTHYB] repository:
    ```bash
    git clone https://github.com/TRIQS/cthyb cthyb.src
@@ -122,6 +129,46 @@ conda install -c conda-forge triqs -y
 4. In the build directory call cmake, including any additional custom CMake options, see below:
    ```bash
    cmake ../cthyb.src
+   ```
+
+5. Finally, compile the code and install the application:
+   ```bash
+   make
+   make install
+   ```
+
+
+## CTSEG
+
+The [CTSEG] solver is available on Anaconda:
+```bash
+conda install -c conda-forge triqs_ctseg
+```
+
+Alternatively, you can install the latest version from the source code:
+
+1. Clone the latest stable version of the [CTSEG] repository:
+   ```bash
+   git clone https://github.com/TRIQS/ctseg ctseg.src
+   ```
+
+2. Create and move to a new directory where you will compile the code:
+   ```bash
+   mkdir ctseg.build && cd ctseg.build
+   ```
+
+3. Ensure that your shell contains the TRIQS environment variables by sourcing the ``triqsvars.sh`` file from your TRIQS installation:
+   ```bash
+   source path_to_triqs/share/triqs/triqsvars.sh
+   ```
+   If you are using TRIQS from Anaconda, you can use the ``CONDA_PREFIX`` environment variable:
+   ```bash
+   source $CONDA_PREFIX/share/triqs/triqsvars.sh
+   ```
+
+4. In the build directory call cmake, including any additional custom CMake options, see below:
+   ```bash
+   cmake ../ctseg.src
    ```
 
 5. Finally, compile the code and install the application:
@@ -256,6 +303,7 @@ Some common issues and their solutions are listed below:
 
 [TRIQS]: https://triqs.github.io/triqs/latest/index.html
 [CTHYB]: https://github.com/TRIQS/cthyb
+[CTSEG]: https://github.com/TRIQS/ctseg
 [HubbardI]: https://github.com/TRIQS/hubbardI
 [Hartree-Fock]: https://github.com/TRIQS/hartree_fock
 [ForkTPS]: https://git.rz.uni-augsburg.de/itphy-sw-origin/forktps
