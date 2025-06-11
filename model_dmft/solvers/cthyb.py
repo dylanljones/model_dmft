@@ -255,8 +255,8 @@ def postprocess_cthyb(
         up, dn = params.spin_names
         correction_up = densities[dn] * u
         correction_dn = densities[up] * u
-        sigma_iw[up] -= correction_up
-        sigma_iw[dn] -= correction_dn
+        sigma_iw[up] += correction_up
+        sigma_iw[dn] += correction_dn
         report(f"Corrected Hartree shift: {correction_up} (up), {correction_dn} (dn)")
 
     return sigma_iw, g_l
