@@ -361,6 +361,26 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
                     # Store the Legendre Green's functions
                     ar["g_l"] = g_l
 
+    elif solver_type == "ctseg":
+        from .solvers.ctseg import postprocess_ctseg, solve_ctseg
+
+        solver = solve_ctseg(params, u, e_onsite, delta)
+
+        mpi.barrier()
+        if mpi.is_master_node():
+            # Run post-processing of the solver results
+            g_iw, sigma_iw, g_l = postprocess_ctseg(params, solver, e_onsite, delta)
+
+            # Write results back to temporary file
+            with HDFArchive(str(tmp_file), "a") as ar:
+                ar["solver"] = solver
+                ar["g_tau"] = solver.results.G_tau
+                ar["g_iw"] = g_iw
+                ar["sigma_dmft"] = sigma_iw
+                if g_l is not None:
+                    # Store the Legendre Green's functions
+                    ar["g_l"] = g_l
+
     elif solver_type == "hubbardI":
         from .solvers.hubbard1 import solve_hubbard
 
