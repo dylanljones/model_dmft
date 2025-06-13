@@ -96,7 +96,11 @@ def legendre_fit(
 
 
 def postprocess_ctseg(
-    params: InputParameters, solver: triqs_ctseg.Solver, e_onsite: np.ndarray, delta: BlockGf
+    params: InputParameters,
+    solver: triqs_ctseg.Solver,
+    u: float,
+    e_onsite: np.ndarray,
+    delta: BlockGf,
 ) -> Tuple[BlockGf, BlockGf, Union[BlockGf, None]]:
     up, dn = params.spin_names
     solver_params = params.solver_params
@@ -132,5 +136,23 @@ def postprocess_ctseg(
         g_iw_l, g_tau_l, sigma_iw_l = legendre_fit(g0_iw, g_iw, g_tau, g_l)
 
         sigma_iw = sigma_iw_l
+
+    if solver_params.correct_hartree:
+        # Correct hartree shift
+        report("Correcting Hartree shift...")
+        densities = dict()
+        for spin, g in g_iw:
+            # Compute density
+            dens = g.density()
+            if np.any(dens.imag > 1e-10):
+                report("Warning: density is not real")
+            densities[spin] = dens.real
+
+        up, dn = params.spin_names
+        correction_up = densities[dn] * u
+        correction_dn = densities[up] * u
+        sigma_iw[up] += correction_up
+        sigma_iw[dn] += correction_dn
+        report(f"Corrected Hartree shift: {correction_up} (up), {correction_dn} (dn)")
 
     return g_iw, sigma_iw, g_l

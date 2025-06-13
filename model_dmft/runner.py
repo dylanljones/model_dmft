@@ -369,7 +369,7 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
         mpi.barrier()
         if mpi.is_master_node():
             # Run post-processing of the solver results
-            g_iw, sigma_iw, g_l = postprocess_ctseg(params, solver, e_onsite, delta)
+            g_iw, sigma_iw, g_l = postprocess_ctseg(params, solver, u, e_onsite, delta)
 
             # Write results back to temporary file
             with HDFArchive(str(tmp_file), "a") as ar:
