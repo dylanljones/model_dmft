@@ -48,10 +48,14 @@ def solve_ctseg(
         "n_cycles": solver_params.n_cycles,
         "length_cycle": solver_params.length_cycle,
         "measure_F_tau": solver_params.measure_f_tau,
-        "random_seed": 34788 + 928374 * mpi.rank,  # Different random seed on each core
     }
     if solver_params.density_matrix:
         solve_kwargs["measure_densities"] = solver_params.density_matrix
+
+    seed_base = solver_params.random_seed if solver_params.random_seed is not None else 34788
+    solve_kwargs["random_seed"] = seed_base + 928374 * mpi.rank  # random seed on each core
+    if solver_params.random_name:
+        solve_kwargs["random_name"] = solver_params.random_name
 
     # Initialize solver
     solver = triqs_ctseg.Solver(

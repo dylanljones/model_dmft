@@ -342,6 +342,8 @@ class CthybSolverParams(SolverParams):
         "crm_wmax": float,
         "crm_eps": float,
         "correct_hartree": bool,
+        "random_seed": int,
+        "random_name": str,
     }
 
     __descriptions__ = {
@@ -363,6 +365,8 @@ class CthybSolverParams(SolverParams):
         "crm_wmax": "Spectral width of the impurity problem for DLR basis",
         "crm_eps": "Accuracy of the DLR basis to represent Green’s function (default: 1e-8)",
         "correct_hartree": "Correct Hartree term in the self-energy (default: false)",
+        "random_seed": "Random seed for the solver (default: 34788+928374*mpi.rank)",
+        "random_name": "Name of random number generator (default: None)",
     }
 
     __defaults__ = {
@@ -413,6 +417,10 @@ class CthybSolverParams(SolverParams):
             None  # Accuracy of the DLR basis to represent Green’s function
         )
         self.correct_hartree: Optional[bool] = None  # Correct Hartree term in the self-energy
+
+        self.random_seed: Optional[int] = None  # Random seed for the solver
+        self.random_name: Optional[str] = None  # Name of random number generator
+
         super().__init__(**kwargs)
 
     def validate(self) -> None:
@@ -461,6 +469,8 @@ class CtSegSolverParams(SolverParams):
         "legendre_fit": bool,
         "density_matrix": bool,
         "correct_hartree": bool,
+        "random_seed": int,
+        "random_name": str,
     }
 
     __descriptions__ = {
@@ -474,6 +484,8 @@ class CtSegSolverParams(SolverParams):
         "legendre_fit": "Fit Green's function and self energy using Legendre Gf (default: false)",
         "density_matrix": "Measure the impurity density matrix (default: false)",
         "correct_hartree": "Correct Hartree term in the self-energy (default: false)",
+        "random_seed": "Random seed for the solver (default: 34788+928374*mpi.rank)",
+        "random_name": "Name of random number generator (default: None)",
     }
 
     __defaults__ = {
@@ -502,6 +514,9 @@ class CtSegSolverParams(SolverParams):
         )
         self.density_matrix: Optional[bool] = None  # Measure the impurity density matrix.
         self.correct_hartree: Optional[bool] = None  # Correct Hartree term in the self-energy
+        self.random_seed: Optional[int] = None  # Random seed for the solver
+        self.random_name: Optional[str] = None  # Name of random number generator
+
         super().__init__(**kwargs)
 
 

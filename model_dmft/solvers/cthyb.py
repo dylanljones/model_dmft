@@ -61,8 +61,10 @@ def solve_cthyb(
         solve_kwargs["measure_density_matrix"] = True
         solve_kwargs["use_norm_as_weight"] = True
 
-    # Different random seed on each core
-    solve_kwargs["random_seed"] = 34788 + 928374 * mpi.rank  # Default random seed
+    seed_base = solver_params.random_seed if solver_params.random_seed is not None else 34788
+    solve_kwargs["random_seed"] = seed_base + 928374 * mpi.rank  # random seed on each core
+    if solver_params.random_name:
+        solve_kwargs["random_name"] = solver_params.random_name
 
     # Initialize solver
     solver = triqs_cthyb.Solver(
