@@ -805,7 +805,7 @@ class InputParameters(Parameters):
         self.verbosity_cpa: Optional[int] = 1  # Verbosity level for the CPA if method is 'iter'.
 
         self.mixing_dmft: float = 1.0  # Mixing parameter for the DMFT self-energy.
-        self.mixing_cpa: float = 1.0  # Mixing parameter for the CPA self-energy.
+        self.mixing_cpa: Optional[float] = None  # Mixing parameter for the CPA self-energy.
 
         self.tol_cpa: Optional[float] = 1e-6  # Tolerance for the CPA if method is 'iter'.
         self.gtol: Optional[float] = None  # Tolerance for the coherent Green's function.
@@ -1061,10 +1061,6 @@ class InputParameters(Parameters):
                 h = [h]
             if any(h):
                 raise InputError("Cannot symmetrize with magnetic field!")
-
-        # Mu or occ can't be both set
-        if self.mu is not None and self.occ is not None:
-            raise InputError("Cannot set both 'mu' and 'occ'! Use one of them.")
 
         if self.solver_params:
             self.solver_params.validate()

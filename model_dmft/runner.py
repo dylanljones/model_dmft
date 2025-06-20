@@ -15,10 +15,19 @@ import numpy as np
 from h5 import HDFArchive
 from triqs.gf import BlockGf, MeshReFreq, Omega, inverse, iOmega_n
 from triqs.utility import mpi
+from triqs_cpa import (
+    G_coherent,
+    G_component,
+    HilbertTransform,
+    initalize_onsite_energy,
+    initialize_G_cmpt,
+    solve_cpa,
+    solve_cpa_fxocc,
+)
 
-from . import cpa
+# from . import cpa
+# from .functions import HilbertTransform
 from .convergence import calculate_convergences
-from .functions import HilbertTransform
 from .input import InputParameters, get_supported_solvers
 from .mixer import apply_mixing
 from .output import write_out_files
@@ -131,7 +140,7 @@ def check_compatible_input(archive_file: Union[Path, str], params: InputParamete
                 raise IncompatibleDataError("Number of Matsubara frequencies mismatch.")
 
 
-def load_state(params: InputParameters) -> Tuple[int, BlockGf, BlockGf, BlockGf, float]:
+def load_state(params: InputParameters) -> Tuple[int, BlockGf, BlockGf, BlockGf, float, float]:
     """Load the previous state of the calculation from the output archive.
 
     Parameters
@@ -154,7 +163,7 @@ def load_state(params: InputParameters) -> Tuple[int, BlockGf, BlockGf, BlockGf,
     """
     location = Path(params.location)
     out_file = str(location / params.output)
-    it_prev, sigma_dmft, sigma_cpa, gf_coh, occ = 0, None, None, None, None
+    it_prev, sigma_dmft, sigma_cpa, gf_coh, occ, mu = 0, None, None, None, None, None
 
     if Path(out_file).exists():
         if params.load_iter == 0:
@@ -172,6 +181,7 @@ def load_state(params: InputParameters) -> Tuple[int, BlockGf, BlockGf, BlockGf,
                     key_sigma_cpa = "sigma_cpa"
                     key_gf_coh = "g_coh"
                     key_occ = "occ"
+                    key_mu = "mu"
                     if params.load_iter > 0:
                         it = min(it_prev, params.load_iter)
                         if f"sigma_dmft-{it}" in ar:
@@ -194,6 +204,8 @@ def load_state(params: InputParameters) -> Tuple[int, BlockGf, BlockGf, BlockGf,
                         gf_coh = ar[key_gf_coh]
                     if key_occ in ar:
                         occ = ar[key_occ]
+                    if key_mu in ar:
+                        mu = ar[key_mu]
                     if it_prev < params.n_loops:
                         s = f"continuing from previous iteration {it_prev}"
                         report(f"Found previous file {out_file}, {s}...")
@@ -201,7 +213,7 @@ def load_state(params: InputParameters) -> Tuple[int, BlockGf, BlockGf, BlockGf,
                         report("Already completed all iterations.")
                 except KeyError:
                     pass
-    return it_prev, sigma_dmft, sigma_cpa, gf_coh, occ
+    return it_prev, sigma_dmft, sigma_cpa, gf_coh, occ, mu
 
 
 def update_dataset(archive_file: Union[Path, str], keep_iter: bool = True) -> None:
@@ -229,6 +241,7 @@ def update_dataset(archive_file: Union[Path, str], keep_iter: bool = True) -> No
         ar[f"err_g-{it}"] = ar["err_g"]
         ar[f"err_sigma-{it}"] = ar["err_sigma"]
         ar[f"err_occ-{it}"] = ar["err_occ"]
+        ar[f"mu-{it}"] = ar["mu"]
         if "sigma_dmft" in ar:
             ar[f"sigma_dmft-{it}"] = ar["sigma_dmft"]
             ar[f"delta-{it}"] = ar["delta"]
@@ -801,9 +814,12 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
     lattice = params.lattice
     gf_struct = params.gf_struct
     conc, u, eps, h_field = params.cast_cmpt()
+    target_occ = params.occ
     mu = params.mu
-    if params.occ is not None and params.mu is None:
-        raise NotImplementedError("Chemical potential optimization is not implemented yet.")
+    if mu is None:
+        mu = 0.0
+    # if params.occ is not None and params.mu is None:
+    #     raise NotImplementedError("Chemical potential optimization is not implemented yet.")
 
     e_onsite = eps + h_field * SIGMA - u / 2  # Shape: ([N_cmpt, N_spin])
 
@@ -823,9 +839,10 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
         "method": params.method_cpa,
         "tol": params.tol_cpa,
         "maxiter": params.maxiter_cpa,
-        "mixing": params.mixing_cpa,
         "verbosity": params.verbosity_cpa,
     }
+    if params.mixing_cpa:
+        cpa_kwds["mixing"] = params.mixing_cpa
 
     # Check compatibility of solver
     solver_type = params.solver
@@ -859,13 +876,13 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
     sigma_cpa = blockgf(mesh, gf_struct=gf_struct, name="Σ_cpa")
 
     # Initialize DMFT self energies
-    sigma_dmft = cpa.initialize_gf_cmpt(sigma_cpa, cmpts=len(conc))
+    sigma_dmft = initialize_G_cmpt(sigma_cpa, cmpts=len(conc))
     for i, (cmpt, sigma) in enumerate(sigma_dmft):
         for spin, sig in sigma:
             sig << u[i] / 2
 
     # Initialize effective onsite energies as BlockGf
-    eps = cpa.initalize_onsite_energy(sigma_cpa, conc, e_onsite)
+    eps = initalize_onsite_energy(sigma_cpa, conc, e_onsite)
     freq_name = "w" if params.is_real_mesh else "iw"
 
     # ---- START OF COMPUTATION --------------------------------------------------------------------
@@ -878,7 +895,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
     sigma_cpa_prev, g_coh_prev, occ_prev = None, None, None
     if mpi.is_master_node():
         location.mkdir(parents=True, exist_ok=True)
-        it_prev, sigma_dmft_prev, sigma_cpa_prev, g_coh_prev, occ_prev = load_state(params)
+        it_prev, sigma_dmft_prev, sigma_cpa_prev, g_coh_prev, occ_prev, mu_prev = load_state(params)
         if it_prev > 0:
             if sigma_dmft_prev:
                 for cmpt, sig in sigma_dmft_prev:
@@ -886,6 +903,8 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                     sigma_dmft[cmpt] << sig
             if sigma_cpa_prev is not None:
                 sigma_cpa << sigma_cpa_prev
+            if mu_prev is not None and target_occ is not None:
+                mu = mu_prev
 
     # Broadcast data
     sigma_cpa = mpi.bcast(sigma_cpa)
@@ -912,8 +931,8 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
             report(f"Start: {iter_start_time:{TIME_FRMT}}")
             # Calculate local (component) Green's functions
             report(f"Computing component Green's functions G_i({freq_name})...")
-            eps_eff = eps + sigma_dmft - mu
-            g_cmpt = cpa.gf_component(ht, sigma_cpa, conc, eps_eff, eta=eta, scale=False)
+            eps_eff = eps + sigma_dmft
+            g_cmpt = G_component(ht, sigma_cpa, conc, eps_eff, mu=mu, eta=eta, scale=False)
 
             # Solve impurity problems
             if any(u):
@@ -961,8 +980,14 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
 
             # Solve CPA self-consistent equations and update coherent potential (sigm_cpa)
             # sigma_cpa_old = sigma_cpa.copy()
-            eps_eff = eps + sigma_dmft - mu
-            sigma_cpa << cpa.solve_cpa(ht, sigma_cpa, conc, eps_eff, eta=eta, **cpa_kwds)
+            eps_eff = eps + sigma_dmft
+            if target_occ is not None:
+                mu, sigma_cpa_out = solve_cpa_fxocc(
+                    ht, sigma_cpa, conc, eps_eff, target_occ, mu0=mu, eta=eta, **cpa_kwds
+                )
+                sigma_cpa << sigma_cpa_out
+            else:
+                sigma_cpa << solve_cpa(ht, sigma_cpa, conc, eps_eff, mu=mu, eta=eta, **cpa_kwds)
 
             # Symmetrize CPA self-energy
             if params.symmetrize:
@@ -970,10 +995,10 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
 
             if mpi.is_master_node():
                 report(f"Computing coherent Green's function G_c({freq_name})...")
-                g_coh = cpa.gf_coherent(ht, sigma_cpa, eta)
+                g_coh = G_coherent(ht, sigma_cpa, mu=mu, eta=eta)
 
                 report(f"Computing component Green's functions G_i({freq_name})...")
-                g_cmpt = cpa.gf_component(ht, sigma_cpa, conc, eps_eff, eta, scale=False)
+                g_cmpt = G_component(ht, sigma_cpa, conc, eps_eff, mu=mu, eta=eta, scale=False)
 
                 # Compute occupation numbers
                 density = g_coh.density()
@@ -997,6 +1022,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                     ar["err_g"] = err_g
                     ar["err_sigma"] = err_sigma
                     ar["err_occ"] = err_occ
+                    ar["mu"] = mu
 
                 # Run postprocessing
                 postprocess(params, out_file)
