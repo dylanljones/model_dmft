@@ -896,8 +896,16 @@ class InputParameters(Parameters):
     def mesh(self) -> Union[MeshImFreq, MeshReFreq]:
         """The frequency mesh used for the calculation."""
         if self.is_real_mesh:
+            if self.n_w is None:
+                raise InputMeshError("real", "n_w")
+            if self.w_range is None:
+                raise InputMeshError("real", "w_range")
             mesh = MeshReFreq(*self.w_range, self.n_w)
         else:
+            if self.n_iw is None:
+                raise InputMeshError("imaginary", "n_iw")
+            if self.beta is None:
+                raise InputMeshError("imaginary", "beta")
             mesh = MeshImFreq(beta=self.beta, S="Fermion", n_max=self.n_iw)
         return mesh
 

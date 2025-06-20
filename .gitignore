@@ -9,7 +9,7 @@ app_test/
 dev*.py
 main*.py
 tmp*.py
-
+.triqs/
 
 # -- Python gitignore ------------------------------------------------------------------
 
