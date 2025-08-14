@@ -2,12 +2,16 @@
 # Author: Dylan Jones
 # Date:   2024-08-14
 
+import os
+import selectors
+import shlex
 import shutil
 import sys
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from subprocess import PIPE, Popen, SubprocessError
-from typing import Tuple, Union
+from typing import Dict, List, TextIO, Tuple, Union
 
 import numpy as np
 
@@ -40,6 +44,32 @@ from .utility import (
     report,
     symmetrize_gf,
 )
+
+EXECUTABLE = sys.executable  # Use current Python executable for subprocesses
+
+USE_SRUN = os.environ.get("USE_SRUN", "0") == "1"
+MPI_IMPL = os.environ.get("MPI_IMPL", "pmix")  # or "pmi2" on older stacks: check `srun --mpi=list`
+# Slurm hints: figure out how many tasks per node were granted
+NUM_TASKS = os.environ.get("SLURM_NTASKS") or os.environ.get("SLURM_NTASKS_PER_NODE")
+
+ENV = dict(os.environ)
+ENV.setdefault("PYTHONUNBUFFERED", "1")
+
+sel = selectors.DefaultSelector()
+
+Process = Popen[str]
+
+
+@dataclass
+class ProcessInfo:
+    out_path: str
+    err_path: str
+    out: TextIO
+    err_lines: List[str]
+    cmpt: str
+
+
+ProcessInfos = Dict[Process, ProcessInfo]
 
 
 def report_header(text: str, width: int, char: str = "-") -> None:
@@ -387,7 +417,7 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
             # Write results back to temporary file
             with HDFArchive(str(tmp_file), "a") as ar:
                 ar["solver"] = solver
-                ar["g_tau"] = solver.results.G_tau
+                ar["g_tau"] = solver.results.G_tau  # type: ignore
                 ar["g_iw"] = g_iw
                 ar["sigma_dmft"] = sigma_iw
                 if g_l is not None:
@@ -586,6 +616,20 @@ def solve_impurities_seq(
     _load_tmp_files(sigma_dmft, tmp_filepath, archive_file)
 
 
+def register_process(
+    infos: ProcessInfos, p: Process, cmpt: str, out_file: str, err_file: str
+) -> None:
+    """Register a process with the selector and store its information."""
+    out_fh = open(out_file, "a", buffering=1)
+    if p.stdout:
+        sel.register(p.stdout, selectors.EVENT_READ, (p, out_fh, "out"))
+    if p.stderr:
+        sel.register(p.stderr, selectors.EVENT_READ, (p, None, "err"))
+    infos[p] = ProcessInfo(
+        out_path=out_file, err_path=err_file, out=out_fh, err_lines=list(), cmpt=cmpt
+    )
+
+
 def solve_impurities(
     params: InputParameters,
     it: int,
@@ -676,69 +720,117 @@ def solve_impurities(
     # --- Solve impurity problems -----
 
     procs = list()
-    executable = sys.executable  # Use current Python executable for subprocesses
+    proc_info: ProcessInfos = dict()
 
-    report("Starting processes...")
-    for i, cmpt in enumerate(sigma_dmft.indices):
-        u_cmpt = u[i]
-        # Prepare tmp/output file paths
-        tmp_file = tmp_filepath.format(cmpt=cmpt)
-        out_file = stdout_filepath.format(cmpt=cmpt)
-        err_file = stderr_filepath.format(cmpt=cmpt)
-        # Write header to output file
-        # write_header(out_file, it, out_mode)
-        # write_header(err_file, it, out_mode)
-        if u_cmpt == 0:
-            base_cmd = list()
-        else:
-            if use_srun:
-                base_cmd = ["srun", "--exact", "--exclusive", f"--ntasks={n}"]
+    try:
+        report("Starting processes...")
+        for i, cmpt in enumerate(sigma_dmft.indices):
+            u_cmpt = u[i]
+            # Prepare tmp/output file paths
+            tmp_file = tmp_filepath.format(cmpt=cmpt)
+            out_file = stdout_filepath.format(cmpt=cmpt)
+            err_file = stderr_filepath.format(cmpt=cmpt)
+            # Write header to output file
+            # write_header(out_file, it, out_mode)
+            # write_header(err_file, it, out_mode)
+            if u_cmpt == 0:
+                base_cmd = list()
             else:
-                base_cmd = ["mpirun", "-n", str(n)] if n > 1 else list()
+                if use_srun:
+                    base_cmd = [
+                        "srun",
+                        "-n",
+                        str(n),  # total ranks for this step
+                        "--cpu-bind=cores",  # bind ranks to cores
+                        f"--mpi={MPI_IMPL}",  # or pmi2 on older stacks; check `srun --mpi=list`
+                        "--exclusive",  # give this step dedicated CPUs/cores from your allocation
+                    ]
+                else:
+                    base_cmd = ["mpirun", "-np", str(n), "--bind-to", "core"] if n > 1 else list()
 
-        # Start process
-        cmd = base_cmd + [executable, "-m", "model_dmft", "solve_impurity", tmp_file]
-        cmd_str = base_cmd + ["model_dmft", "solve_impurity", tmp_file]
-        if verbosity > 0:
-            report("> " + " ".join(cmd_str))
-        p = Popen(cmd, stdout=PIPE, stderr=PIPE)
-        procs.append((p, out_file, err_file))
+            # Start process and register it with the selector
+            cmd = base_cmd + [EXECUTABLE, "-m", "model_dmft", "solve_impurity", tmp_file]
+            cmd_str = base_cmd + ["model_dmft", "solve_impurity", tmp_file]
+            if verbosity > 0:
+                report("> " + " ".join(shlex.quote(x) for x in cmd_str))
+            p = Popen(cmd, stdout=PIPE, stderr=PIPE, text=True, bufsize=1, env=ENV)
+            register_process(proc_info, p, cmpt, out_file, err_file)
+            procs.append(p)
 
-    # Wait for all subprocesses to end and stream STDOUT to file and console
-    while True:
-        received = False
-        for p, out_file, _ in procs:
-            if p.poll() is None:
-                with open(out_file, "a") as f:
-                    line = p.stdout.readline().decode()
-                    if line:
-                        line = line.strip("\n")
+        # Event loop until all concurrent steps finish
+        alive = set(procs)
+        while alive or sel.get_map():
+            events = sel.select(timeout=0.1)
+            for key, _ in events:
+                stream = key.fileobj
+                p, fh, kind = key.data
+                line = stream.readline().rstrip("\n")  # type: ignore
+                if line:
+                    if kind == "out":
+                        # Write stdout line to file
+                        fh.writeline(line)
+                        # Report stdout line to console
                         if verbosity > 2:
                             report(f"[{p.pid}] " + line)
-                        f.write(line + "\n")
-                        received = True
-        if not received:
-            break
+                    else:
+                        # collect stderr line in memory
+                        proc_info[p].err_lines.append(line)
+                else:
+                    sel.unregister(stream)
 
-    # Wait to make sure all processes are finished
-    report("Waiting for processes to finish...")
-    for p, _, _ in procs:
-        p.wait(timeout=10)
+            for p in list(alive):
+                if p.poll() is not None:
+                    # Drain any leftover tail
+                    if p.stdout:
+                        tail = p.stdout.read() or ""
+                        if tail:
+                            # Write stdout line to file
+                            proc_info[p].out.write(tail)
+                            # Report stdout line to console
+                            if verbosity > 2:
+                                report(f"[{p.pid}] " + tail)
+                    if p.stderr:
+                        tail = p.stderr.read() or ""
+                        if tail:
+                            proc_info[p].err_lines.append(tail)
+                    # Close stdout file
+                    try:
+                        proc_info[p].out.flush()
+                        proc_info[p].out.close()
+                    except Exception:
+                        pass
+                    # Check exit code and write stderr file only on error
+                    rc = p.wait()
+                    if rc != 0 and proc_info[p].err_lines:
+                        with open(proc_info[p].err_path, "a") as ef:
+                            ef.writelines(proc_info[p].err_lines)
+                    if rc != 0:
+                        raise SubprocessError(
+                            f"Step {proc_info[p].cmpt} failed (PID {p.pid}, exit {rc})"
+                        )
+                    alive.remove(p)
+                    del proc_info[p]
+        report("Processes done!")
 
-    # Check for errors
-    for p, out_file, err_file in procs:
-        err = p.stderr.read().decode()
-        # with open(err_file, "a") as f:
-        #     f.write(err)
-        if p.returncode != 0:
-            with open(out_file, "a") as f:
-                f.write("#" * 100 + "\n")
-                f.write(" STDERR\n")
-                f.write("#" * 100 + "\n\n")
-                f.write(err + "\n")
-            raise SubprocessError(f"Error in process {p.pid}\n{err}")
+    finally:
+        # Safety: unregister & close anything left
+        for key in list(sel.get_map().values()):
+            try:
+                sel.unregister(key.fileobj)
+            except Exception:
+                pass
+            try:
+                key.fileobj.close()  # type: ignore
+            except Exception:
+                pass
+        for info in list(proc_info.values()):
+            fh = info.out
+            try:
+                fh.flush()
+                fh.close()
+            except Exception:
+                pass
 
-    report("Processes done!")
     # ---- End solve ------------------
 
     # Load results back from temporary files and remove them
