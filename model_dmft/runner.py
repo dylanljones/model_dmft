@@ -741,6 +741,8 @@ def solve_impurities(
                         "srun",
                         "-n",
                         str(n),  # total ranks for this step
+                        "--ntasks-per-node",
+                        str(n),  # tasks per node
                         "--cpu-bind=cores",  # bind ranks to cores
                         f"--mpi={MPI_IMPL}",  # or pmi2 on older stacks; check `srun --mpi=list`
                         # "--exclusive",  # give this step dedicated CPUs/cores from your allocation
