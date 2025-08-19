@@ -734,7 +734,8 @@ def solve_impurities(
             # write_header(out_file, it, out_mode)
             # write_header(err_file, it, out_mode)
             if u_cmpt == 0:
-                base_cmd = list()
+                continue
+                # base_cmd = list()
             else:
                 if use_srun:
                     base_cmd = [
