@@ -1050,7 +1050,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                     report("")
 
                 if n_procs > 1:
-                    solve_impurities(**kwargs, nproc=n_procs, it=it)
+                    solve_impurities(**kwargs, nproc=n_procs - 1, it=it)
                 else:
                     solve_impurities_seq(**kwargs, it=it)
 
