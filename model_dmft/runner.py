@@ -741,14 +741,24 @@ def solve_impurities(
                         "srun",
                         "-n",
                         str(n),  # total ranks for this step
-                        "--ntasks-per-node",
-                        str(n),  # tasks per node
-                        "--cpu-bind=cores",  # bind ranks to cores
-                        f"--mpi={MPI_IMPL}",  # or pmi2 on older stacks; check `srun --mpi=list`
+                        # "--ntasks-per-node",
+                        # str(n),  # tasks per node
+                        # "--cpu-bind=cores",  # bind ranks to cores
+                        # f"--mpi={MPI_IMPL}",  # or pmi2 on older stacks; check `srun --mpi=list`
                         # "--exclusive",  # give this step dedicated CPUs/cores from your allocation
                     ]
                 else:
-                    base_cmd = ["mpirun", "-np", str(n), "--bind-to", "core"] if n > 1 else list()
+                    base_cmd = (
+                        [
+                            "mpirun",
+                            "-np",
+                            str(n),
+                            # "--bind-to",
+                            # "core"
+                        ]
+                        if n > 1
+                        else list()
+                    )
 
             # Start process and register it with the selector
             cmd = base_cmd + [EXECUTABLE, "-m", "model_dmft", "solve_impurity", tmp_file]
@@ -1050,7 +1060,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                     report("")
 
                 if n_procs > 1:
-                    solve_impurities(**kwargs, nproc=n_procs - 1, it=it)
+                    solve_impurities(**kwargs, nproc=n_procs, it=it)
                 else:
                     solve_impurities_seq(**kwargs, it=it)
 
