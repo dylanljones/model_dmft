@@ -744,6 +744,7 @@ def solve_impurities(
                         str(n),  # total ranks for this step
                         # "--ntasks-per-node",
                         # str(n),  # tasks per node
+                        "-u",  # unbuffered output
                         "--cpu-bind=cores",  # bind ranks to cores
                         f"--mpi={MPI_IMPL}",  # or pmi2 on older stacks; check `srun --mpi=list`
                         "--exclusive",  # give this step dedicated CPUs/cores from your allocation
@@ -751,6 +752,7 @@ def solve_impurities(
                 else:
                     base_cmd = ["mpirun", "-np", str(n), "--bind-to", "core"] if n > 1 else list()
 
+            base_cmd = base_cmd + ["stdbuf", "-oL", "-eL"]  # line-buffered output
             # Start process and register it with the selector
             cmd = base_cmd + [EXECUTABLE, "-m", "model_dmft", "solve_impurity", tmp_file]
             cmd_str = base_cmd + ["model_dmft", "solve_impurity", tmp_file]
@@ -772,6 +774,7 @@ def solve_impurities(
                     if kind == "out":
                         # Write stdout line to file
                         fh.write(f"{line}\n")
+                        fh.flush()
                         # Report stdout line to console
                         if verbosity > 2:
                             report(f"[{p.pid}] " + line)
