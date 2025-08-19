@@ -770,7 +770,7 @@ def solve_impurities(
                 if line:
                     if kind == "out":
                         # Write stdout line to file
-                        fh.writeline(line)
+                        fh.write(f"{line}\n")
                         # Report stdout line to console
                         if verbosity > 2:
                             report(f"[{p.pid}] " + line)
