@@ -644,7 +644,6 @@ def solve_impurities(
     sigma_dmft: BlockGf,
     nproc: int,
     verbosity: int = 2,
-    use_srun: bool = False,
 ) -> None:
     """Solve the impurity problems in parallel using MPI.
 
@@ -676,9 +675,6 @@ def solve_impurities(
         The current iteration number. Used for logging. The default is None.
     verbosity : int, optional
         The verbosity level. The default is 2.
-    use_srun : bool, optional
-        Whether to use the `srun` command to start the processes. If false, the `mpirun` command
-        is used. The default is None, which uses the value of the global variable `USE_SRUN`.
 
     See Also
     --------
@@ -743,7 +739,7 @@ def solve_impurities(
                 # base_cmd = list()
             else:
                 buff_opt = ["stdbuf", "-oL", "-eL"]
-                if use_srun:
+                if USE_SRUN:
                     base_cmd = [
                         "srun",
                         "-n",
