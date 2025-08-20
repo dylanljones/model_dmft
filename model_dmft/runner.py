@@ -744,12 +744,13 @@ def solve_impurities(
                         str(n),  # total ranks for this step
                         # "--ntasks-per-node",
                         # str(n),  # tasks per node
-                        "--cpu-bind=cores",  # bind ranks to cores
+                        "--exact",
+                        # "--cpu-bind=cores",  # bind ranks to cores
                         f"--mpi={MPI_IMPL}",  # or pmi2 on older stacks; check `srun --mpi=list`
-                        "--exclusive",  # give this step dedicated CPUs/cores from your allocation
+                        # "--exclusive",  # give this step dedicated CPUs/cores from your allocation
                     ]
                 else:
-                    base_cmd = ["mpirun", "-np", str(n), "--bind-to", "core"] if n > 1 else list()
+                    base_cmd = ["mpirun", "-np", str(n), "--bind-to", "none"] if n > 1 else list()
 
             # Start process and register it with the selector
             cmd = base_cmd + [EXECUTABLE, "-m", "model_dmft", "solve_impurity", tmp_file]
