@@ -742,18 +742,30 @@ def solve_impurities(
                         "srun",
                         "-n",
                         str(n),  # total ranks for this step
+                        "-u",  # unbuffered output
                         # "--ntasks-per-node",
                         # str(n),  # tasks per node
-                        "--exact",
+                        "--exact",  # use exact number of tasks, do not oversubscribe
                         # "--cpu-bind=cores",  # bind ranks to cores
                         f"--mpi={MPI_IMPL}",  # or pmi2 on older stacks; check `srun --mpi=list`
                         # "--exclusive",  # give this step dedicated CPUs/cores from your allocation
                     ]
+                elif n > 1:
+                    base_cmd = [
+                        "mpirun",
+                        "-np",
+                        str(n),
+                        "--bind-to",
+                        "none",
+                        "stdbuf",
+                        "-oL",
+                        "-eL",
+                    ]
                 else:
-                    base_cmd = ["mpirun", "-np", str(n), "--bind-to", "none"] if n > 1 else list()
+                    base_cmd = list()
 
             # Start process and register it with the selector
-            cmd = base_cmd + [EXECUTABLE, "-m", "model_dmft", "solve_impurity", tmp_file]
+            cmd = base_cmd + [EXECUTABLE, "-u", "-m", "model_dmft", "solve_impurity", tmp_file]
             cmd_str = base_cmd + ["model_dmft", "solve_impurity", tmp_file]
             if verbosity > 0:
                 report("> " + " ".join(shlex.quote(x) for x in cmd_str))
@@ -768,7 +780,7 @@ def solve_impurities(
             for key, _ in events:
                 stream = key.fileobj
                 p, fh, kind = key.data
-                line = stream.readline().rstrip("\n")  # type: ignore
+                line = stream.readline().rstrip("\r\n")  # type: ignore
                 if line:
                     if kind == "out":
                         # Write stdout line to file
