@@ -737,6 +737,7 @@ def solve_impurities(
                 continue
                 # base_cmd = list()
             else:
+                buff_opt = ["stdbuf", "-oL", "-eL"]
                 if use_srun:
                     base_cmd = [
                         "srun",
@@ -746,10 +747,16 @@ def solve_impurities(
                         "--exact",  # use exact number of tasks, do not oversubscribe
                         f"--mpi={MPI_IMPL}",  # or pmi2 on older stacks; check `srun --mpi=list`
                     ]
-                    base_cmd += ["stdbuf", "-oL", "-eL"]  # unbuffered output (also for C++ side)
+                    base_cmd += buff_opt
                 elif n > 1:
-                    base_cmd = ["mpirun", "-np", str(n), "--bind-to", "none"]
-                    base_cmd += ["stdbuf", "-oL", "-eL"]  # unbuffered output (also for C++ side)
+                    base_cmd = [
+                        "mpirun",
+                        "-np",
+                        str(n),
+                        "--bind-to",
+                        "none",
+                    ]
+                    base_cmd += buff_opt
                 else:
                     base_cmd = list()
 
