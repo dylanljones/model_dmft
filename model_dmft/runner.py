@@ -53,7 +53,7 @@ ANSI = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]")
 STALL_SECS = 3600  # e.g., 1h
 
 USE_SRUN = os.environ.get("USE_SRUN", "0") == "1"
-MPI_IMPL = os.environ.get("MPI_IMPL", "pmix")  # or "pmi2" on older stacks: check `srun --mpi=list`
+# MPI_IMPL = os.environ.get("MPI_IMPL", "pmix")  # or "pmi2": check `srun --mpi=list`
 # Slurm hints: figure out how many tasks per node were granted
 NUM_TASKS = os.environ.get("SLURM_NTASKS") or os.environ.get("SLURM_NTASKS_PER_NODE")
 
@@ -75,6 +75,26 @@ class ProcessInfo:
 
 
 ProcessInfos = Dict[Process, ProcessInfo]
+
+
+def choose_slurm_mpi_plugin() -> str:
+    env = os.environ
+    if env.get("MPI_IMPL"):
+        return env["MPI_IMPL"]
+    # Detect vendor via mpi4py if available
+    try:
+        from mpi4py import MPI
+
+        name, (major, minor, patch) = MPI.get_vendor()
+        if "Open MPI" in name:
+            # Pick a conservative default; allow override above
+            return "pmix_v5" if major >= 5 else "pmix_v4"
+        if "MPICH" in name or "Intel" in name:
+            return "pmi2"
+    except Exception:
+        pass
+    # Fallback that works on many MPICH clusters
+    return "pmi2"
 
 
 def report_header(text: str, width: int, char: str = "-") -> None:
@@ -740,13 +760,14 @@ def solve_impurities(
             else:
                 buff_opt = ["stdbuf", "-oL", "-eL"]
                 if USE_SRUN:
+                    plugin = choose_slurm_mpi_plugin()
                     base_cmd = [
                         "srun",
                         "-n",
                         str(n),  # total ranks for this step
                         "-u",  # unbuffered output
                         "--exact",  # use exact number of tasks, do not oversubscribe
-                        f"--mpi={MPI_IMPL}",  # or pmi2 on older stacks; check `srun --mpi=list`
+                        f"--mpi={plugin}",  # or pmi2 on older stacks; check `srun --mpi=list`
                     ] + buff_opt
                 elif n > 1:
                     base_cmd = ["mpirun", "-np", str(n), "--bind-to", "none"] + buff_opt
