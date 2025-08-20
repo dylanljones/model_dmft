@@ -743,24 +743,13 @@ def solve_impurities(
                         "-n",
                         str(n),  # total ranks for this step
                         "-u",  # unbuffered output
-                        # "--ntasks-per-node",
-                        # str(n),  # tasks per node
                         "--exact",  # use exact number of tasks, do not oversubscribe
-                        # "--cpu-bind=cores",  # bind ranks to cores
                         f"--mpi={MPI_IMPL}",  # or pmi2 on older stacks; check `srun --mpi=list`
-                        # "--exclusive",  # give this step dedicated CPUs/cores from your allocation
                     ]
+                    base_cmd += ["stdbuf", "-oL", "-eL"]  # unbuffered output (also for C++ side)
                 elif n > 1:
-                    base_cmd = [
-                        "mpirun",
-                        "-np",
-                        str(n),
-                        "--bind-to",
-                        "none",
-                        "stdbuf",
-                        "-oL",
-                        "-eL",
-                    ]
+                    base_cmd = ["mpirun", "-np", str(n), "--bind-to", "none"]
+                    base_cmd += ["stdbuf", "-oL", "-eL"]  # unbuffered output (also for C++ side)
                 else:
                     base_cmd = list()
 
