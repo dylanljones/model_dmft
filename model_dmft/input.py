@@ -215,7 +215,7 @@ class SolverParams(Parameters):
 
     SOLVER: str
     RE_MESH: bool
-    MAX_PROCESSES = 1
+    MAX_PROCESSES: Optional[int] = None
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -321,7 +321,6 @@ class CthybSolverParams(SolverParams):
 
     SOLVER = "cthyb"
     RE_MESH = False
-    MAX_PROCESSES = 64
 
     __types__ = {
         "n_cycles": int,
@@ -456,7 +455,6 @@ class CtSegSolverParams(SolverParams):
 
     SOLVER = "ctseg"
     RE_MESH = False
-    MAX_PROCESSES = 64
 
     __types__ = {
         "n_cycles": int,

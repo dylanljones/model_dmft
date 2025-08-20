@@ -713,7 +713,7 @@ def solve_impurities(
         raise ValueError("Number of processes must be divisible by number of components.")
     n = max(1, int(n))
     max_proc = params.solver_params.MAX_PROCESSES
-    if n > max_proc:
+    if max_proc is not None and n > max_proc:
         line1 = f"WARNING: Number of processes {n} is too high for solver {solver_type}."
         line2 = f"         Maximum number of processes per solver is {max_proc}."
         line = "-" * max(len(line1), len(line2))
@@ -760,6 +760,9 @@ def solve_impurities(
             else:
                 buff_opt = ["stdbuf", "-oL", "-eL"]
                 if USE_SRUN:
+                    # ensure TRIQS uses MPI under srun/pmix
+                    ENV["TRIQS_FORCE_MPI_INIT"] = "1"
+                    # Choose the MPI plugin for srun
                     plugin = choose_slurm_mpi_plugin()
                     base_cmd = [
                         "srun",
