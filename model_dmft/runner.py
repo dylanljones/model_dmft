@@ -3,10 +3,12 @@
 # Date:   2024-08-14
 
 import os
+import re
 import selectors
 import shlex
 import shutil
 import sys
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -46,6 +48,9 @@ from .utility import (
 )
 
 EXECUTABLE = sys.executable  # Use current Python executable for subprocesses
+
+ANSI = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]")
+STALL_SECS = 3600  # e.g., 1h
 
 USE_SRUN = os.environ.get("USE_SRUN", "0") == "1"
 MPI_IMPL = os.environ.get("MPI_IMPL", "pmix")  # or "pmi2" on older stacks: check `srun --mpi=list`
@@ -763,21 +768,29 @@ def solve_impurities(
 
         # Event loop until all concurrent steps finish
         alive = set(procs)
+        # Last activity time for each process to avoid stalling
+        last_activity = {p: time.monotonic() for p in procs}
+
         while alive or sel.get_map():
             events = sel.select(timeout=0.1)
             for key, _ in events:
                 stream = key.fileobj
                 p, fh, kind = key.data
                 try:
-                    chunk = os.read(stream.fileno(), 65536)  # bytes; non-blocking due to selector
+                    chunk = os.read(stream.fileno(), 1024)  # bytes; non-blocking due to selector
                 except BlockingIOError:
                     continue
                 # line = stream.readline().rstrip("\r\n")  # type: ignore
                 if chunk:
+                    # Update activity time for this process
+                    last_activity[p] = time.monotonic()
+
                     text = chunk.decode("utf-8", errors="replace")
+                    # Turn carriage-return updates into newlines so they show up in the file
+                    text = text.replace("\r", "\n")
+                    # Remove ANSI escape codes (e.g. color codes)
+                    text = ANSI.sub("", text)
                     if kind == "out":
-                        # Turn carriage-return updates into newlines so they show up in the file
-                        text = text.replace("\r", "\n")
                         # Write stdout line to file
                         fh.write(text)
                         fh.flush()
@@ -791,7 +804,13 @@ def solve_impurities(
                     # EOF on this stream
                     sel.unregister(stream)
 
+            now = time.monotonic()
             for p in list(alive):
+                # Check if the process stalled
+                if now - last_activity[p] > STALL_SECS:
+                    raise SubprocessError(f"Step {proc_info[p].cmpt} stalled > {STALL_SECS}s")
+
+                # Check if still alive
                 if p.poll() is not None:
                     # Close stdout file
                     try:
