@@ -757,7 +757,7 @@ def solve_impurities(
             cmd_str = base_cmd + ["model_dmft", "solve_impurity", tmp_file]
             if verbosity > 0:
                 report("> " + " ".join(shlex.quote(x) for x in cmd_str))
-            p = Popen(cmd, stdout=PIPE, stderr=PIPE, text=True, bufsize=1, env=ENV)
+            p = Popen(cmd, stdout=PIPE, stderr=PIPE, text=True, bufsize=0, env=ENV)
             register_process(proc_info, p, cmpt, out_file, err_file)
             procs.append(p)
 
@@ -768,36 +768,31 @@ def solve_impurities(
             for key, _ in events:
                 stream = key.fileobj
                 p, fh, kind = key.data
-                line = stream.readline().rstrip("\r\n")  # type: ignore
-                if line:
+                try:
+                    chunk = os.read(stream.fileno(), 65536)  # bytes; non-blocking due to selector
+                except BlockingIOError:
+                    continue
+                # line = stream.readline().rstrip("\r\n")  # type: ignore
+                if chunk:
+                    text = chunk.decode("utf-8", errors="replace")
                     if kind == "out":
+                        # Turn carriage-return updates into newlines so they show up in the file
+                        text = text.replace("\r", "\n")
                         # Write stdout line to file
-                        fh.write(f"{line}\n")
+                        fh.write(text)
                         fh.flush()
                         # Report stdout line to console
-                        if verbosity > 2:
-                            report(f"[{p.pid}] " + line)
+                        # if verbosity > 2:
+                        #     report(f"[{p.pid}] " + line)
                     else:
                         # collect stderr line in memory
-                        proc_info[p].err_lines.append(line)
+                        proc_info[p].err_lines.append(text)
                 else:
+                    # EOF on this stream
                     sel.unregister(stream)
 
             for p in list(alive):
                 if p.poll() is not None:
-                    # Drain any leftover tail
-                    if p.stdout:
-                        tail = p.stdout.read() or ""
-                        if tail:
-                            # Write stdout line to file
-                            proc_info[p].out.write(tail)
-                            # Report stdout line to console
-                            if verbosity > 2:
-                                report(f"[{p.pid}] " + tail)
-                    if p.stderr:
-                        tail = p.stderr.read() or ""
-                        if tail:
-                            proc_info[p].err_lines.append(tail)
                     # Close stdout file
                     try:
                         proc_info[p].out.flush()
