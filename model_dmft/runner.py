@@ -59,6 +59,11 @@ NUM_TASKS = os.environ.get("SLURM_NTASKS") or os.environ.get("SLURM_NTASKS_PER_N
 
 ENV = dict(os.environ)
 ENV.setdefault("PYTHONUNBUFFERED", "1")
+ENV.setdefault("OMP_NUM_THREADS", "1")
+ENV.setdefault("OPENBLAS_NUM_THREADS", "1")
+ENV.setdefault("MKL_NUM_THREADS", "1")
+ENV.setdefault("VECLIB_MAXIMUM_THREADS", "1")
+ENV.setdefault("NUMEXPR_NUM_THREADS", "1")
 
 sel = selectors.DefaultSelector()
 
