@@ -425,6 +425,9 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
             with HDFArchive(str(tmp_file), "a") as ar:
                 ar["solver"] = solver
                 ar["g_tau"] = solver.G_tau
+                ar["auto_corr_time"] = solver.auto_corr_time
+                ar["average_sign"] = solver.average_sign
+                ar["average_order"] = solver.average_order
                 if sigma_post is not None:
                     ar["sigma_dmft_raw"] = solver.Sigma_iw
                     ar["sigma_dmft"] = sigma_post
@@ -532,6 +535,9 @@ def _load_tmp_files(sigma_dmft: BlockGf, tmp_filepath: str, archive_file: str) -
         return
 
     g_tau_blocks, g_ret_blocks, g_l_blocks = dict(), dict(), dict()
+    auto_corr_time = dict()
+    average_sign = dict()
+    average_order = dict()
     sigma_dmft_raw, save_raw = sigma_dmft.copy(), False
 
     # Load main results from temporary file
@@ -550,6 +556,12 @@ def _load_tmp_files(sigma_dmft: BlockGf, tmp_filepath: str, archive_file: str) -
                 g_l_blocks[cmpt] = ar["g_l"]
             if "g_tau" in ar:
                 g_tau_blocks[cmpt] = ar["g_tau"]
+            if "auto_corr_time" in ar:
+                auto_corr_time[cmpt] = ar["auto_corr_time"]
+            if "average_sign" in ar:
+                average_sign[cmpt] = ar["average_sign"]
+            if "average_order" in ar:
+                average_order[cmpt] = ar["average_order"]
 
     if save_raw:
         # Write raw sigma_dmft to output file
@@ -579,6 +591,18 @@ def _load_tmp_files(sigma_dmft: BlockGf, tmp_filepath: str, archive_file: str) -
         g_tau = blockgf(blocks[0].mesh, names=names, blocks=blocks)
         with HDFArchive(archive_file, "a") as ar:
             ar["g_tau"] = g_tau
+
+    if auto_corr_time:
+        with HDFArchive(archive_file, "a") as ar:
+            ar["auto_corr_time"] = auto_corr_time
+
+    if average_sign:
+        with HDFArchive(archive_file, "a") as ar:
+            ar["average_sign"] = average_sign
+
+    if average_order:
+        with HDFArchive(archive_file, "a") as ar:
+            ar["average_order"] = average_order
 
     # Remove temporary files
     for cmpt, sig in sigma_dmft:
@@ -769,22 +793,22 @@ def solve_impurities(
                     ENV["TRIQS_FORCE_MPI_INIT"] = "1"
                     # Choose the MPI plugin for srun
                     plugin = choose_slurm_mpi_plugin()
-                    base_cmd = [
-                        "srun",
-                        "-n",
-                        str(n),  # total ranks for this step
+                    prog = ["srun", "-n", str(n)]
+                    opts = [
                         "-u",  # unbuffered output
                         "--exact",  # use exact number of tasks, do not oversubscribe
                         f"--mpi={plugin}",  # or pmi2 on older stacks; check `srun --mpi=list`
                     ] + buff_opt
                 elif n > 1:
-                    base_cmd = ["mpirun", "-np", str(n), "--bind-to", "none"] + buff_opt
+                    prog = ["mpirun", "-np", str(n)]
+                    opts = ["--bind-to", "none"] + buff_opt  # do not bind processes to cores
                 else:
-                    base_cmd = list()
+                    prog = list()
+                    opts = list()
 
             # Start process and register it with the selector
-            cmd = base_cmd + [EXECUTABLE, "-u", "-m", "model_dmft", "solve_impurity", tmp_file]
-            cmd_str = base_cmd + ["model_dmft", "solve_impurity", tmp_file]
+            cmd = prog + opts + [EXECUTABLE, "-u", "-m", "model_dmft", "solve_impurity", tmp_file]
+            cmd_str = prog + ["model_dmft", "solve_impurity", tmp_file]
             if verbosity > 0:
                 report("> " + " ".join(shlex.quote(x) for x in cmd_str))
             p = Popen(cmd, stdout=PIPE, stderr=PIPE, text=True, bufsize=0, env=ENV)
@@ -1096,6 +1120,34 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                 else:
                     solve_impurities_seq(**kwargs, it=it)
 
+                if params.solver in ("cthyb", "ctseg"):
+                    # Print some statistics from CTQMC solvers
+                    with HDFArchive(out_file, "r") as ar:
+                        auto_corr_time = ar["auto_corr_time"]
+                        average_sign = ar["average_sign"]
+                        average_order = ar["average_order"]
+
+                    auto_corr_time_parts = list()
+                    average_sign_parts = list()
+                    average_order_parts = list()
+                    for cmpt, t in auto_corr_time.items():
+                        auto_corr_time_parts.append(f"{cmpt}: {t:.4f}")
+                    for cmpt, s in average_sign.items():
+                        average_sign_parts.append(f"{cmpt}: {s:.4f}")
+                    for cmpt, o in average_order.items():
+                        average_order_parts.append(f"{cmpt}: {o:.4f}")
+
+                    report("Auto-corr. times: " + ", ".join(auto_corr_time_parts))
+                    report("Average sign:     " + ", ".join(average_sign_parts))
+                    report("Average order:    " + ", ".join(average_order_parts))
+                    if any(abs(s - 1.0) > 0.1 for s in average_sign.values()):
+                        report("WARNING: Average sign is low, results may be unreliable!")
+                    if any(t > 1.0 for t in auto_corr_time.values()):
+                        report("----------------------------------------------------------------")
+                        report("WARNING: Auto-correlation time is high, simulation may be stuck!")
+                        report("         Consider increasing 'length_cycle'!")
+                        report("----------------------------------------------------------------")
+
                 # Symmetrize DMFT self-energies
                 if params.symmetrize:
                     for cmpt, sig in sigma_dmft:
@@ -1167,7 +1219,9 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                 update_dataset(out_file, keep_iter=True)
 
                 report("")
-                report(f"Occupation:   total={occ:.4f} up={occ_up:.4f} dn={occ_dn:.4f}")
+                report(
+                    f"Occupation:   total={occ:.4f} up={occ_up:.4f} dn={occ_dn:.4f} (mu={mu:.4f})"
+                )
                 s = "Iteration: {it:>2} Error-G: {g:.10f} Error-Σ: {sig:.10f} Error-n: {occ:.10f}"
                 report(s.format(it=it, g=err_g, sig=err_sigma, occ=err_occ))
 
