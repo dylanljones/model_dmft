@@ -329,6 +329,7 @@ class CthybSolverParams(SolverParams):
         "n_tau": int,
         "measure_g_l": bool,
         "n_l": int,
+        "n_l_thresh": float,
         "legendre_fit": bool,
         "tail_fit": bool,
         "fit_max_moment": int,
@@ -352,6 +353,7 @@ class CthybSolverParams(SolverParams):
         "n_tau": "Number of imaginary time steps. (default: 10001)",
         "measure_g_l": "Measure G_l (Legendre) (default: false)",
         "n_l": "Number of Legendre polynomials. (default: 30)",
+        "n_l_thresh": "Threshold for determining the number of Legendre polynomials. (default: 0)",
         "legendre_fit": "Fit Green's function and self energy using Legendre Gf (default: false)",
         "tail_fit": "Perform tail fit of Sigma and G (default: false)",
         "fit_max_moment": "Highest moment to fit in the tail of Sigma (default: 3)",
@@ -375,6 +377,7 @@ class CthybSolverParams(SolverParams):
         "n_tau": None,
         "measure_g_l": False,
         "n_l": 30,
+        "n_l_thresh": None,
         "legendre_fit": False,
         "tail_fit": False,
         "fit_max_moment": 3,
@@ -396,9 +399,8 @@ class CthybSolverParams(SolverParams):
         self.n_tau: Optional[int] = None  # Number of imaginary time steps.
         self.measure_g_l: Optional[bool] = None  # Measure G_l (Legendre)
         self.n_l: Optional[int] = None  # Number of Legendre polynomials.
-        self.legendre_fit: Optional[bool] = (
-            None  # Fit Green's function and self energy using Legendre Gf
-        )
+        self.n_l_thresh: Optional[float] = None  # Legendre polynomials threshold
+        self.legendre_fit: Optional[bool] = None  # Fit Green's function and self energy using Legendre Gf
         self.tail_fit: Optional[bool] = None  # Perform tail fit.
         self.fit_max_moment: Optional[int] = None  # Highest moment to fit in the tail of Sigma
         self.fit_min_n: Optional[int] = None  # Index of iw from which to start fitting.
@@ -406,15 +408,9 @@ class CthybSolverParams(SolverParams):
         self.fit_min_w: Optional[float] = None  # iw from which to start fitting.
         self.fit_max_w: Optional[float] = None  # iw up to which to fit.
         self.density_matrix: Optional[bool] = None  # Measure the impurity density matrix.
-        self.crm_dyson: Optional[bool] = (
-            None  # Solve Dyson equation using constrained minimization problem
-        )
-        self.crm_wmax: Optional[float] = (
-            None  # Spectral width of the impurity problem for DLR basis
-        )
-        self.crm_eps: Optional[float] = (
-            None  # Accuracy of the DLR basis to represent Green’s function
-        )
+        self.crm_dyson: Optional[bool] = None  # Solve Dyson equation using constrained minimization problem
+        self.crm_wmax: Optional[float] = None  # Spectral width of the impurity problem for DLR basis
+        self.crm_eps: Optional[float] = None  # Accuracy of the DLR basis to represent Green’s function
         self.correct_hartree: Optional[bool] = None  # Correct Hartree term in the self-energy
 
         self.random_seed: Optional[int] = None  # Random seed for the solver
@@ -425,20 +421,14 @@ class CthybSolverParams(SolverParams):
     def validate(self) -> None:
         if self.tail_fit:
             if self.legendre_fit or self.crm_dyson:
-                raise InputError(
-                    "Cannot use 'tail_fit', 'legendre_fit' or 'crm_dyson' at the same time!"
-                )
+                raise InputError("Cannot use 'tail_fit', 'legendre_fit' or 'crm_dyson' at the same time!")
         if self.legendre_fit:
             if self.tail_fit or self.crm_dyson:
-                raise InputError(
-                    "Cannot use 'tail_fit', 'legendre_fit' or 'crm_dyson' at the same time!"
-                )
+                raise InputError("Cannot use 'tail_fit', 'legendre_fit' or 'crm_dyson' at the same time!")
 
         if self.crm_dyson:
             if self.tail_fit or self.legendre_fit:
-                raise InputError(
-                    "Cannot use 'tail_fit', 'legendre_fit' or 'crm_dyson' at the same time!"
-                )
+                raise InputError("Cannot use 'tail_fit', 'legendre_fit' or 'crm_dyson' at the same time!")
             if self.crm_wmax is None:
                 raise InputError("Parameter 'crm_wmax' is required for 'crm_dyson'!")
             if self.crm_eps is None:
@@ -507,9 +497,7 @@ class CtSegSolverParams(SolverParams):
         self.n_tau_bosonic: int = 10001  # Number of time slices for bosonic functions
         self.measure_f_tau: bool = True  # Measure improved estimator F(tau)
         self.n_l: Optional[int] = None  # Number of Legendre polynomials.
-        self.legendre_fit: Optional[bool] = (
-            None  # Fit Green's function and self energy using Legendre Gf
-        )
+        self.legendre_fit: Optional[bool] = None  # Fit Green's function and self energy using Legendre Gf
         self.density_matrix: Optional[bool] = None  # Measure the impurity density matrix.
         self.correct_hartree: Optional[bool] = None  # Correct Hartree term in the self-energy
         self.random_seed: Optional[int] = None  # Random seed for the solver
@@ -766,9 +754,7 @@ class InputParameters(Parameters):
         "verbosity_cpa": "Verbosity level of the CPA iterations.",
     }
 
-    def __init__(
-        self, path: Union[str, Path] = None, load: bool = True, solver: str = None, **kwargs
-    ):
+    def __init__(self, path: Union[str, Path] = None, load: bool = True, solver: str = None, **kwargs):
         self._path: Path = Path(path) if path is not None else None
 
         self._jobname: str = "TRIQS_CPA+DMFT"  # The job name. Can be a formattable string.
@@ -1289,9 +1275,7 @@ class InputParameters(Parameters):
 
         return self
 
-    def dump(
-        self, file: Union[str, Path] = None, mkdir: bool = False, **kwargs
-    ) -> "InputParameters":
+    def dump(self, file: Union[str, Path] = None, mkdir: bool = False, **kwargs) -> "InputParameters":
         """Dump the input parameters to a TOML formatted file."""
         file = Path(file) if file is not None else self._path
         if mkdir:

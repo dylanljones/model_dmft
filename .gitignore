@@ -3,7 +3,7 @@
 
 .tmp/
 app/
-img/
+figs/
 app_test/
 *.h5
 dev*.py

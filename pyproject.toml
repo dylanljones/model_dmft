@@ -65,7 +65,7 @@ exclude = [
     ".ruff_cache",
     "*/_version.py",
 ]
-line-length = 100
+line-length = 120
 indent-width = 4
 
 [tool.ruff.lint]

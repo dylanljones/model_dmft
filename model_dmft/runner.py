@@ -35,8 +35,8 @@ from triqs_cpa import (
 # from .functions import HilbertTransform
 from .convergence import calculate_convergences
 from .input import InputParameters, get_supported_solvers
+from .legendre import check_nl
 from .mixer import apply_mixing
-from .output import write_out_files
 from .postprocessing import anacont_pade
 from .utility import (
     SIGMA,
@@ -322,9 +322,7 @@ def update_dataset(archive_file: Union[Path, str], keep_iter: bool = True) -> No
             ar[f"g_tau-{it}"] = ar["g_tau"]
 
 
-def hybridization(
-    gf: BlockGf, eps: BlockGf, sigma: BlockGf, eta: float = 0.0, name: str = "Δ"
-) -> BlockGf:
+def hybridization(gf: BlockGf, eps: BlockGf, sigma: BlockGf, eta: float = 0.0, name: str = "Δ") -> BlockGf:
     """Compute bath hybridization function Δ(z).
 
     The bath hybridization function is defined as:
@@ -670,18 +668,14 @@ def solve_impurities_seq(
     _load_tmp_files(sigma_dmft, tmp_filepath, archive_file)
 
 
-def register_process(
-    infos: ProcessInfos, p: Process, cmpt: str, out_file: str, err_file: str
-) -> None:
+def register_process(infos: ProcessInfos, p: Process, cmpt: str, out_file: str, err_file: str) -> None:
     """Register a process with the selector and store its information."""
     out_fh = open(out_file, "a", buffering=1)
     if p.stdout:
         sel.register(p.stdout, selectors.EVENT_READ, (p, out_fh, "out"))
     if p.stderr:
         sel.register(p.stderr, selectors.EVENT_READ, (p, None, "err"))
-    infos[p] = ProcessInfo(
-        out_path=out_file, err_path=err_file, out=out_fh, err_lines=list(), cmpt=cmpt
-    )
+    infos[p] = ProcessInfo(out_path=out_file, err_path=err_file, out=out_fh, err_lines=list(), cmpt=cmpt)
 
 
 def solve_impurities(
@@ -873,9 +867,7 @@ def solve_impurities(
                         with open(proc_info[p].err_path, "a") as ef:
                             ef.writelines(proc_info[p].err_lines)
                     if rc != 0:
-                        raise SubprocessError(
-                            f"Step {proc_info[p].cmpt} failed (PID {p.pid}, exit {rc})"
-                        )
+                        raise SubprocessError(f"Step {proc_info[p].cmpt} failed (PID {p.pid}, exit {rc})")
                     alive.remove(p)
                     del proc_info[p]
         report("Processes done!")
@@ -1108,45 +1100,68 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                         # ar[f"error_dmft"] = err_dmft
                         ar["delta"] = delta
                 # Solve impurity problems to obtain new sigma_dmft
-                kwargs = dict(
-                    params=params, u=u, e_onsite=e_onsite, delta=delta, sigma_dmft=sigma_dmft
-                )
                 if mpi.is_master_node():
                     report(f"Solving for impurity self-energies Σ_i({freq_name})...")
                     report("")
 
-                if n_procs > 1:
-                    solve_impurities(**kwargs, nproc=n_procs, it=it)
-                else:
-                    solve_impurities_seq(**kwargs, it=it)
+                while True:
+                    kwargs = dict(params=params, u=u, e_onsite=e_onsite, delta=delta, sigma_dmft=sigma_dmft)
+                    if n_procs > 1:
+                        solve_impurities(**kwargs, nproc=n_procs, it=it)
+                    else:
+                        solve_impurities_seq(**kwargs, it=it)
 
-                if params.solver in ("cthyb", "ctseg"):
-                    # Print some statistics from CTQMC solvers
-                    with HDFArchive(out_file, "r") as ar:
-                        auto_corr_time = ar["auto_corr_time"]
-                        average_sign = ar["average_sign"]
-                        average_order = ar["average_order"]
+                    if params.solver in ("cthyb", "ctseg"):
+                        # Print some statistics from CTQMC solvers
+                        with HDFArchive(out_file, "r") as ar:
+                            auto_corr_time = ar["auto_corr_time"]
+                            average_sign = ar["average_sign"]
+                            average_order = ar["average_order"]
 
-                    auto_corr_time_parts = list()
-                    average_sign_parts = list()
-                    average_order_parts = list()
-                    for cmpt, t in auto_corr_time.items():
-                        auto_corr_time_parts.append(f"{cmpt}: {t:.4f}")
-                    for cmpt, s in average_sign.items():
-                        average_sign_parts.append(f"{cmpt}: {s:.4f}")
-                    for cmpt, o in average_order.items():
-                        average_order_parts.append(f"{cmpt}: {o:.4f}")
+                        auto_corr_time_parts = list()
+                        average_sign_parts = list()
+                        average_order_parts = list()
+                        for cmpt, t in auto_corr_time.items():
+                            auto_corr_time_parts.append(f"{cmpt}: {t:.4f}")
+                        for cmpt, s in average_sign.items():
+                            average_sign_parts.append(f"{cmpt}: {s:.4f}")
+                        for cmpt, o in average_order.items():
+                            average_order_parts.append(f"{cmpt}: {o:.4f}")
 
-                    report("Auto-corr. times: " + ", ".join(auto_corr_time_parts))
-                    report("Average sign:     " + ", ".join(average_sign_parts))
-                    report("Average order:    " + ", ".join(average_order_parts))
-                    if any(abs(s - 1.0) > 0.1 for s in average_sign.values()):
-                        report("WARNING: Average sign is low, results may be unreliable!")
-                    if any(t > 1.0 for t in auto_corr_time.values()):
-                        report("----------------------------------------------------------------")
-                        report("WARNING: Auto-correlation time is high, simulation may be stuck!")
-                        report("         Consider increasing 'length_cycle'!")
-                        report("----------------------------------------------------------------")
+                        report("Auto-corr. times: " + ", ".join(auto_corr_time_parts))
+                        report("Average sign:     " + ", ".join(average_sign_parts))
+                        report("Average order:    " + ", ".join(average_order_parts))
+                        if any(abs(s - 1.0) > 0.1 for s in average_sign.values()):
+                            report("WARNING: Average sign is low, results may be unreliable!")
+                        if any(t > 1.0 for t in auto_corr_time.values()):
+                            report("----------------------------------------------------------------")
+                            report("WARNING: Auto-correlation time is high, simulation may be stuck!")
+                            report("         Consider increasing 'length_cycle'!")
+                            report("----------------------------------------------------------------")
+
+                        if mpi.is_master_node():
+                            # If we are in CTHYb solver and use Legendre fit, check nl
+                            if (
+                                params.solver == "cthyb"
+                                and params.solver_params.legendre_fit
+                                and params.solver_params.n_l_thresh > 0
+                            ):
+                                with HDFArchive(out_file, "r") as ar:
+                                    g_l = ar["g_l"]
+
+                                n_l_old = params.solver_params.n_l
+                                n_l_new = check_nl(g_l, n_l_old, params.solver_params.n_l_thresh)
+                                if n_l_new is None:
+                                    # n_l is okay, nothing to do
+                                    break
+                                else:
+                                    report("----------------------------------------------------------------")
+                                    report(f"Changing n_l from {n_l_old} to {n_l_new} for better accuracy.")
+                                    report("Restarting solvers...")
+                                    report("----------------------------------------------------------------")
+                                    params.solver_params.n_l = n_l_new
+                            else:
+                                break
 
                 # Symmetrize DMFT self-energies
                 if params.symmetrize:
@@ -1219,9 +1234,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                 update_dataset(out_file, keep_iter=True)
 
                 report("")
-                report(
-                    f"Occupation:   total={occ:.4f} up={occ_up:.4f} dn={occ_dn:.4f} (mu={mu:.4f})"
-                )
+                report(f"Occupation:   total={occ:.4f} up={occ_up:.4f} dn={occ_dn:.4f} (mu={mu:.4f})")
                 s = "Iteration: {it:>2} Error-G: {g:.10f} Error-Σ: {sig:.10f} Error-n: {occ:.10f}"
                 report(s.format(it=it, g=err_g, sig=err_sigma, occ=err_occ))
 
@@ -1287,8 +1300,8 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
         postprocess(params, out_file)
 
         # Write output files as plain text
-        report("Writing output files...")
-        write_out_files(params)
+        # report("Writing output files...")
+        # write_out_files(params)
 
         end_time = datetime.now()
         run_duration = end_time - start_time
