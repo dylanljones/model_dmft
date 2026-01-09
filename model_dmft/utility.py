@@ -189,6 +189,20 @@ def blockgf(
     return BlockGf(name_list=names, block_list=blocks, make_copies=copy, name=name)
 
 
+def mesh_to_array(mesh: MeshLike) -> np.ndarray:
+    """Convert a mesh to a numpy array of real values."""
+    if isinstance(mesh, MeshImFreq):
+        return np.array([x.value.imag for x in mesh])
+    elif isinstance(mesh, MeshReFreq):
+        return np.array([x.value.real for x in mesh])
+    elif isinstance(mesh, MeshImTime):
+        return np.array([x.value.real for x in mesh])
+    elif isinstance(mesh, MeshReTime):
+        return np.array([x.value.real for x in mesh])
+    else:
+        raise ValueError(f"Unknown mesh type '{type(mesh)}'.")
+
+
 def toarray(obj: Union[MeshLike, GfLike], dtype: DTypeLike = None) -> np.ndarray:
     """Converts a supported TRIQS object to an array.
 
@@ -212,7 +226,7 @@ def toarray(obj: Union[MeshLike, GfLike], dtype: DTypeLike = None) -> np.ndarray
         The TRIQS object as numpy array.
     """
     if isinstance(obj, (MeshReFreq, MeshImFreq, MeshImTime, MeshReTime)):
-        data = list(obj.values())
+        data = mesh_to_array(obj)
     elif isinstance(obj, Gf):
         data = obj.data
     elif isinstance(obj, BlockGf):
@@ -335,13 +349,3 @@ def symmetrize_gf(gf: BlockGf) -> BlockGf:
     gf[up] << g
     gf[dn] << g
     return gf
-
-
-def mesh_to_array(mesh: Union[MeshReFreq, MeshImFreq]) -> np.ndarray:
-    """Convert a mesh to a numpy array of real values."""
-    if isinstance(mesh, MeshImFreq):
-        return np.array([x.value.imag for x in mesh])
-    elif isinstance(mesh, MeshReFreq):
-        return np.array([x.value.real for x in mesh])
-    else:
-        raise ValueError(f"Unknown mesh type '{type(mesh)}'.")

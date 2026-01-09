@@ -1086,6 +1086,9 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
             eps_eff = eps + sigma_dmft
             g_cmpt = G_component(ht, sigma_cpa, conc, eps_eff, mu=mu, eta=eta, scale=False)
 
+            # Patch mu in params for solvers
+            params.mu = mu
+
             # Solve impurity problems
             if any(u):
                 sigma_old = sigma_dmft.copy()
@@ -1104,7 +1107,9 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                     report(f"Solving for impurity self-energies Σ_i({freq_name})...")
                     report("")
 
+                num_tries = 0
                 while True:
+                    num_tries += 1
                     kwargs = dict(params=params, u=u, e_onsite=e_onsite, delta=delta, sigma_dmft=sigma_dmft)
                     if n_procs > 1:
                         solve_impurities(**kwargs, nproc=n_procs, it=it)
@@ -1134,10 +1139,10 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                         if any(abs(s - 1.0) > 0.1 for s in average_sign.values()):
                             report("WARNING: Average sign is low, results may be unreliable!")
                         if any(t > 1.0 for t in auto_corr_time.values()):
-                            report("----------------------------------------------------------------")
+                            report("================================================================")
                             report("WARNING: Auto-correlation time is high, simulation may be stuck!")
                             report("         Consider increasing 'length_cycle'!")
-                            report("----------------------------------------------------------------")
+                            report("================================================================")
 
                         if mpi.is_master_node():
                             # If we are in CTHYb solver and use Legendre fit, check nl
@@ -1151,17 +1156,22 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
 
                                 n_l_old = params.solver_params.n_l
                                 n_l_new = check_nl(g_l, n_l_old, params.solver_params.n_l_thresh)
-                                if n_l_new is None:
-                                    # n_l is okay, nothing to do
+                                if n_l_new is None or n_l_new < 6 or (n_l_new - n_l_old) <= 2:
+                                    # n_l is okay or invalid, nothing to do
                                     break
                                 else:
                                     report("----------------------------------------------------------------")
-                                    report(f"Changing n_l from {n_l_old} to {n_l_new} for better accuracy.")
-                                    report("Restarting solvers...")
+                                    report(f"NOTE: Changing n_l from {n_l_old} to {n_l_new} for better accuracy.")
+                                    report("       Restarting solvers...")
                                     report("----------------------------------------------------------------")
                                     params.solver_params.n_l = n_l_new
                             else:
                                 break
+                    if num_tries >= 3:
+                        report("================================================================")
+                        report(f"WARNING: Did not find optimal n_l after {num_tries} tries.")
+                        report("================================================================")
+                        break
 
                 # Symmetrize DMFT self-energies
                 if params.symmetrize:

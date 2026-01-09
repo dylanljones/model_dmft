@@ -27,12 +27,11 @@ from ..legendre import apply_legendre_filter
 from ..utility import report
 
 
-def solve_cthyb(
-    params: InputParameters, u: np.ndarray, e_onsite: np.ndarray, delta: BlockGf
-) -> triqs_cthyb.Solver:
+def solve_cthyb(params: InputParameters, u: np.ndarray, e_onsite: np.ndarray, delta: BlockGf) -> triqs_cthyb.Solver:
     up, dn = params.spin_names
     solver_params: CthybSolverParams = params.solver_params
     gf_struct = params.gf_struct
+    # mu = params.mu
 
     report("Initializing CTHYB solver...")
 
@@ -44,7 +43,7 @@ def solve_cthyb(
     g0_iw = delta.copy()
     h_loc0_mat = block_matrix_from_op(h_loc0, gf_struct)
     for i, name in enumerate(delta.indices):
-        g0_iw[name] << inverse(iOmega_n - delta[name] - h_loc0_mat[i])
+        g0_iw[name] << inverse(iOmega_n - delta[name] - h_loc0_mat[i])  # maybe +mu missing?
 
     solve_kwargs = {
         "n_warmup_cycles": solver_params.n_warmup_cycles,
@@ -89,9 +88,7 @@ def solve_cthyb(
     return solver
 
 
-def legendre_fit(
-    g0_iw: BlockGf, g_iw: BlockGf, g_tau: BlockGf, g_l: BlockGf
-) -> Tuple[BlockGf, BlockGf, BlockGf]:
+def legendre_fit(g0_iw: BlockGf, g_iw: BlockGf, g_tau: BlockGf, g_l: BlockGf) -> Tuple[BlockGf, BlockGf, BlockGf]:
     """Fit the Green's functions and self energy using the Legendre Green's function."""
     g_iw_l = g_iw.copy()
     g_tau_l = g_tau.copy()

@@ -5,7 +5,7 @@
 from typing import Optional
 
 import numpy as np
-from triqs.gf import BlockGf
+from triqs.gf import BlockGf, Gf, MeshLegendre
 from triqs.gf.tools import fit_legendre as _fit_legendre
 
 from .utility import toarray
@@ -34,6 +34,36 @@ def apply_legendre_filter(g_tau: BlockGf, order: int = 100, g_l_cut: float = 1e-
         g_l.enforce_discontinuity(np.identity(g.target_shape[0]))
         l_g_l.append(g_l)
     g_l = BlockGf(name_list=list(g_tau.indices), block_list=l_g_l, name="G_l")
+    return g_l
+
+
+def truncate_g_l(g_l_orig: BlockGf, n_l: int) -> BlockGf:
+    """Truncate a Legendre Green's function to a specified number of Legendre coefficients.
+
+    Parameters
+    ----------
+    g_l_orig : BlockGf
+        The original Legendre Green's function to be truncated.
+    n_l : int
+        The number of Legendre coefficients to retain.
+
+    Returns
+    -------
+    BlockGf
+        A new Legendre Green's function truncated to the specified number of coefficients.
+    """
+    # Extract the mesh from the original Green's function
+    mesh_orig = g_l_orig.mesh
+    # Create a new Legendre mesh with the specified maximum number of coefficients
+    mesh = MeshLegendre(beta=mesh_orig.beta, statistic=mesh_orig.statistic, max_n=n_l)
+    blocks = list()
+    # Iterate over the blocks in the original Green's function
+    for _, g in g_l_orig:
+        # Create a new Green's function with truncated data
+        g_new = Gf(mesh=mesh, data=g.data[:n_l])
+        blocks.append(g_new)
+    # Construct a new BlockGf with the truncated blocks
+    g_l = BlockGf(name_list=list(g_l_orig.indices), block_list=blocks, name=g_l_orig.name)
     return g_l
 
 

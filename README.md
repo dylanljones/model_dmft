@@ -8,6 +8,12 @@ A versatile python wrapper to perform CPA+DMFT calculations utilizing the TRIQS 
 > It might contain critical bugs and the API is subject to change.
 
 
+Switch to node:
+```bash
+srun --pty --overlap --jobid <JOBID> bash
+```
+
+
 ## Installation
 
 Install the library by running the following command:
