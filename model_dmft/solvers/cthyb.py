@@ -31,7 +31,7 @@ def solve_cthyb(params: InputParameters, u: np.ndarray, e_onsite: np.ndarray, de
     up, dn = params.spin_names
     solver_params: CthybSolverParams = params.solver_params
     gf_struct = params.gf_struct
-    # mu = params.mu
+    mu = params.mu
 
     report("Initializing CTHYB solver...")
 
@@ -43,7 +43,7 @@ def solve_cthyb(params: InputParameters, u: np.ndarray, e_onsite: np.ndarray, de
     g0_iw = delta.copy()
     h_loc0_mat = block_matrix_from_op(h_loc0, gf_struct)
     for i, name in enumerate(delta.indices):
-        g0_iw[name] << inverse(iOmega_n - delta[name] - h_loc0_mat[i])  # maybe +mu missing?
+        g0_iw[name] << inverse(iOmega_n + mu - delta[name] - h_loc0_mat[i])  # maybe +mu missing?
 
     solve_kwargs = {
         "n_warmup_cycles": solver_params.n_warmup_cycles,

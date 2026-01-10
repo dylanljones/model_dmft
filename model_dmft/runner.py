@@ -322,13 +322,13 @@ def update_dataset(archive_file: Union[Path, str], keep_iter: bool = True) -> No
             ar[f"g_tau-{it}"] = ar["g_tau"]
 
 
-def hybridization(gf: BlockGf, eps: BlockGf, sigma: BlockGf, eta: float = 0.0, name: str = "Δ") -> BlockGf:
+def hybridization(gf: BlockGf, eps: BlockGf, sigma: BlockGf, mu: float, eta: float = 0.0, name: str = "Δ") -> BlockGf:
     """Compute bath hybridization function Δ(z).
 
     The bath hybridization function is defined as:
 
     .. math::
-        Δ_i(z) = z - ε_i - Σ_i(z) - G_i(z)^{-1}
+        Δ_i(z) = z + μ - ε_i - Σ_i(z) - G_i(z)^{-1}
 
     where `z` are real frequencies with a complex broadening or Matsubara frequencies.
 
@@ -340,6 +340,8 @@ def hybridization(gf: BlockGf, eps: BlockGf, sigma: BlockGf, eta: float = 0.0, n
         The effective onsite energies `ε_i`.
     sigma : BlockGf
         The self-energy `Σ_i(z)`.
+    mu : float
+        The chemical potential.
     eta : float, optional
         The broadening parameter, used for real frequencies. The default is 0.0.
     name : str, optional
@@ -350,7 +352,7 @@ def hybridization(gf: BlockGf, eps: BlockGf, sigma: BlockGf, eta: float = 0.0, n
     delta.name = name
     for cmpt, e_i in eps:
         for spin, e_is in e_i:
-            delta[cmpt][spin] << x + 1j * eta - e_is - sigma[cmpt][spin] - inverse(gf[cmpt][spin])
+            delta[cmpt][spin] << x + 1j * eta + mu - e_is - sigma[cmpt][spin] - inverse(gf[cmpt][spin])
     return delta
 
 
@@ -1095,7 +1097,38 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
 
                 # Compute bath hybridization function
                 report(f"Computing bath hybdridization function Δ({freq_name})...")
-                delta = hybridization(g_cmpt, eps - mu, sigma_dmft, eta=eta)
+                delta = hybridization(g_cmpt, eps, sigma_dmft, mu, eta=eta)
+
+                # Check mu consistency in delta
+                # z - (ϵ - μ) - Δ(z) ≈ Σ(z) + G(z)^(-1)
+
+                if mpi.is_master_node():
+                    # z on the mesh
+                    any_block = next(iter(g_cmpt))[1]  # g_cmpt is BlockGf over components
+                    any_spin_g = next(iter(any_block))[1]  # inner BlockGf over spins
+                    mesh = any_spin_g.mesh
+                    x = Omega if isinstance(mesh, MeshReFreq) else iOmega_n
+
+                    for cmpt, g_cmpt_block in g_cmpt:
+                        for spin, g in g_cmpt_block:
+                            # Required Weiss inverse from Dyson: G0^{-1} = Σ + G^{-1}
+                            g0inv_req = g.copy()
+                            g0inv_req << sigma_dmft[cmpt][spin] + inverse(g)
+
+                            # Weiss inverse implied by your Δ definition: G0^{-1} = z + μ - ε - Δ
+                            g0inv_from_delta = g.copy()
+                            g0inv_from_delta << (x + mu + 1j * eta) - eps[cmpt][spin] - delta[cmpt][spin]
+
+                            diff = g.copy()
+                            diff << g0inv_from_delta - g0inv_req  # noqa
+
+                            max_abs = float(np.max(np.abs(diff.data)))
+                            mean_re = float(np.mean(diff.data.real))
+
+                            report(
+                                f"Weiss check {cmpt} {spin}: "
+                                f"max|ΔG0inv|={max_abs:.6g}, mean Re(ΔG0inv)={mean_re:.6g}"
+                            )
 
                 if mpi.is_master_node():
                     with HDFArchive(out_file, "a") as ar:
@@ -1149,7 +1182,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                             if (
                                 params.solver == "cthyb"
                                 and params.solver_params.legendre_fit
-                                and params.solver_params.n_l_thresh > 0
+                                and params.solver_params.n_l_thresh
                             ):
                                 with HDFArchive(out_file, "r") as ar:
                                     g_l = ar["g_l"]
