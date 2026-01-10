@@ -15,7 +15,7 @@ from model_dmft.utility import WorkingDir
 
 __all__ = ["cli", "get_dirs", "single_path_opts", "multi_path_opts", "frmt_file"]
 
-REMOTE = "git+ssh://@github.com:dylanljones/model_dmft.git"
+REMOTE = "git+ssh://git@github.com/dylanljones/model_dmft.git"
 # REMOTE = "git+ssh://git@git.rz.uni-augsburg.de/jonesdyl/model_dmft"
 
 
