@@ -15,6 +15,9 @@ from model_dmft.utility import WorkingDir
 
 __all__ = ["cli", "get_dirs", "single_path_opts", "multi_path_opts", "frmt_file"]
 
+REMOTE = "git+ssh://@github.com:dylanljones/model_dmft.git"
+# REMOTE = "git+ssh://git@git.rz.uni-augsburg.de/jonesdyl/model_dmft"
+
 
 def error(s):
     return click.style(s, fg="red")
@@ -81,7 +84,7 @@ def cli():
 def update():
     import os
 
-    cmd = "pip install git+ssh://git@git.rz.uni-augsburg.de/jonesdyl/model_dmft"
+    cmd = f"pip install {REMOTE}"
     click.echo("Updating application")
     click.echo(f"> {cmd}")
     click.echo()
@@ -191,15 +194,11 @@ def diff_cmd(recursive: bool, paths: List[str]):
     folders = get_dirs(*paths, recursive=recursive)
     # maxw = max(len(str(folder.path)) for folder in folders) + 1
     if len(folders) < 2:
-        raise click.ClickException(
-            click.style("Need at least two directories to compare.", bg="red")
-        )
+        raise click.ClickException(click.style("Need at least two directories to compare.", bg="red"))
     elif len(folders) == 2:
         click.echo(f"Comparing {folders[0].path} and {folders[1].path}")
     else:
-        raise click.ClickException(
-            click.style("Can only compare two directories for now.", bg="red")
-        )
+        raise click.ClickException(click.style("Can only compare two directories for now.", bg="red"))
 
 
 # noinspection PyShadowingBuiltins
