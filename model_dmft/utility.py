@@ -349,3 +349,17 @@ def symmetrize_gf(gf: BlockGf) -> BlockGf:
     gf[up] << g
     gf[dn] << g
     return gf
+
+
+def rebin_gf_tau(g_tau: BlockGf, n_tau: int) -> BlockGf:
+    """Rebin a BlockGf in imaginary time to a new number of tau points.
+
+    Parameters
+    ----------
+    g_tau : BlockGf
+        The imaginary time BlockGf to be rebinned.
+    n_tau : int
+        The new number of tau points.
+    """
+    blocks = [g.rebinning_tau(new_n_tau=n_tau) for _, g in g_tau]
+    return BlockGf(name_list=list(g_tau.indices), block_list=blocks, name=g_tau.name)

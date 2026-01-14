@@ -419,12 +419,16 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
         mpi.barrier()
         if mpi.is_master_node():
             # Run post-processing of the solver results
-            sigma_post, g_l = postprocess_cthyb(params, solver, u)
+            sigma_post, g_l, g_tau_rebinned = postprocess_cthyb(params, solver, u)
 
             # Write results back to temporary file
             with HDFArchive(str(tmp_file), "a") as ar:
                 ar["solver"] = solver
-                ar["g_tau"] = solver.G_tau
+                ar["g_tau_raw"] = solver.G_tau
+                if g_tau_rebinned is None:
+                    ar["g_tau"] = solver.G_tau
+                else:
+                    ar["g_tau"] = g_tau_rebinned
                 ar["auto_corr_time"] = solver.auto_corr_time
                 ar["average_sign"] = solver.average_sign
                 ar["average_order"] = solver.average_order
@@ -534,7 +538,7 @@ def _load_tmp_files(sigma_dmft: BlockGf, tmp_filepath: str, archive_file: str) -
     if not mpi.is_master_node():
         return
 
-    g_tau_blocks, g_ret_blocks, g_l_blocks = dict(), dict(), dict()
+    g_tau_blocks_raw, g_tau_blocks, g_ret_blocks, g_l_blocks = dict(), dict(), dict(), dict()
     auto_corr_time = dict()
     average_sign = dict()
     average_order = dict()
@@ -554,6 +558,8 @@ def _load_tmp_files(sigma_dmft: BlockGf, tmp_filepath: str, archive_file: str) -
                 g_ret_blocks[cmpt] = ar["g_ret"]
             if "g_l" in ar:
                 g_l_blocks[cmpt] = ar["g_l"]
+            if "g_tau_raw" in ar:
+                g_tau_blocks_raw[cmpt] = ar["g_tau_raw"]
             if "g_tau" in ar:
                 g_tau_blocks[cmpt] = ar["g_tau"]
             if "auto_corr_time" in ar:
@@ -584,8 +590,16 @@ def _load_tmp_files(sigma_dmft: BlockGf, tmp_filepath: str, archive_file: str) -
         with HDFArchive(archive_file, "a") as ar:
             ar["g_l"] = g_l
 
+    if g_tau_blocks_raw:
+        # Write G_tau to output file (only for CTHYB solver)
+        names = list(g_tau_blocks_raw.keys())
+        blocks = [g_tau_blocks_raw[name] for name in names]
+        g_tau = blockgf(blocks[0].mesh, names=names, blocks=blocks)
+        with HDFArchive(archive_file, "a") as ar:
+            ar["g_tau_raw"] = g_tau
+
     if g_tau_blocks:
-        # Write Legendre Gf to output file (only for CTHYB solver)
+        # Write G_tau to output file (only for CTHYB solver)
         names = list(g_tau_blocks.keys())
         blocks = [g_tau_blocks[name] for name in names]
         g_tau = blockgf(blocks[0].mesh, names=names, blocks=blocks)

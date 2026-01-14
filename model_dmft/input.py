@@ -327,6 +327,7 @@ class CthybSolverParams(SolverParams):
         "length_cycle": int,
         "n_warmup_cycles": int,
         "n_tau": int,
+        "rebin_tau": int,
         "measure_g_l": bool,
         "n_l": int,
         "n_l_thresh": float,
@@ -351,6 +352,7 @@ class CthybSolverParams(SolverParams):
         "length_cycle": "Length of the cycle (default: 100)",
         "n_warmup_cycles": "Number of warmup cycles (default: 1_000)",
         "n_tau": "Number of imaginary time steps. (default: 10001)",
+        "rebin_tau": "Rebin imaginary time grid (default: None)",
         "measure_g_l": "Measure G_l (Legendre) (default: false)",
         "n_l": "Number of Legendre polynomials. (default: 30)",
         "n_l_thresh": "Threshold for determining the number of Legendre polynomials. (default: 0)",
@@ -377,6 +379,7 @@ class CthybSolverParams(SolverParams):
         "n_tau": None,
         "measure_g_l": False,
         "n_l": 30,
+        "rebin_tau": None,
         "n_l_thresh": None,
         "legendre_fit": False,
         "tail_fit": False,
@@ -397,6 +400,7 @@ class CthybSolverParams(SolverParams):
         self.n_cycles: int = 10_000  # Number of QMC cycles.
         self.length_cycle: int = 100  # Length of a cycle.
         self.n_tau: Optional[int] = None  # Number of imaginary time steps.
+        self.rebin_tau: Optional[int] = None  # Rebin imaginary time grid
         self.measure_g_l: Optional[bool] = None  # Measure G_l (Legendre)
         self.n_l: Optional[int] = None  # Number of Legendre polynomials.
         self.n_l_thresh: Optional[float] = None  # Legendre polynomials threshold
@@ -419,6 +423,9 @@ class CthybSolverParams(SolverParams):
         super().__init__(**kwargs)
 
     def validate(self) -> None:
+        if self.rebin_tau is not None:
+            if self.rebin_tau < 1 or self.rebin_tau >= self.n_tau:
+                raise InputError("Parameter 'rebin_tau' must be 1 <= n < n_tau!")
         if self.tail_fit:
             if self.legendre_fit or self.crm_dyson:
                 raise InputError("Cannot use 'tail_fit', 'legendre_fit' or 'crm_dyson' at the same time!")
@@ -791,9 +798,9 @@ class InputParameters(Parameters):
         self.mixing_dmft: float = 1.0  # Mixing parameter for the DMFT self-energy.
         self.mixing_cpa: Optional[float] = None  # Mixing parameter for the CPA self-energy.
 
-        self.tol_cpa: Optional[float] = 1e-6  # Tolerance for the CPA if method is 'iter'.
-        self.gtol: Optional[float] = None  # Tolerance for the coherent Green's function.
-        self.stol: Optional[float] = None  # Tolerance for the self energy.
+        self.tol_cpa: Optional[float] = 1e-8  # Tolerance for the CPA if method is 'iter'.
+        self.gtol: Optional[float] = 1e-4  # Tolerance for the coherent Green's function.
+        self.stol: Optional[float] = 1e-3  # Tolerance for the self energy.
         self.occ_tol: Optional[float] = None  # Tolerance for the occupation number.
         self.n_conv: Optional[int] = 1  # Number of iterations for convergence.
 

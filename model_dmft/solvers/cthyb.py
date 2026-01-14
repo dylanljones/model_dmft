@@ -163,7 +163,7 @@ def crm_solve_dyson(
 
 def postprocess_cthyb(
     params: InputParameters, solver: triqs_cthyb.Solver, u: float
-) -> Tuple[Union[BlockGf, None], Union[BlockGf, None]]:
+) -> Tuple[Union[BlockGf, None], Union[BlockGf, None], Union[BlockGf, None]]:
     """Postprocess the CTHYB solver output.
 
     Parameters
@@ -182,11 +182,18 @@ def postprocess_cthyb(
     g_l : BlockGf
         The Legendre Green's function used in the postprocessing. Only returned if Legendre fitting
          is used.
+    g_tau_rebinned : BlockGf
+        The re-binned imaginary time Green's function.
     """
     solver_params = params.solver_params
     # Output quantities
     sigma_iw = None
     g_l = None
+    g_tau_rebinned = None
+
+    if solver_params.rebin_g_tau:
+        report("Re-binning G(τ)...")
+        g_tau_rebinned = solver.G_tau.rebin(solver_params.rebin_n_tau)
 
     if solver_params.measure_g_l:
         g_l = solver.G_l
@@ -234,8 +241,10 @@ def postprocess_cthyb(
         except AttributeError:
             raise ValueError("No moments found in solver. Are you using the latest version?")
 
+        g_tau = solver.G_tau if g_tau_rebinned is None else g_tau_rebinned
+
         sigma_iw_crm = crm_solve_dyson(
-            solver.G_tau, solver.G0_iw, sigma_moments, solver_params.crm_wmax, solver_params.crm_eps
+            g_tau, solver.G0_iw, sigma_moments, solver_params.crm_wmax, solver_params.crm_eps
         )
 
         sigma_iw = sigma_iw_crm
@@ -258,4 +267,4 @@ def postprocess_cthyb(
         sigma_iw[dn] += correction_dn
         report(f"Corrected Hartree shift: {correction_up} (up), {correction_dn} (dn)")
 
-    return sigma_iw, g_l
+    return sigma_iw, g_l, g_tau_rebinned
