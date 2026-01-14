@@ -33,6 +33,7 @@ from triqs_cpa import (
 
 # from . import cpa
 # from .functions import HilbertTransform
+from . import __version__
 from .convergence import calculate_convergences
 from .input import InputParameters, get_supported_solvers
 from .legendre import check_nl
@@ -1048,6 +1049,8 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
 
     # ---- START OF COMPUTATION --------------------------------------------------------------------
 
+    report(f"model_dmft version v{__version__}")
+    report("")
     print_params(params)
     report("")
     report(f"Starting job '{params.jobname}' at {start_time:{TIME_FRMT}}")
