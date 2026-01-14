@@ -1049,8 +1049,8 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
 
     # ---- START OF COMPUTATION --------------------------------------------------------------------
 
-    report(f"model_dmft version v{__version__}")
     report("")
+    report(f"model_dmft version v{__version__}")
     print_params(params)
     report("")
     report(f"Starting job '{params.jobname}' at {start_time:{TIME_FRMT}}")
