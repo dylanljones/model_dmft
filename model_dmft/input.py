@@ -401,8 +401,8 @@ class CthybSolverParams(SolverParams):
         self.length_cycle: int = 100  # Length of a cycle.
         self.n_tau: Optional[int] = None  # Number of imaginary time steps.
         self.rebin_tau: Optional[int] = None  # Rebin imaginary time grid
-        self.measure_g_l: Optional[bool] = None  # Measure G_l (Legendre)
-        self.n_l: Optional[int] = None  # Number of Legendre polynomials.
+        self.measure_g_l: bool = False  # Measure G_l (Legendre)
+        self.n_l: int = 30  # Number of Legendre polynomials.
         self.n_l_thresh: Optional[float] = None  # Legendre polynomials threshold
         self.legendre_fit: Optional[bool] = None  # Fit Green's function and self energy using Legendre Gf
         self.tail_fit: Optional[bool] = None  # Perform tail fit.
@@ -503,7 +503,7 @@ class CtSegSolverParams(SolverParams):
         self.n_tau: int = 10001  # Number of time slices for fermionic functions
         self.n_tau_bosonic: int = 10001  # Number of time slices for bosonic functions
         self.measure_f_tau: bool = True  # Measure improved estimator F(tau)
-        self.n_l: Optional[int] = None  # Number of Legendre polynomials.
+        self.n_l: int = 30  # Number of Legendre polynomials.
         self.legendre_fit: Optional[bool] = None  # Fit Green's function and self energy using Legendre Gf
         self.density_matrix: Optional[bool] = None  # Measure the impurity density matrix.
         self.correct_hartree: Optional[bool] = None  # Correct Hartree term in the self-energy
