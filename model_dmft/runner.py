@@ -1049,8 +1049,11 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
 
     # ---- START OF COMPUTATION --------------------------------------------------------------------
 
+    version_string = __version__
+    if "+" in version_string:
+        version_string = version_string.split("+")[0] + " (dev)"
     report("")
-    report(f"model_dmft version v{__version__}")
+    report(f"model_dmft version v{version_string}")
     print_params(params)
     report("")
     report(f"Starting job '{params.jobname}' at {start_time:{TIME_FRMT}}")
