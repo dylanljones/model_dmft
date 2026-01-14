@@ -369,5 +369,5 @@ def mixing_update(it: float, mix_max: float, mix_min: float, mix_decay: float) -
     """Compute the mixing parameter for iteration `it`."""
     if mix_decay == 0:
         return mix_max
-    mix = mix_min + (mix_max - mix_min) * np.exp(-mix_decay * it)
+    mix = mix_min + (mix_max - mix_min) * np.exp(-mix_decay * max(it - 1, 0))
     return mix
