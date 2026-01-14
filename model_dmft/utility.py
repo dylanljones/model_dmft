@@ -363,3 +363,11 @@ def rebin_gf_tau(g_tau: BlockGf, n_tau: int) -> BlockGf:
     """
     blocks = [g.rebinning_tau(new_n_tau=n_tau) for _, g in g_tau]
     return BlockGf(name_list=list(g_tau.indices), block_list=blocks, name=g_tau.name)
+
+
+def mixing_update(it: float, mix_max: float, mix_min: float, mix_decay: float) -> float:
+    """Compute the mixing parameter for iteration `it`."""
+    if mix_decay == 0:
+        return mix_max
+    mix = mix_min + (mix_max - mix_min) * np.exp(-mix_decay * it)
+    return mix

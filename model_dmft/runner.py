@@ -38,14 +38,7 @@ from .input import InputParameters, get_supported_solvers
 from .legendre import check_nl
 from .mixer import apply_mixing
 from .postprocessing import anacont_pade
-from .utility import (
-    SIGMA,
-    TIME_FRMT,
-    blockgf,
-    check_broadening,
-    report,
-    symmetrize_gf,
-)
+from .utility import SIGMA, TIME_FRMT, blockgf, check_broadening, mixing_update, report, symmetrize_gf
 
 EXECUTABLE = sys.executable  # Use current Python executable for subprocesses
 
@@ -999,7 +992,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
 
     # DMFT parameters
     has_interaction = any(u)
-    mixing_dmft = params.mixing_dmft
+    # mixing_dmft = params.mixing_dmft
     # tol_dmft = params.tol_dmft
 
     # CPA parameters
@@ -1226,8 +1219,13 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                         symmetrize_gf(sig)
 
                 # Apply mixing
+                if params.mixing_decay:
+                    mixing = mixing_update(it, params.mixing_dmft, params.mixing_min, params.mixing_decay)
+                    report(f"Mixing factor for DMFT self-energy: {mixing:.4f}")
+                else:
+                    mixing = params.mixing_dmft
                 for cmpt, sig in sigma_dmft:
-                    apply_mixing(sigma_old[cmpt], sig, mixing_dmft)
+                    apply_mixing(sigma_old[cmpt], sig, mixing)
 
                 # Update data of iteration
                 if mpi.is_master_node():

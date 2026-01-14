@@ -719,6 +719,8 @@ class InputParameters(Parameters):
         "maxiter_cpa": int,
         "verbosity_cpa": int,
         "mixing_dmft": float,
+        "mixing_min": float,
+        "mixing_decay": float,
         "mixing_cpa": float,
         "gtol": float,
         "stol": float,
@@ -750,6 +752,8 @@ class InputParameters(Parameters):
         "n_iw": "Number of Matsubara frequencies.",
         "eta": "Complex broadening.",
         "mixing_dmft": "Mixing of the DMFT self energy.",
+        "mixing_min": "Minimum mixing of the DMFT self energy.",
+        "mixing_decay": "Mixing decay of the DMFT self energy.",
         "gtol": "Convergence tolerance for the coherent Green's function.",
         "stol": "Convergence tolerance for the self energy.",
         "occ_tol": "Convergence tolerance for the occupation number.",
@@ -796,6 +800,8 @@ class InputParameters(Parameters):
         self.verbosity_cpa: Optional[int] = 1  # Verbosity level for the CPA if method is 'iter'.
 
         self.mixing_dmft: float = 1.0  # Mixing parameter for the DMFT self-energy.
+        self.mixing_min: float = 0.1  # Minimum mixing parameter for the DMFT self-energy.
+        self.mixing_decay: float = 0.0  # Mixing decay for the DMFT self-energy.
         self.mixing_cpa: Optional[float] = None  # Mixing parameter for the CPA self-energy.
 
         self.tol_cpa: Optional[float] = 1e-8  # Tolerance for the CPA if method is 'iter'.
