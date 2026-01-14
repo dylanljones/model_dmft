@@ -191,9 +191,9 @@ def postprocess_cthyb(
     g_l = None
     g_tau_rebinned = None
 
-    if solver_params.rebin_g_tau:
+    if solver_params.rebin_tau:
         report("Re-binning G(τ)...")
-        g_tau_rebinned = solver.G_tau.rebin(solver_params.rebin_n_tau)
+        g_tau_rebinned = solver.G_tau.rebin(solver_params.rebin_tau)
 
     if solver_params.measure_g_l:
         g_l = solver.G_l
