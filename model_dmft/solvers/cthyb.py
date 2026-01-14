@@ -24,7 +24,7 @@ from triqs_cthyb.tail_fit import tail_fit
 
 from ..input import CthybSolverParams, InputParameters
 from ..legendre import apply_legendre_filter
-from ..utility import report
+from ..utility import rebin_gf_tau, report
 
 
 def solve_cthyb(params: InputParameters, u: np.ndarray, e_onsite: np.ndarray, delta: BlockGf) -> triqs_cthyb.Solver:
@@ -193,7 +193,7 @@ def postprocess_cthyb(
 
     if solver_params.rebin_tau:
         report("Re-binning G(τ)...")
-        g_tau_rebinned = solver.G_tau.rebin(solver_params.rebin_tau)
+        g_tau_rebinned = rebin_gf_tau(solver.G_tau, solver_params.rebin_tau)
 
     if solver_params.measure_g_l:
         g_l = solver.G_l
