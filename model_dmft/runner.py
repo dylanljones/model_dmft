@@ -983,7 +983,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
     # if params.occ is not None and params.mu is None:
     #     raise NotImplementedError("Chemical potential optimization is not implemented yet.")
 
-    e_onsite = eps + h_field * SIGMA - u / 2  # Shape: ([N_cmpt, N_spin])
+    e_onsite = eps + h_field * SIGMA  # - u / 2  # Shape: ([N_cmpt, N_spin])
 
     # ---- COMPUTATIONAL PARAMETERS ----------------------------------------------------------------
     location = Path(params.location)
@@ -1053,7 +1053,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
     if "+" in version_string:
         version_string = version_string.split("+")[0]
     report("")
-    report(f"model_dmft version v{version_string}")
+    report(f"model_dmft version {version_string}")
     print_params(params)
     report("")
     report(f"Starting job '{params.jobname}' at {start_time:{TIME_FRMT}}")
