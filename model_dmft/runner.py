@@ -1051,7 +1051,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
 
     version_string = __version__
     if "+" in version_string:
-        version_string = version_string.split("+")[0] + " (dev)"
+        version_string = version_string.split("+")[0]
     report("")
     report(f"model_dmft version v{version_string}")
     print_params(params)
