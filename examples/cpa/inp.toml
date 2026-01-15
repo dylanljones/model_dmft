@@ -1,0 +1,26 @@
+[general]
+jobname         = "CPA"                   # The job name of the simulation.
+location        = "."                     # The directory where the simulation is run. (default: '.')
+tmpdir          = ".tmp/"                 # The directory where temporary files are stored. (default: '.tmp/')
+output          = "out.h5"                # The name of the output file. (default: 'out.h5')
+n_loops         = 1                       # The total number of iterations to perform.
+load_iter       = 0                       # Continue from specific iteration (-1 for last iteration, 0 for restart).
+# Model parameters
+lattice         = "bethe"                 # The lattice type.
+gf_struct       = [["up", 1], ["dn", 1]]  # The structure of the Greens function.
+half_bandwidth  = 1.0                     # The half bandwidth of the non-interacting model.
+conc            = [0.2, 0.8]              # The concentration of the components.
+eps             = [-0.5, +0.5]            # The on-site energies of the components.
+h_field         = [0.0, 0.0]              # The magnetic field of the components.
+mu              = 0.0                     # The chemical potential.
+occ             = 0.5                     # The target total occupation number.
+symmetrize      = false                   # Symmetrize the Green's function.
+# Mesh parameters
+n_w             = 4001                    # Number of mesh points.
+w_range         = [-4, 4]                 # Frequency range.
+eta             = 1e-4                    # Complex broadening (<=0: eta = 6 / nbath).
+# CPA parameters
+method_cpa      = "iter"                  # Method used for computing the CPA self energy.
+maxiter_cpa     = 1000                    # Number of iterations for computing the CPA self energy.
+tol_cpa         = 1e-08                   # Tolerance for the CPA self-consistency check.
+verbosity_cpa   = 1                       # Verbosity level of the CPA iterations.

@@ -1,0 +1,50 @@
+[general]
+jobname         = "CPA+DMFT"              # The job name of the simulation.
+location        = "."                     # The directory where the simulation is run. (default: '.')
+tmpdir          = ".tmp/"                 # The directory where temporary files are stored. (default: '.tmp/')
+output          = "out.h5"                # The name of the output file. (default: 'out.h5')
+n_loops         = 100                     # The total number of iterations to perform.
+load_iter       = 0                       # Continue from specific iteration (-1 for last iteration, 0 for restart).
+# Model parameters
+lattice         = "bethe"                 # The lattice type.
+gf_struct       = [["up", 1], ["dn", 1]]  # The structure of the Greens function.
+half_bandwidth  = 1.0                     # The half bandwidth of the non-interacting model.
+conc            = [0.2, 0.8]              # The concentration of the components.
+eps             = [-0.5, +0.5]            # The on-site energies of the components.
+h_field         = [0.0, 0.0]              # The magnetic field of the components.
+u               = [1.0, 1.0]              # The Hubbard interaction strength (Coulomb repulsion) of the components.
+mu              = 0.0                     # The chemical potential.
+occ             = 0.5                     # The target total occupation number.
+beta            = 20                      # The inverse temperature.
+symmetrize      = false                   # Symmetrize the Green's function.
+# Mesh parameters
+n_iw            = 1024                    # Number of Matsubara frequencies.
+eta             = 0.0                     # Complex broadening.
+# CPA parameters
+method_cpa      = "iter"                  # Method used for computing the CPA self energy.
+maxiter_cpa     = 1000                    # Number of iterations for computing the CPA self energy.
+tol_cpa         = 1e-08                   # Tolerance for the CPA self-consistency check.
+verbosity_cpa   = 1                       # Verbosity level of the CPA iterations.
+# DMFT parameters
+mixing_dmft     = 1.0                     # Mixing of the DMFT self energy.
+mixing_min      = 0.1                     # Minimum mixing of the DMFT self energy.
+mixing_decay    = 0.5                     # Decay rate of the mixing parameter.
+gtol            = 1e-4                    # Convergence tolerance for the coherent Green's function.
+stol            = 1e-3                    # Convergence tolerance for the self energy.
+n_conv          = 2                       # Number of iterations for convergence (default: 1)
+
+[solver]
+type            = "cthyb"                 # Solver used to solve the impurity problem.
+n_warmup_cycles = 500_000                 # Number of warmup cycles (default: 1_000)
+n_cycles        = 1_000_000               # Number of Quantum Monte Carlo cycles (default 10_000)
+length_cycle    = 200                     # Length of the cycle (default: 100)
+n_tau           = 10001                   # Number of imaginary time steps. (default: 10001)
+rebin_tau       = 5001                    # Rebin imaginary time steps to this number (default: n_tau)
+crm_dyson       = true
+crm_wmax        = 3.0
+crm_eps         = 1e-6
+# measure_g_l     = false                    # Measure the Legendre Greens function.
+# n_l             = 14                       # Number of Legendre polynomials. (default: 30)
+# n_l_thresh      = 1e-3                     # Threshold for determining the number of Legendre polynomials.
+# legendre_fit    = true                     # Perform a Legendre fit of the tails.
+# correct_hartree = false                    # Correct the Hartree term in the self energy.
