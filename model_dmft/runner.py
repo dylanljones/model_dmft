@@ -232,7 +232,7 @@ def load_state(params: InputParameters) -> Tuple[int, BlockGf, BlockGf, BlockGf,
                     check_compatible_input(out_file, params)
                     it_prev = ar["it"]
                     key_sigma_dmft = "sigma_dmft"
-                    key_sigma_cpa = "sigma_cpa"
+                    key_sigma_cpa = "sigma_coh"
                     key_gf_coh = "g_coh"
                     key_occ = "occ"
                     key_mu = "mu"
@@ -241,7 +241,7 @@ def load_state(params: InputParameters) -> Tuple[int, BlockGf, BlockGf, BlockGf,
                         if f"sigma_dmft-{it}" in ar:
                             it_prev = it
                             key_sigma_dmft = f"sigma_dmft-{it_prev}"
-                            key_sigma_cpa = f"sigma_cpa-{it_prev}"
+                            key_sigma_cpa = f"sigma_coh-{it_prev}"
                             key_gf_coh = f"g_coh-{it_prev}"
                             key_occ = f"occ-{it_prev}"
                         # Remove data of later iterations
@@ -288,7 +288,7 @@ def update_dataset(archive_file: Union[Path, str], keep_iter: bool = True) -> No
 
     with HDFArchive(archive_file, "a") as ar:
         it = ar["it"]
-        ar[f"sigma_cpa-{it}"] = ar["sigma_cpa"]
+        ar[f"sigma_coh-{it}"] = ar["sigma_coh"]
         ar[f"g_coh-{it}"] = ar["g_coh"]
         ar[f"g_cmpt-{it}"] = ar["g_cmpt"]
         ar[f"occ-{it}"] = ar["occ"]
@@ -306,8 +306,8 @@ def update_dataset(archive_file: Union[Path, str], keep_iter: bool = True) -> No
             ar[f"g_coh_real-{it}"] = ar["g_coh_real"]
         if "g_cmpt_real" in ar:
             ar[f"g_cmpt_real-{it}"] = ar["g_cmpt_real"]
-        if "sigma_cpa_real" in ar:
-            ar[f"sigma_cpa_real-{it}"] = ar["sigma_cpa_real"]
+        if "sigma_coh_real" in ar:
+            ar[f"sigma_coh_real-{it}"] = ar["sigma_coh_real"]
         if "g_ret" in ar:
             ar[f"g_ret-{it}"] = ar["g_ret"]
         if "g_l" in ar:
@@ -932,7 +932,7 @@ def postprocess(params: InputParameters, out_file: str) -> None:
             )
 
             with HDFArchive(out_file, "r") as ar:
-                sigma_cpa = ar["sigma_cpa"]
+                sigma_cpa = ar["sigma_coh"]
                 g_coh = ar["g_coh"]
                 g_cmpt = ar["g_cmpt"]
 
@@ -950,7 +950,7 @@ def postprocess(params: InputParameters, out_file: str) -> None:
             with HDFArchive(out_file, "a") as ar:
                 ar["g_coh_real"] = g_coh_real
                 ar["g_cmpt_real"] = g_cmpt_real
-                ar["sigma_cpa_real"] = sigma_cpa_real
+                ar["sigma_coh_real"] = sigma_cpa_real
 
 
 def solve(params: InputParameters, n_procs: int = 0) -> None:
@@ -1082,10 +1082,41 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
     if mpi.is_master_node():
         with HDFArchive(out_file, "a") as ar:
             ar["params"] = params
+        # Remove any existing solver outputs
+        if it_prev == 0:
+            for file in Path(params.location_path).glob("solver-*.log"):
+                file.unlink(missing_ok=True)
 
-    # Remove any existing solver outputs
-    for file in Path(params.location_path).glob("solver-*.log"):
-        file.unlink(missing_ok=True)
+    if has_interaction and it_prev == 0:
+        # If we have interaction, we also calculate the non-interacting case
+
+        report("")
+        report("Computing initial CPA solution for U=0...")
+        sigma_cpa_0 = sigma_cpa.copy()
+        # Solve CPA self-consistent equations and update coherent potential (sigm_cpa)
+        eps_eff = eps  # + sigma_dmft
+        if target_occ is not None:
+            mu, sigma_cpa_out = solve_cpa_fxocc(ht, sigma_cpa_0, conc, eps_eff, target_occ, mu0=mu, eta=eta, **cpa_kwds)
+            sigma_cpa_0 << sigma_cpa_out
+        else:
+            sigma_cpa_0 << solve_cpa(ht, sigma_cpa_0, conc, eps_eff, mu=mu, eta=eta, **cpa_kwds)
+
+        # Symmetrize CPA self-energy
+        if params.symmetrize:
+            symmetrize_gf(sigma_cpa_0)
+        if mpi.is_master_node() and has_interaction:
+            report(f"Computing coherent Green's function G_c({freq_name})...")
+            g_coh = G_coherent(ht, sigma_cpa_0, mu=mu, eta=eta)
+            report(f"Computing component Green's functions G_i({freq_name})...")
+            g_cmpt = G_component(ht, sigma_cpa_0, conc, eps_eff, mu=mu, eta=eta, scale=False)
+            # Compute occupation numbers
+            occ = g_coh.total_density().real
+            with HDFArchive(out_file, "a") as ar:
+                ar["sigma_coh-0"] = sigma_cpa_0
+                ar["g_coh-0"] = g_coh
+                ar["g_cmpt-0"] = g_cmpt
+                ar["occ-0"] = occ
+                ar["mu-0"] = mu
 
     # Start iterations
     try:
@@ -1279,7 +1310,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                 # report(f"Writing results of iteration {it} to {out_file}")
                 with HDFArchive(out_file, "a") as ar:
                     ar["it"] = it
-                    ar["sigma_cpa"] = sigma_cpa
+                    ar["sigma_coh"] = sigma_cpa
                     ar["g_coh"] = g_coh
                     ar["g_cmpt"] = g_cmpt
                     ar["occ"] = occ
