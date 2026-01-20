@@ -196,7 +196,7 @@ method_cpa      = "iter"                  # Method used for computing the CPA se
 maxiter_cpa     = 10000                   # Number of iterations for computing the CPA self energy.
 tol_cpa         = 1e-08                   # Tolerance for the CPA self-consistency check.
 verbosity_cpa   = 1                       # Verbosity level of the CPA iterations.
-# DMFT parameters
+# DMFT/main loop parameters
 mixing_dmft     = 1.0                     # Initial mixing of the coherent self energy.
 mixing_min      = 0.1                     # Minimum mixing of the coherent self energy.
 mixing_decay    = 0.5                     # Decay rate of the mixing parameter.
