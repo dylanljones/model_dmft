@@ -57,7 +57,7 @@ params.u = 1.0
 params.eps = [-0.5, 0.5]
 params.conc = [0.2, 0.8]
 
-solver_params = params.solver
+solver_params = params.solver_params
 solver_params.n_warmup_cycle = 500_000
 solver_params.ny_cycles = 5_000_000
 solver_params.length_cycle = 100
