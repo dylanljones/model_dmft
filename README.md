@@ -422,8 +422,7 @@ If you use this code for your research, please cite the repository using the fol
 @software{Jones_model_dmft_2026,
     author  = {Jones, Dylan},
     license = {MIT},
-    month   = jan,
-    title   = {{model\_dmft}},
+    title   = {{model-dmft}: A versatile python wrapper to perform CPA+DMFT calculations},
     url     = {https://github.com/dylanljones/model_dmft},
     version = {0.0.1},
     year    = {2026}

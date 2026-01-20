@@ -1,7 +1,7 @@
 # YAML 1.2
 ---
 cff-version: "1.2.0"
-title: "model_dmft"
+title: "model-dmft: A versatile python wrapper to perform CPA+DMFT calculations"
 license: "MIT"
 date-released: 2026-01-15
 version: "0.0.1"
