@@ -48,16 +48,21 @@ call the `solve` method:
 from model_dmft import InputParameters
 from model_dmft.runner import solve
 
-params = InputParameters(solver="ftps")
-params.load_iter = -1
-params.location = "directory"
-params.set_mesh_re(-6, 6, 1000, eta=0.02)
+params = InputParameters(solver="cthyb")
 
+params.load_iter = -1
+params.location = "."
+params.set_mesh_im(n_iw=1028, beta=20.0)
 params.u = 1.0
 params.eps = [-0.5, 0.5]
 params.conc = [0.2, 0.8]
 
-solve(params, n_procs=4)
+solver_params = params.solver
+solver_params.n_warmup_cycle = 500_000
+solver_params.ny_cycles = 5_000_000
+solver_params.length_cycle = 100
+
+solve(params, n_procs=16)
 ```
 
 See the input file section for more information on the input parameters.
@@ -66,9 +71,10 @@ See the input file section for more information on the input parameters.
 For running a calculation via the command line interface, you need to create an input file `inp.toml`
 and run the following command:
 ```bash
-model_dmft run inp.toml -n 4
+model_dmft run inp.toml -n 16
 ```
-The `-n` flag specifies the number of MPI processes (`n_procs`) to use **for all interacting component solver**.
+
+The `-n` flag specifies the number of MPI processes (`n_procs`) to use *for all interacting component solver*.
 The solvers run in parallel for each component, so the total number of MPI processes
 must be divisible by the number of interacting (U ≠ 0 ) components.
 
@@ -175,7 +181,7 @@ n_conv          = 2                       # Number of iterations for convergence
 
 | Name   | Type                                       | Description                               |
 |--------|--------------------------------------------|-------------------------------------------|
-| `type` | `{'ftps', 'cthyb', 'hubbardI', 'hartree'}` | The solver used for the impurity problem. |
+| `type` | `{'cthyb', 'ftps', 'hubbardI', 'hartree'}` | The solver used for the impurity problem. |
 | ...    | ...                                        | Solver-specific parameters.               |
 
 
@@ -185,6 +191,31 @@ n_conv          = 2                       # Number of iterations for convergence
 > please check the source code or the examples directory.
 
 #### `ftps`
+
+
+#### `cthyb`
+
+Parameters for the [CTHYB] solver.
+
+| Name             | Type    | Description                                                                  |
+|------------------|---------|------------------------------------------------------------------------------|
+| `n_cycles`       | `int`   | Number of Quantum Monte Carlo cycles (default: 10_000)                       |
+| `n_warmup_cycle` | `int`   | Number of warmup cycles (default: 1_000)                                     |
+| `length_cycle`   | `int`   | Length of the cycle (default: 100)                                           |
+| `n_tau`          | `int`   | Number of imaginary time steps (default: 10_001)                             |
+| `density_matrix` | `bool`  | Measure the impurity density matrix (default: False)                         |
+| `measure_g_l`    | `bool`  | Measure G_l (Legendre) (default: False)                                      |
+| `n_l`            | `int`   | Number of Legendre polynomials. (default: 30)                                |
+| `legendre_fit`   | `bool`  | Fit Green's function and self energy using Legendre Gf (default: false)      |
+| `tail_fit `      | `bool`  | Perform tail fit of Sigma and G (default: False)                             |
+| `fit_max_moment` | `int`   | Highest moment to fit in the tail of Sigma (default: 3)                      |
+| `fit_min_n`      | `int`   | Index of iw from which to start fitting (default: 0.8*n_iw)                  |
+| `fit_max_n`      | `int`   | Index of iw up to which to fit (default: n_iw)                               |
+| `fit_min_w`      | `float` | iw from which to start fitting (default: None)                               |
+| `fit_max_w`      | `float` | iw up to which to fit (default: None)                                        |
+| `crm_dyson`      | `bool`  | Solve Dyson equation using constrained minimization problem (default: false) |
+| `crm_wmax`       | `float` | Spectral width of the impurity problem for DLR basis (default: None)         |
+| `crm_eps`        | `float` | Accuracy of the DLR basis to represent Green’s function (default: 1e-8)      |
 
 Parameters for the [ForkTPS] solver.
 
@@ -225,31 +256,6 @@ tw              = 1e-9                   # Truncated weight for every link. (def
 maxm            = 100                    # Maximum bond dimension. (default 100)
 nmax            = 40                     # Maximal Number of Krylov vectors created. (default 40)
 ```
-
-
-#### `cthyb`
-
-Parameters for the [CTHYB] solver.
-
-| Name             | Type    | Description                                                                  |
-|------------------|---------|------------------------------------------------------------------------------|
-| `n_cycles`       | `int`   | Number of Quantum Monte Carlo cycles (default: 10_000)                       |
-| `n_warmup_cycle` | `int`   | Number of warmup cycles (default: 1_000)                                     |
-| `length_cycle`   | `int`   | Length of the cycle (default: 100)                                           |
-| `n_tau`          | `int`   | Number of imaginary time steps (default: 10_001)                             |
-| `density_matrix` | `bool`  | Measure the impurity density matrix (default: False)                         |
-| `measure_g_l`    | `bool`  | Measure G_l (Legendre) (default: False)                                      |
-| `n_l`            | `int`   | Number of Legendre polynomials. (default: 30)                                |
-| `legendre_fit`   | `bool`  | Fit Green's function and self energy using Legendre Gf (default: false)      |
-| `tail_fit `      | `bool`  | Perform tail fit of Sigma and G (default: False)                             |
-| `fit_max_moment` | `int`   | Highest moment to fit in the tail of Sigma (default: 3)                      |
-| `fit_min_n`      | `int`   | Index of iw from which to start fitting (default: 0.8*n_iw)                  |
-| `fit_max_n`      | `int`   | Index of iw up to which to fit (default: n_iw)                               |
-| `fit_min_w`      | `float` | iw from which to start fitting (default: None)                               |
-| `fit_max_w`      | `float` | iw up to which to fit (default: None)                                        |
-| `crm_dyson`      | `bool`  | Solve Dyson equation using constrained minimization problem (default: false) |
-| `crm_wmax`       | `float` | Spectral width of the impurity problem for DLR basis (default: None)         |
-| `crm_eps`        | `float` | Accuracy of the DLR basis to represent Green’s function (default: 1e-8)      |
 
 ```toml
 [solver]
