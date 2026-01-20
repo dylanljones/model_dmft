@@ -190,7 +190,7 @@ symmetrize      = false                   # Symmetrize the Green's function.
 # w_range         = [-8, 8]                # Frequency range
 # eta             = -1                     # Complex broadening (Negative: eta = 6 / nbath)
 # MATSUBARA MESH (if beta given)
-n_iw            = 1028                   # Number of mesh points
+n_iw            = 1028                    # Number of mesh points
 # CPA parameters
 method_cpa      = "iter"                  # Method used for computing the CPA self energy.
 maxiter_cpa     = 10000                   # Number of iterations for computing the CPA self energy.
