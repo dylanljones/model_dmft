@@ -21,6 +21,7 @@ pip install "git+ssh://git@github.com/dylanljones/model_dmft.git"
 The following dependencies are required to run the code and can not be installed via pip:
 
 - [TRIQS]
+- [TRIQS-CPA]
 
 Additionally, one or multiple of the following solvers are required:
 
@@ -67,12 +68,16 @@ and run the following command:
 ```bash
 model_dmft run inp.toml -n 4
 ```
-The `-n` flag specifies the number of MPI processes (`n_procs`) to use **for each component solver**.
-The solvers run in parallel for each component, so the total number of MPI processes is the
-number of components times the number of MPI processes specified.
+The `-n` flag specifies the number of MPI processes (`n_procs`) to use **for all interacting component solver**.
+The solvers run in parallel for each component, so the total number of MPI processes
+must be divisible by the number of interacting (U ≠ 0 ) components.
 
 
 ### Input file
+
+> [!NOTE]
+>
+> This section is out-of-date and will be updated soon.
 
 The input file uses the [TOML](https://toml.io/en/) file format. It contains two main sections: `[general]` and `[solver]`.
 
@@ -87,10 +92,10 @@ For post-processing of imaginary mesh calculations on Matsubara frequencies, the
 `[maxent]` or `[pade]`.
 
 
-A full example of an input file and SLURM script can be found in the [example](example) directory.
+Example of input files and SLURM scripts can be found in the [examples](examples) directory.
 To start a new calculation, copy the folder and modify the parameters in the `inp.toml` file as needed:
 ```shell
-cp <path-to-repo>/example <new-directory>
+cp <path-to-repo>/examples/<directory> <new-directory>
 ```
 
 #### ``[general]``
@@ -368,6 +373,7 @@ w_range         = [-6, 6]                # Range of real frequencies
 
 
 [TRIQS]: https://triqs.github.io/triqs/latest/index.html
+[TRIQS-CPA]: https://github.com/dylanljones/triqs_cpa
 [CTHYB]: https://github.com/TRIQS/cthyb
 [HubbardI]: https://github.com/TRIQS/hubbardI
 [Hartree-Fock]: https://github.com/TRIQS/hartree_fock

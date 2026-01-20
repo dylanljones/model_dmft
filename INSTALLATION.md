@@ -4,12 +4,13 @@
 Install the library by running the following command:
 
 ```bash
-pip install "git+ssh://git@git.rz.uni-augsburg.de/jonesdyl/model_dmft"
+pip install "git+ssh://git@github.com/dylanljones/model_dmft.git"
 ```
 
 The following dependencies are required to run the code and can not be installed via pip:
 
 - [TRIQS](#triqs)
+- [TRIQS-CPA](#triqs-cpa)
 
 Additionally, one or multiple of the following solvers are required:
 
@@ -17,6 +18,9 @@ Additionally, one or multiple of the following solvers are required:
 - [HubbardI](#hubbardi)
 - [Hartree-Fock](#hartree-fock)
 - [ForkTPS](#forktps)
+
+If you are running into issues during the installation, please check
+the [Troubleshooting](#troubleshooting) section at the end of this document.
 
 
 ## TRIQS
@@ -31,6 +35,38 @@ Then, install TRIQS:
 ```bash
 conda install -c conda-forge triqs -y
 ```
+
+
+## TRIQS-CPA
+
+1. Clone the latest stable version of the ``triqs_cpa`` repository:
+   ```bash
+   git clone git@github.com:dylanljones/triqs_cpa.git triqs_cpa.src
+   ```
+
+2. Create and move to a new directory where you will compile the code:
+   ```bash
+   mkdir triqs_cpa.build && cd triqs_cpa.build
+   ```
+
+3. Ensure that your shell contains the TRIQS environment variables by sourcing the ``triqsvars.sh`` file from your TRIQS installation:
+   ```bash
+   source path_to_triqs/share/triqs/triqsvars.sh
+   ```
+   If you are using TRIQS from Anaconda, you can use the ``CONDA_PREFIX`` environment variable:
+   ```bash
+   source $CONDA_PREFIX/share/triqs/triqsvars.sh
+   ```
+
+4. In the build directory call cmake, including any additional custom CMake options, see below:
+   ```bash
+   cmake ../triqs_cpa.src
+   ```
+
+5. Finally, compile the code and install the application:
+   ```bash
+   make install
+   ```
 
 
 ## Hartree-Fock
@@ -180,9 +216,7 @@ Alternatively, you can install the latest version from the source code:
 
 ## ForkTPS
 
-The [ForkTPS] solver is not public yet!
-The repository is not available on GitHub and must be cloned from the private
-University of Augsburg GitLab repository.
+The [ForkTPS] solver is not public yet! Contact the TRIQS development team for access.
 
 > [!IMPORTANT]
 >
@@ -253,7 +287,7 @@ Once [ITensor] is installed, you can proceed with the installation of [ForkTPS]:
    ```
 
 
-### Troubleshooting
+## Troubleshooting
 
 Some common issues and their solutions are listed below:
 
