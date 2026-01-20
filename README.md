@@ -75,10 +75,6 @@ must be divisible by the number of interacting (U ≠ 0 ) components.
 
 ### Input file
 
-> [!NOTE]
->
-> This section is out-of-date and will be updated soon.
-
 The input file uses the [TOML](https://toml.io/en/) file format. It contains two main sections: `[general]` and `[solver]`.
 
 The `[general]` section contains general parameters that apply to the whole simulation,
@@ -97,6 +93,11 @@ To start a new calculation, copy the folder and modify the parameters in the `in
 ```shell
 cp <path-to-repo>/examples/<directory> <new-directory>
 ```
+
+> [!NOTE]
+>
+> The following is out-of-date and will be updated soon. For an up-to-date list of input parameters,
+> please check the source code or the examples directory.
 
 #### ``[general]``
 | Name             | Type                     | Description                                                                 |
