@@ -396,9 +396,9 @@ class CthybSolverParams(SolverParams):
 
     def __init__(self, **kwargs):
         # General
-        self.n_warmup_cycles: int = 1_000  # Number of warmup cycles.
-        self.n_cycles: int = 10_000  # Number of QMC cycles.
-        self.length_cycle: int = 100  # Length of a cycle.
+        self.n_warmup_cycles: int = 10_000  # Number of warmup cycles.
+        self.n_cycles: int = 500_000  # Number of QMC cycles.
+        self.length_cycle: int = 150  # Length of a cycle.
         self.n_tau: Optional[int] = None  # Number of imaginary time steps.
         self.rebin_tau: Optional[int] = None  # Rebin imaginary time grid
         self.measure_g_l: bool = False  # Measure G_l (Legendre)

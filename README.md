@@ -7,6 +7,11 @@ A versatile python wrapper to perform CPA+DMFT calculations utilizing the TRIQS 
 > This project is still under development and is not yet ready for production use.
 > It might contain critical bugs and the API is subject to change.
 
+- [Installation](#installation)
+- [Usage](#usage)
+- [Inputs](#inputs)
+- [Outputs](#outputs)
+
 
 ## Installation
 
@@ -65,7 +70,7 @@ solver_params.length_cycle = 100
 solve(params, n_procs=16)
 ```
 
-See the input file section for more information on the input parameters.
+See the input section for more information on the input parameters.
 
 
 For running a calculation via the command line interface, you need to create an input file `inp.toml`
@@ -82,7 +87,7 @@ The `-n` flag specifies the number of MPI processes (`n_procs`) to use.
 > calculation. Thus, it must be divisible by the number of interacting components.
 
 
-## Input file
+## Inputs
 
 The input file uses the [TOML](https://toml.io/en/) file format.
 It contains two main sections: `[general]` and `[solver]`.
@@ -378,6 +383,15 @@ mesh_type_w     = "hyperbolic"           # Frequency mesh type
 n_w             = 2001                   # Number of real frequency points
 w_range         = [-6, 6]                # Range of real frequencies
 ```
+
+
+## Outputs
+
+After the calculation is finished, the results are stored in an HDF5 file specified by the `output` parameter.
+If interactions are present (U ≠ 0), the console outputs for each component solver will be stored in separate log files.
+The temporary I/O files created during the calculation are stored in the temporary directory and
+will be removed after each DMFT iteration.
+
 
 
 [TRIQS]: https://triqs.github.io/triqs/latest/index.html
