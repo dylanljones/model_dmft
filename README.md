@@ -73,118 +73,116 @@ The solvers run in parallel for each component, so the total number of MPI proce
 must be divisible by the number of interacting (U ≠ 0 ) components.
 
 
-### Input file
+## Input file
 
-The input file uses the [TOML](https://toml.io/en/) file format. It contains two main sections: `[general]` and `[solver]`.
+The input file uses the [TOML](https://toml.io/en/) file format.
+It contains two main sections: `[general]` and `[solver]`.
 
 The `[general]` section contains general parameters that apply to the whole simulation,
-including metadata like the job name, email address, and output file name and general model parameters
-like the lattice type, Green's function structure, and computational parameters like the number of DMFT loops.
+including metadata like the job name, location and output file name as well as
+general model parameters like the lattice type, Green's function structure, and
+computational parameters.
 
 The `[solver]` section specifies wich solver is used for the impurity problem and
 contains solver-specific parameters.
 
-For post-processing of imaginary mesh calculations on Matsubara frequencies, there are two additional sections:
-`[maxent]` or `[pade]`.
-
-
-Example of input files and SLURM scripts can be found in the [examples](examples) directory.
+Examples of input files and SLURM scripts can be found in the [examples](examples) directory.
 To start a new calculation, copy the folder and modify the parameters in the `inp.toml` file as needed:
 ```shell
 cp <path-to-repo>/examples/<directory> <new-directory>
 ```
 
-> [!NOTE]
->
-> The following is out-of-date and will be updated soon. For an up-to-date list of input parameters,
-> please check the source code or the examples directory.
 
-#### ``[general]``
-| Name             | Type                     | Description                                                                 |
-|------------------|--------------------------|-----------------------------------------------------------------------------|
-| `jobname`        | `str`                    | Name of the job.                                                            |
-| `location`       | `str`                    | Location of the job.                                                        |
-| `output`         | `str`                    | Name of the output file.                                                    |
-| `tmpdir`         | `str`                    | Temporary directory.                                                        |
-| `n_loops`        | `int`                    | Number of DMFT loops.                                                       |
-| `load_iter`      | `int`                    | Continue from specific iteration (-1 for last iteration, 0 for restart).    |
-| `lattice`        | `str`                    | Lattice type.                                                               |
-| `gf_struct`      | `List[List[str, int]]`   | Green's function structure.                                                 |
-| `half_bandwidth` | `float`                  | Half bandwidth.                                                             |
-| `t`              | `float`                  | Hopping parameter, can be used *instead* of `half_bandwidth`.               |
-| `conc`           | `float` or `List[float]` | Concentrations of components.                                               |
-| `eps`            | `float` or `List[float]` | Local energy levels of components.                                          |
-| `u`              | `float` or `List[float]` | Coulomb interaction of components.                                          |
-| `h_field`        | `float` or `List[float]` | Magnetic field.                                                             |
-| `mu`             | `float`                  | Chemical potential.                                                         |
-| `beta`           | `float`                  | Inverse temperature. If `beta=0` a real frequency calculation is performed. |
-| `symmetrize`     | `bool`                   | Symmetrize the spin channels (if no field).                                 |
-| `n_w`            | `int`                    | Number of real frequency points (if beta not set).                          |
-| `w_range`        | `List[float]`            | Real frequency range (if beta not set).                                     |
-| `eta`            | `float`                  | Imaginary broadening used for real frequency calculation (if beta not set). |
-| `n_iw`           | `int`                    | Number of Matsubara frequency points (if beta set).                         |
-| `method_cpa`     | `str`                    | CPA method.                                                                 |
-| `maxiter_cpa`    | `int`                    | Maximum number of iterations for CPA (if `method_cpa="iter"`).              |
-| `verbosity_cpa`  | `int`                    | Verbosity level of CPA iterations.                                          |
-| `tol_cpa`        | `float`                  | Tolerance for CPA.                                                          |
-| `gtol`           | `float`                  | Convergence tolerance for the coherent Green's function.                    |
-| `stol`           | `float`                  | Convergence tolerance for the self energy.                                  |
-| `occ_tol`        | `float`                  | Convergence tolerance for occupation number.                                |
-| `mixing_cpa`     | `float`                  | Mixing parameter for CPA.                                                   |
-| `mixing_dmft`    | `float`                  | Mixing parameter for DMFT.                                                  |
+### General Parameters
 
+| Name             | Type                     | Description                                                                                                                                                          |
+|------------------|--------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `jobname`        | `str`                    | Name of the job used in the console output (optional). `model_dmft` by default.                                                                                      |
+| `location`       | `str`                    | Location of the job (optional). By default, the current directory is used (`.`)                                                                                      |
+| `output`         | `str`                    | Name of the output file (optional). By default, the output is writen to `out.h5`                                                                                     |
+| `tmpdir`         | `str`                    | The relative path to the temporary directory (optional). `.tmp` by default.                                                                                          |
+| `n_loops`        | `int`                    | The total number of DMFT loops to run if convergence is not reached (optional). For plain CPA runs, the program stops after 1 iteration. `10` by default.            |
+| `load_iter`      | `int`                    | Continue from specific iteration (optional). Set to -1 for last iteration, 0 for restart. By default a new calculation (`0`) is started.                             |
+| `lattice`        | `str`                    | The lattice type (optional). Currently, the `"bethe"` and `"square"` lattice is supported. Bethe by default.                                                         |
+| `gf_struct`      | `List[List[str, int]]`   | Green's function structure, defining spin names and number of orbitals (optional). Currently only 1 orbital is supported. Default `[("up", 1), ("dn", 1)]`.          |
+| `half_bandwidth` | `float`                  | The half bandwidth of the lattice (optional). `1` by default.                                                                                                        |
+| `t`              | `float`                  | Hopping parameter, can be used *instead* of `half_bandwidth`, overwriting it.                                                                                        |
+| `conc`           | `float` or `List[float]` | Concentrations of components (optional). Must sum to 1. If ommited, a single component is used (no CPA).                                                             |
+| `eps`            | `float` or `List[float]` | Local energy levels of components (optional). If a list is given, the length must match the number of components. If a scalar, the value is used for all components. |
+| `u`              | `float` or `List[float]` | Coulomb interaction of components (optional). If a list is given, the length must match the number of components. If a scalar, the value is used for all components. |
+| `h_field`        | `float` or `List[float]` | Magnetic field (optional). If a list is given, the length must match the number of components. If a scalar, the value is used for all components.                    |
+| `mu`             | `float`                  | Chemical potential *relative* to half-filling (optional). `0` by default.                                                                                            |
+| `beta`           | `float`                  | Inverse temperature (optional). If `beta=0` a real frequency calculation is performed. `0` by default.                                                               |
+| `symmetrize`     | `bool`                   | Symmetrize the spin channels if no field is given. False by default.                                                                                                 |
+| `n_w`            | `int`                    | Number of real frequency points (if beta not set).                                                                                                                   |
+| `w_range`        | `List[float]`            | Real frequency range (if beta not set).                                                                                                                              |
+| `eta`            | `float`                  | Imaginary broadening used for real frequency calculation (if beta not set).                                                                                          |
+| `n_iw`           | `int`                    | Number of Matsubara frequency points (if beta set).                                                                                                                  |
+| `method_cpa`     | `str`                    | The CPA method used (optional). Can either be `"iter"` or `"root"`. `"iter"` by default.                                                                             |
+| `maxiter_cpa`    | `int`                    | Maximum number of iterations for CPA if `method_cpa="iter"` (optional). `1000` by default.                                                                           |
+| `verbosity_cpa`  | `int`                    | Verbosity level of CPA iterations.                                                                                                                                   |
+| `mixing_dmft`    | `float`                  | Initial linear mixing parameter for the DMFT iterations (optional). `1.0` by default.                                                                                |
+| `mixing_min`     | `float`                  | Minimum DMFT mixing parameter (optional). `0.1` by default.                                                                                                          |
+| `mixing_decay`   | `float`                  | Exp. decay factor of the DMFT mixing parameter (optional). If set, the mixing is scaled each iteration until `mixing_decay`. `0.0` by default.                       |
+| `mixing_cpa`     | `float`                  | Linear mixing parameter for the CPA iterations (optional). `1.0` by default.                                                                                         |
+| `tol_cpa`        | `float`                  | Convergence tolerance for the CPA iterations if `method_cpa="iter"` (optional). `1e-8` by default.                                                                   |
+| `gtol`           | `float`                  | Convergence tolerance for the coherent Green's function (optional). `1e-4` by default.                                                                               |
+| `stol`           | `float`                  | Convergence tolerance for the coherent self energy (optional). `1e-3` by default.                                                                                    |
+| `occ_tol`        | `float`                  | Convergence tolerance for occupation number (optional).                                                                                                              |
+| `n_conv`         | `int`                    | Number of iterations required for convergence (optional). `1.0` by default.                                                                                          |
 
 ```toml
-[general]  # General parameters that apply to the whole simulation.
-jobname         = "FTPS-CPA+DMFT"        # The job name of the simulation. Used for generating SLURM scripts.
-location        = "."                    # The directory where the simulation is run.
-output          = "out.h5"               # The name of the output file.
-tmp_dir         = ".tmp/"                # The directory where temporary files are stored.
-n_loops         = 3                      # The total number of iterations to perfom.
-load_iter       = -1                     # Continue from specific iteration (-1 for last iteration, 0 for restart).
-
+[general]
+jobname         = "CPA+DMFT"              # The job name of the simulation.
+location        = "."                     # The directory where the simulation is run. (default: '.')
+tmpdir          = ".tmp/"                 # The directory where temporary files are stored. (default: '.tmp/')
+output          = "out.h5"                # The name of the output file. (default: 'out.h5')
+n_loops         = 100                     # The total number of iterations to perform.
+load_iter       = 0                       # Continue from specific iteration (-1 for last iteration, 0 for restart).
 # Model parameters
-lattice         = "bethe"                # The lattice type
-gf_struct       = [["up", 1], ["dn", 1]] # The structure of the Greens function
-# half_bandwidth = 2.0                   # The half bandwidth of the lattice DOS
-t               = 1.0                    # The hopping parameter (alternative to half_bandwidth)
-conc            = [0.7, 0.3]             # The concentrations of the components.
-eps             = [-1.0, +1.0]           # The on-site energies of the components.
-h_field         = 0                      # The magnetic Zeeman field of the components.
-u               = 4                      # The Hubbard interaction strength (Coulomb repulsion) of the components.
-mu              = 0                      # The chemiocal potential
-# beta          = 10                     # The inverse temperature
-symmetrize      = false                  # Symmetrize the spin channels (if no field)
-
+lattice         = "bethe"                 # The lattice type.
+gf_struct       = [["up", 1], ["dn", 1]]  # The structure of the Greens function.
+half_bandwidth  = 1.0                     # The half bandwidth of the non-interacting model.
+conc            = [0.2, 0.8]              # The concentration of the components.
+eps             = [-0.5, +0.5]            # The on-site energies of the components.
+h_field         = [0.0, 0.0]              # The magnetic field of the components.
+u               = [1.0, 1.0]              # The Hubbard interaction strength (Coulomb repulsion) of the components.
+mu              = 0.0                     # The chemical potential.
+occ             = 0.5                     # The target total occupation number.
+beta            = 20                      # The inverse temperature.
+symmetrize      = false                   # Symmetrize the Green's function.
 # REAL MESH (if beta is not given)
-n_w             = 3001                   # Number of mesh points
-w_range         = [-8, 8]                # Frequency range
-eta             = -1                     # Complex broadening (Negative: eta = 6 / nbath)
+# n_w             = 3001                   # Number of mesh points
+# w_range         = [-8, 8]                # Frequency range
+# eta             = -1                     # Complex broadening (Negative: eta = 6 / nbath)
 # MATSUBARA MESH (if beta given)
-# n_iw          = 1028                   # Number of mesh points
-
+n_iw            = 1028                   # Number of mesh points
 # CPA parameters
-method_cpa     = "iter"                  # Method used for computing the CPA self energy.
-maxiter_cpa    = 10000                   # Number of iterations for computing the CPA self energy.
-tol_cpa        = 1e-06                   # Tolerance for the CPA self-consistency check.
-verbosity_cpa  = 1                       # Verbosity level of the CPA iterations.
-
+method_cpa      = "iter"                  # Method used for computing the CPA self energy.
+maxiter_cpa     = 10000                   # Number of iterations for computing the CPA self energy.
+tol_cpa         = 1e-08                   # Tolerance for the CPA self-consistency check.
+verbosity_cpa   = 1                       # Verbosity level of the CPA iterations.
 # DMFT parameters
-mixing_dmft    = 0.1                     # Mixing of the DMFT self energy.
-
-# Convergence parameters
-gtol           = 1e-06                   # Convergence tolerance for the coherent Green's function.
-stol           = 1e-06                   # Convergence tolerance for the self energy.
-occ_tol        = 1e-06                   # Occupation tolerance for CPA.
+mixing_dmft     = 1.0                     # Initial mixing of the coherent self energy.
+mixing_min      = 0.1                     # Minimum mixing of the coherent self energy.
+mixing_decay    = 0.5                     # Decay rate of the mixing parameter.
+gtol            = 1e-4                    # Convergence tolerance for the coherent Green's function.
+stol            = 1e-3                    # Convergence tolerance for the coherent self energy.
+n_conv          = 2                       # Number of iterations for convergence (default: 1)
 ```
 
-#### ``[solver]``
+### Solver Parameters
 
 | Name   | Type                                       | Description                               |
 |--------|--------------------------------------------|-------------------------------------------|
 | `type` | `{'ftps', 'cthyb', 'hubbardI', 'hartree'}` | The solver used for the impurity problem. |
 | ...    | ...                                        | Solver-specific parameters.               |
 
+
+> [!NOTE]
+>
+> The following is out-of-date and will be updated soon. For an up-to-date list of input parameters,
+> please check the source code or the examples directory.
 
 #### `ftps`
 
