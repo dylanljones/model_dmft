@@ -147,6 +147,7 @@ cp <path-to-repo>/examples/<directory> <new-directory>
 | `u`              | `float` or `List[float]` | Coulomb interaction of components (optional). If a list is given, the length must match the number of components. If a scalar, the value is used for all components. |
 | `h_field`        | `float` or `List[float]` | Magnetic field (optional). If a list is given, the length must match the number of components. If a scalar, the value is used for all components.                    |
 | `mu`             | `float`                  | Chemical potential *relative* to half-filling (optional). `0` by default.                                                                                            |
+| `occ`            | `float`                  | The target occupation (optional). If set, the chemical potential is optimized during the iterations with `mu` as intial value.                                       |
 | `beta`           | `float`                  | Inverse temperature (optional). If `beta=0` a real frequency calculation is performed. `0` by default.                                                               |
 | `symmetrize`     | `bool`                   | Symmetrize the spin channels if no field is given. False by default.                                                                                                 |
 | `n_w`            | `int`                    | Number of real frequency points (if beta not set).                                                                                                                   |
