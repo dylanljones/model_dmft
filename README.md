@@ -74,9 +74,12 @@ and run the following command:
 model_dmft run inp.toml -n 16
 ```
 
-The `-n` flag specifies the number of MPI processes (`n_procs`) to use *for all interacting component solver*.
-The solvers run in parallel for each component, so the total number of MPI processes
-must be divisible by the number of interacting (U ≠ 0 ) components.
+The `-n` flag specifies the number of MPI processes (`n_procs`) to use.
+
+> [!IMPORTANT]
+>
+> The number of MPI processes is split equally among the *interacting* (U ≠ 0 ) components in the CPA+DMFT
+> calculation. Thus, it must be divisible by the number of interacting components.
 
 
 ## Input file
@@ -185,13 +188,10 @@ n_conv          = 2                       # Number of iterations for convergence
 | ...    | ...                                        | Solver-specific parameters.               |
 
 
-> [!NOTE]
+> [!CAUTION]
 >
 > The following is out-of-date and will be updated soon. For an up-to-date list of input parameters,
 > please check the source code or the examples directory.
-
-#### `ftps`
-
 
 #### `cthyb`
 
@@ -216,6 +216,26 @@ Parameters for the [CTHYB] solver.
 | `crm_dyson`      | `bool`  | Solve Dyson equation using constrained minimization problem (default: false) |
 | `crm_wmax`       | `float` | Spectral width of the impurity problem for DLR basis (default: None)         |
 | `crm_eps`        | `float` | Accuracy of the DLR basis to represent Green’s function (default: 1e-8)      |
+
+```toml
+[solver]
+type            = "cthyb"                # Solver used to solve impurity problem
+
+n_cycles        = 5000                   # Number of Quantum Monte Carlo cycles (default 10_000)
+n_warmup_cycle  = 1000                   # Number of warmup cycles (default: 1_000)
+length_cycle    = 100                    # Length of the cycle (default: 100)
+n_tau           = 10001                  # Number of imaginary time steps. (default: 10001)
+tail_fit        = false                  # Perform tail fit of Sigma and G (default: false)
+fit_max_moment  = 3                      # Highest moment to fit in the tail of Sigma (default: 3)
+fit_min_n       = 0                      # Index of iw from which to start fitting (default: 0.5*n_iw)
+fit_max_n       = 0                      # Index of iw up to which to fit (default: n_iw)
+measure_g_l     = false                  # Measure G_l (Legendre) (default: false)
+n_l             = 30                     # Number of Legendre polynomials (default: 30)
+density_matrix  = true                   # Measure the impurity density matrix (default: false)
+```
+
+
+#### `ftps`
 
 Parameters for the [ForkTPS] solver.
 
@@ -255,23 +275,6 @@ sweeps          = 10                     # Number of DMRG sweeps (default 15)
 tw              = 1e-9                   # Truncated weight for every link. (default 1e-9)
 maxm            = 100                    # Maximum bond dimension. (default 100)
 nmax            = 40                     # Maximal Number of Krylov vectors created. (default 40)
-```
-
-```toml
-[solver]
-type            = "cthyb"                # Solver used to solve impurity problem
-
-n_cycles        = 5000                   # Number of Quantum Monte Carlo cycles (default 10_000)
-n_warmup_cycle  = 1000                   # Number of warmup cycles (default: 1_000)
-length_cycle    = 100                    # Length of the cycle (default: 100)
-n_tau           = 10001                  # Number of imaginary time steps. (default: 10001)
-tail_fit        = false                  # Perform tail fit of Sigma and G (default: false)
-fit_max_moment  = 3                      # Highest moment to fit in the tail of Sigma (default: 3)
-fit_min_n       = 0                      # Index of iw from which to start fitting (default: 0.5*n_iw)
-fit_max_n       = 0                      # Index of iw up to which to fit (default: n_iw)
-measure_g_l     = false                  # Measure G_l (Legendre) (default: false)
-n_l             = 30                     # Number of Legendre polynomials (default: 30)
-density_matrix  = true                   # Measure the impurity density matrix (default: false)
 ```
 
 
