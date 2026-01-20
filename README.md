@@ -11,6 +11,7 @@ A versatile python wrapper to perform CPA+DMFT calculations utilizing the TRIQS 
 - [Usage](#usage)
 - [Inputs](#inputs)
 - [Outputs](#outputs)
+- [Citation](#citation)
 
 
 ## Installation
@@ -412,6 +413,22 @@ If interactions are present (U ≠ 0), the console outputs for each component so
 The temporary I/O files created during the calculation are stored in the temporary directory and
 will be removed after each DMFT iteration.
 
+
+## Citation
+
+If you use this code for your research, please cite the repository using the following BibTeX entry:
+
+```bibtex
+@software{Jones_model_dmft_2026,
+    author  = {Jones, Dylan},
+    license = {MIT},
+    month   = jan,
+    title   = {{model\_dmft}},
+    url     = {https://github.com/dylanljones/model_dmft},
+    version = {0.0.1},
+    year    = {2026}
+}
+```
 
 
 [TRIQS]: https://triqs.github.io/triqs/latest/index.html
