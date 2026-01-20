@@ -35,7 +35,7 @@ def find_input_file(root: Union[str, Path], check_content: bool = True) -> Union
             with open(file, "r") as f:
                 text = f.read()
             data = tomlkit.parse(text)
-            if "output" in data.get("general", {}):
+            if "general" in data:
                 candidates.append(file)
         else:
             candidates.append(file)
@@ -146,9 +146,7 @@ class Folder:
         for file in self.path.glob("*.log"):
             file.unlink()
 
-    def clear(
-        self, slurm: bool = True, logs: bool = True, data: bool = True, tmp: bool = True
-    ) -> None:
+    def clear(self, slurm: bool = True, logs: bool = True, data: bool = True, tmp: bool = True) -> None:
         if slurm:
             self.remove_slurm_outputs()
         if data:
@@ -179,9 +177,7 @@ class Folder:
         return f"{self.__class__.__name__}({self.path})"
 
 
-def walkdirs(
-    *paths: Union[str, Path], recursive: bool = False, check: bool = True
-) -> Iterable[Folder]:
+def walkdirs(*paths: Union[str, Path], recursive: bool = False, check: bool = True) -> Iterable[Folder]:
     """Walk through directories and yield project folders."""
     paths = paths or (".",)  # Use current directory if no path is given
     for root in paths:
