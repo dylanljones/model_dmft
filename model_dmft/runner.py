@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from subprocess import PIPE, Popen, SubprocessError
-from typing import Dict, List, TextIO, Tuple, Union
+from typing import Any, Dict, Generator, List, TextIO, Tuple, Union
 
 import numpy as np
 
@@ -40,6 +40,12 @@ from .legendre import check_nl
 from .mixer import apply_mixing
 from .postprocessing import anacont_pade
 from .utility import SIGMA, TIME_FRMT, blockgf, check_broadening, mixing_update, report, symmetrize_gf
+
+BANNER = """\
+┌┬┐┌─┐┌┬┐┌─┐┬    ╔╦╗╔╦╗╔═╗╔╦╗
+││││ │ ││├┤ │  ── ║║║║║╠╣  ║
+┴ ┴└─┘─┴┘└─┘┴─┘  ═╩╝╩ ╩╚   ╩ v{}
+"""
 
 EXECUTABLE = sys.executable  # Use current Python executable for subprocesses
 
@@ -113,57 +119,10 @@ def write_header(file: str, it: int, mode: str) -> None:
 
 def print_params(params: InputParameters) -> None:
     """Print the input parameters to the console."""
-    report("")
+    # report("")
     report("INPUT PARAMETERS")
     report("-" * 60)
-    report(f"jobname:        {params.jobname}")
-    report(f"location:       {params.location_path}")
-    report(f"output:         {params.output_path}")
-    report("")
-    report(f"lattice:        {params.lattice}")
-    report(f"gf struct:      {params.gf_struct}")
-    report(f"half bandwidth: {params.half_bandwidth}")
-    report(f"conc:           {params.conc}")
-    report(f"U:              {params.u}")
-    report(f"eps:            {params.eps}")
-    report(f"H field:        {params.h_field}")
-    report(f"mu:             {params.mu}")
-    if params.is_real_mesh:
-        report(f"mesh:           {params.w_range}  N: {params.n_w}  eta: {params.eta}")
-    else:
-        report(f"mesh:           N: {params.n_iw}  beta: {params.beta}")
-    report(f"Symmetrize:     {params.symmetrize}")
-    report("")
-    report(f"CPA tol:        {params.tol_cpa}")
-    report(f"G tol:          {params.gtol}")
-    report(f"S tol:          {params.stol}")
-    report(f"Mixing DMFT:    {params.mixing_dmft}")
-    report(f"Mixing CPA:     {params.mixing_cpa}")
-    report("")
-    if params.solver:
-        solver = params.solver_params
-        report(f"Solver:         {solver.type}")
-        if solver.type == "ftps":
-            report(f"Bath fit:       {solver.bath_fit}")
-            report(f"Method:         {solver.method}")
-            report(f"N bath:         {solver.n_bath}")
-            report(f"Time steps:     {solver.time_steps}")
-            report(f"dt:             {solver.dt}")
-            report(f"Sweeps:         {solver.sweeps}")
-            report(f"Trunc weight:   {solver.tw}")
-            report(f"Max bond dim:   {solver.maxm}")
-            report(f"Max Krylov:     {solver.nmax}")
-        elif solver.type == "cthyb":
-            report(f"N warmup:       {solver.n_warmup_cycles}")
-            report(f"N cycles:       {solver.n_cycles}")
-            report(f"Length cycle:   {solver.length_cycle}")
-            report(f"Density matrix: {solver.density_matrix}")
-            report(f"Tail fit:       {solver.tail_fit}")
-            report(f"Fit max moment: {solver.fit_max_moment}")
-            report(f"Fit min N:      {solver.fit_min_n}")
-            report(f"Fit max N:      {solver.fit_max_n}")
-            report(f"Measure G(l):   {solver.measure_g_l}")
-            report(f"N_l:            {solver.n_l}")
+    report(params.to_string())
     report("-" * 60)
     report("")
 
@@ -419,6 +378,7 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
             with HDFArchive(str(tmp_file), "a") as ar:
                 ar["solver"] = solver
                 ar["g_tau_raw"] = solver.G_tau
+                ar["g_iw"] = solver.G_iw
                 if g_tau_rebinned is None:
                     ar["g_tau"] = solver.G_tau
                 else:
@@ -522,6 +482,57 @@ def _prepare_tmp_file(
         ar["sigma_dmft"] = sigma
 
 
+class BlockAccumulator:
+    def __init__(self):
+        self.blocks = dict()
+
+    def __len__(self) -> int:
+        return len(self.blocks)
+
+    def __bool__(self) -> bool:
+        return bool(self.blocks)
+
+    def add_block(self, cmpt: str, block: BlockGf) -> None:
+        self.blocks[cmpt] = block
+
+    def get_blocks(self) -> Dict[str, BlockGf]:
+        return self.blocks
+
+    def to_blockgf(self) -> BlockGf:
+        names = list(self.blocks.keys())
+        blocks = [self.blocks[name] for name in names]
+        return blockgf(blocks[0].mesh, names=names, blocks=blocks)
+
+
+class BlockAccumulators:
+    def __init__(self):
+        self.accumulators = dict()
+
+    def keys(self) -> List[str]:
+        return list(self.accumulators.keys())
+
+    def add_block(self, name: str, cmpt: str, block: Union[BlockGf, np.ndarray]) -> None:
+        if name not in self.accumulators:
+            self.accumulators[name] = dict()
+        self.accumulators[name][cmpt] = block
+
+    def get_blocks(self, name: str) -> Dict[str, BlockGf]:
+        return self.accumulators[name]
+
+    def to_blockgf(self, name) -> BlockGf:
+        blocks = self.accumulators[name]
+        names = list(blocks.keys())
+        blocks = [blocks[name] for name in names]
+        return blockgf(blocks[0].mesh, names=names, blocks=blocks)
+
+    def items(self) -> Generator[tuple[str, Union[BlockGf, np.ndarray]], Any, None]:
+        for name in self.accumulators:
+            if isinstance(self.accumulators[name], BlockGf):
+                yield name, self.to_blockgf(name)
+            else:
+                yield name, self.accumulators[name]
+
+
 def _load_tmp_files(sigma_dmft: BlockGf, tmp_filepath: str, archive_file: str) -> None:
     """Load the results from the temporary files of the impurity solvers.
 
@@ -532,85 +543,35 @@ def _load_tmp_files(sigma_dmft: BlockGf, tmp_filepath: str, archive_file: str) -
     if not mpi.is_master_node():
         return
 
-    g_tau_blocks_raw, g_tau_blocks, g_ret_blocks, g_l_blocks = dict(), dict(), dict(), dict()
-    auto_corr_time = dict()
-    average_sign = dict()
-    average_order = dict()
-    sigma_dmft_raw, save_raw = sigma_dmft.copy(), False
+    accumulators = BlockAccumulators()
 
     # Load main results from temporary file
     for cmpt, sig in sigma_dmft:
         tmp_file = tmp_filepath.format(cmpt=cmpt)
         # report(f"Loading temporary file {tmp_file}...")
+        keys = [
+            "sigma_dmft_raw",
+            "g_ret",
+            "g_l",
+            "g_tau_raw",
+            "g_tau",
+            "g_iw",
+            "average_sign",
+            "average_order",
+            "auto_corr_time",
+        ]
         with HDFArchive(str(tmp_file), "r") as ar:
             if "sigma_dmft" in ar:
                 sig << ar["sigma_dmft"]  # noqa
-            if "sigma_dmft_raw" in ar:
-                save_raw = True
-                sigma_dmft_raw[cmpt] << ar["sigma_dmft_raw"]  # noqa
-            if "g_ret" in ar:
-                g_ret_blocks[cmpt] = ar["g_ret"]
-            if "g_l" in ar:
-                g_l_blocks[cmpt] = ar["g_l"]
-            if "g_tau_raw" in ar:
-                g_tau_blocks_raw[cmpt] = ar["g_tau_raw"]
-            if "g_tau" in ar:
-                g_tau_blocks[cmpt] = ar["g_tau"]
-            if "auto_corr_time" in ar:
-                auto_corr_time[cmpt] = ar["auto_corr_time"]
-            if "average_sign" in ar:
-                average_sign[cmpt] = ar["average_sign"]
-            if "average_order" in ar:
-                average_order[cmpt] = ar["average_order"]
+            for key in keys:
+                if key in ar:
+                    accumulators.add_block(key, cmpt, ar[key])
 
-    if save_raw:
-        # Write raw sigma_dmft to output file
-        with HDFArchive(archive_file, "a") as ar:
-            ar["sigma_dmft_raw"] = sigma_dmft_raw
-
-    if g_ret_blocks:
-        # Write real time Gf to output file (only for FTPS solver)
-        names = list(g_ret_blocks.keys())
-        blocks = [g_ret_blocks[name] for name in names]
-        gf_ret = blockgf(blocks[0].mesh, names=names, blocks=blocks)
-        with HDFArchive(archive_file, "a") as ar:
-            ar["g_ret"] = gf_ret
-
-    if g_l_blocks:
-        # Write Legendre Gf to output file (only for CTHYB solver)
-        names = list(g_l_blocks.keys())
-        blocks = [g_l_blocks[name] for name in names]
-        g_l = blockgf(blocks[0].mesh, names=names, blocks=blocks)
-        with HDFArchive(archive_file, "a") as ar:
-            ar["g_l"] = g_l
-
-    if g_tau_blocks_raw:
-        # Write G_tau to output file (only for CTHYB solver)
-        names = list(g_tau_blocks_raw.keys())
-        blocks = [g_tau_blocks_raw[name] for name in names]
-        g_tau = blockgf(blocks[0].mesh, names=names, blocks=blocks)
-        with HDFArchive(archive_file, "a") as ar:
-            ar["g_tau_raw"] = g_tau
-
-    if g_tau_blocks:
-        # Write G_tau to output file (only for CTHYB solver)
-        names = list(g_tau_blocks.keys())
-        blocks = [g_tau_blocks[name] for name in names]
-        g_tau = blockgf(blocks[0].mesh, names=names, blocks=blocks)
-        with HDFArchive(archive_file, "a") as ar:
-            ar["g_tau"] = g_tau
-
-    if auto_corr_time:
-        with HDFArchive(archive_file, "a") as ar:
-            ar["auto_corr_time"] = auto_corr_time
-
-    if average_sign:
-        with HDFArchive(archive_file, "a") as ar:
-            ar["average_sign"] = average_sign
-
-    if average_order:
-        with HDFArchive(archive_file, "a") as ar:
-            ar["average_order"] = average_order
+    with HDFArchive(archive_file, "a") as ar:
+        for name, block_gf in accumulators.items():
+            if name == "g_iw":
+                name = "g_iw_solver"
+            ar[name] = block_gf
 
     # Remove temporary files
     for cmpt, sig in sigma_dmft:
@@ -1036,12 +997,14 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
 
     # Initialize coherent potential (CPA self-energy) witrh zeros
     sigma_cpa = blockgf(mesh, gf_struct=gf_struct, name="Σ_cpa")
+    sigma_cpa.zero()
 
     # Initialize DMFT self energies
     sigma_dmft = initialize_G_cmpt(sigma_cpa, cmpts=len(conc))
-    for i, (cmpt, sigma) in enumerate(sigma_dmft):
-        for spin, sig in sigma:
-            sig << u[i] / 2
+    sigma_dmft.zero()
+    # for i, (cmpt, sigma) in enumerate(sigma_dmft):
+    #     for spin, sig in sigma:
+    #         sig << u[i] / 2
 
     # Initialize effective onsite energies as BlockGf
     eps = initalize_onsite_energy(sigma_cpa, conc, e_onsite)
@@ -1053,9 +1016,10 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
     if "+" in version_string:
         version_string = version_string.split("+")[0]
     report("")
-    report(f"model_dmft version {version_string}")
-    print_params(params)
-    report("")
+    report(BANNER.format(version_string))
+    # report(f"model_dmft version {version_string}")
+    # print_params(params)
+
     report(f"Starting job '{params.jobname}' at {start_time:{TIME_FRMT}}")
 
     it_prev = 0
@@ -1118,7 +1082,9 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                 ar["occ-0"] = occ
                 ar["mu-0"] = mu
 
+    # ----------------------------------------------------------------------------------------------
     # Start iterations
+    # ----------------------------------------------------------------------------------------------
     try:
         for it in range(it_prev + 1, n_loops + 1):
             mpi.barrier()
@@ -1146,33 +1112,33 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                 # Check mu consistency in delta
                 # z - (ϵ - μ) - Δ(z) ≈ Σ(z) + G(z)^(-1)
 
-                if mpi.is_master_node():
-                    # z on the mesh
-                    any_block = next(iter(g_cmpt))[1]  # g_cmpt is BlockGf over components
-                    any_spin_g = next(iter(any_block))[1]  # inner BlockGf over spins
-                    mesh = any_spin_g.mesh
-                    x = Omega if isinstance(mesh, MeshReFreq) else iOmega_n
-
-                    for cmpt, g_cmpt_block in g_cmpt:
-                        for spin, g in g_cmpt_block:
-                            # Required Weiss inverse from Dyson: G0^{-1} = Σ + G^{-1}
-                            g0inv_req = g.copy()
-                            g0inv_req << sigma_dmft[cmpt][spin] + inverse(g)
-
-                            # Weiss inverse implied by your Δ definition: G0^{-1} = z + μ - ε - Δ
-                            g0inv_from_delta = g.copy()
-                            g0inv_from_delta << (x + mu + 1j * eta) - eps[cmpt][spin] - delta[cmpt][spin]
-
-                            diff = g.copy()
-                            diff << g0inv_from_delta - g0inv_req  # noqa
-
-                            max_abs = float(np.max(np.abs(diff.data)))
-                            mean_re = float(np.mean(diff.data.real))
-
-                            report(
-                                f"Weiss check {cmpt} {spin}: "
-                                f"max|ΔG0inv|={max_abs:.6g}, mean Re(ΔG0inv)={mean_re:.6g}"
-                            )
+                # if mpi.is_master_node():
+                #     # z on the mesh
+                #     any_block = next(iter(g_cmpt))[1]  # g_cmpt is BlockGf over components
+                #     any_spin_g = next(iter(any_block))[1]  # inner BlockGf over spins
+                #     mesh = any_spin_g.mesh
+                #     x = Omega if isinstance(mesh, MeshReFreq) else iOmega_n
+                #
+                #     for cmpt, g_cmpt_block in g_cmpt:
+                #         for spin, g in g_cmpt_block:
+                #             # Required Weiss inverse from Dyson: G0^{-1} = Σ + G^{-1}
+                #             g0inv_req = g.copy()
+                #             g0inv_req << sigma_dmft[cmpt][spin] + inverse(g)
+                #
+                #             # Weiss inverse implied by your Δ definition: G0^{-1} = z + μ - ε - Δ
+                #             g0inv_from_delta = g.copy()
+                #             g0inv_from_delta << (x + mu + 1j * eta) - eps[cmpt][spin] - delta[cmpt][spin]
+                #
+                #             diff = g.copy()
+                #             diff << g0inv_from_delta - g0inv_req  # noqa
+                #
+                #             max_abs = float(np.max(np.abs(diff.data)))
+                #             mean_re = float(np.mean(diff.data.real))
+                #
+                #             report(
+                #                 f"Weiss check {cmpt} {spin}: "
+                #                 f"max|ΔG0inv|={max_abs:.6g}, mean Re(ΔG0inv)={mean_re:.6g}"
+                #             )
 
                 if mpi.is_master_node():
                     with HDFArchive(out_file, "a") as ar:

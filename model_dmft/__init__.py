@@ -8,4 +8,4 @@ from .folder import walkdirs, Folder
 try:
     from ._version import version as __version__
 except ImportError:  # pragma: no cover
-    __version__ = "unknown"
+    __version__ = "0.0.1"

@@ -224,6 +224,9 @@ class SolverParams(Parameters):
     def __repr__(self):
         return f"{self.__class__.__name__}({self.type})"
 
+    def to_string(self) -> str:
+        return f"Solver:         {self.SOLVER}"
+
 
 class FtpsSolverParams(SolverParams):
     """Class for handling FTPS solver parameters.
@@ -309,6 +312,20 @@ class FtpsSolverParams(SolverParams):
         self.tw: Optional[float] = 1e-9  # Truncated weight for every link for Tevo
 
         super().__init__(**kwargs)
+
+    def to_string(self) -> str:
+        lines = list()
+        lines.append(f"Solver:         {self.SOLVER}")
+        lines.append(f"Bath fit:       {self.bath_fit}")
+        lines.append(f"Method:         {self.method}")
+        lines.append(f"N bath:         {self.n_bath}")
+        lines.append(f"Time steps:     {self.time_steps}")
+        lines.append(f"dt:             {self.dt}")
+        lines.append(f"Sweeps:         {self.sweeps}")
+        lines.append(f"Trunc weight:   {self.tw}")
+        lines.append(f"Max bond dim:   {self.maxm}")
+        lines.append(f"Max Krylov:     {self.nmax}")
+        return "\n".join(lines)
 
 
 class CthybSolverParams(SolverParams):
@@ -440,6 +457,21 @@ class CthybSolverParams(SolverParams):
                 raise InputError("Parameter 'crm_wmax' is required for 'crm_dyson'!")
             if self.crm_eps is None:
                 raise InputError("Parameter 'crm_eps' is required for 'crm_dyson'!")
+
+    def to_string(self) -> str:
+        lines = list()
+        lines.append(f"Solver:         {self.SOLVER}")
+        lines.append(f"N warmup:       {self.n_warmup_cycles:_}")
+        lines.append(f"N cycles:       {self.n_cycles:_}")
+        lines.append(f"Length cycle:   {self.length_cycle}")
+        lines.append(f"Density matrix: {self.density_matrix}")
+        lines.append(f"Tail fit:       {self.tail_fit}")
+        lines.append(f"Fit max moment: {self.fit_max_moment}")
+        lines.append(f"Fit min N:      {self.fit_min_n}")
+        lines.append(f"Fit max N:      {self.fit_max_n}")
+        lines.append(f"Measure G(l):   {self.measure_g_l}")
+        lines.append(f"N_l:            {self.n_l}")
+        return "\n".join(lines)
 
 
 class CtSegSolverParams(SolverParams):
@@ -1383,6 +1415,36 @@ class InputParameters(Parameters):
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.format_jobname()})"
+
+    def to_string(self) -> str:
+        """Return a string representation of the input parameters."""
+        lines = list()
+        lines.append(f"jobname:        {self.jobname}")
+        lines.append(f"location:       {self.location_path}")
+        lines.append(f"output:         {self.output_path}")
+        lines.append(f"lattice:        {self.lattice}")
+        lines.append(f"gf struct:      {self.gf_struct}")
+        lines.append(f"half bandwidth: {self.half_bandwidth}")
+        lines.append(f"conc:           {self.conc}")
+        lines.append(f"U:              {self.u}")
+        lines.append(f"eps:            {self.eps}")
+        lines.append(f"H field:        {self.h_field}")
+        lines.append(f"mu:             {self.mu}")
+        if self.is_real_mesh:
+            lines.append(f"mesh:           {self.w_range}  N: {self.n_w}  eta: {self.eta}")
+        else:
+            lines.append(f"mesh:           N: {self.n_iw}  beta: {self.beta}")
+        lines.append(f"Symmetrize:     {self.symmetrize}")
+        lines.append(f"CPA tol:        {self.tol_cpa}")
+        lines.append(f"G tol:          {self.gtol:.1e}")
+        lines.append(f"S tol:          {self.stol:.1e}")
+        lines.append(f"Mixing DMFT:    {self.mixing_dmft}")
+        lines.append(f"Mixing CPA:     {self.mixing_cpa}")
+        if self.solver:
+            solver = self.solver_params
+            lines.append("")
+            lines.append(solver.to_string())
+        return "\n".join(lines)
 
 
 # Register classes for serialization with h5

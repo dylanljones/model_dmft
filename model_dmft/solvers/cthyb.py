@@ -36,14 +36,15 @@ def solve_cthyb(params: InputParameters, u: np.ndarray, e_onsite: np.ndarray, de
     report("Initializing CTHYB solver...")
 
     # Local Hamiltonian and interaction term
-    h_loc0 = e_onsite[0] * ops.n(up, 0) + e_onsite[1] * ops.n(dn, 0)
+    eps = e_onsite  #  - mu
+    h_loc0 = eps[0] * ops.n(up, 0) + eps[1] * ops.n(dn, 0)
     h_int = u * ops.n(up, 0) * ops.n(dn, 0)
 
     # Initialize delta interface
     g0_iw = delta.copy()
     h_loc0_mat = block_matrix_from_op(h_loc0, gf_struct)
     for i, name in enumerate(delta.indices):
-        g0_iw[name] << inverse(iOmega_n + mu - delta[name] - h_loc0_mat[i])  # maybe +mu missing?
+        g0_iw[name] << inverse(iOmega_n + mu + u / 2 - delta[name] - h_loc0_mat[i])  # maybe +mu missing?
 
     solve_kwargs = {
         "n_warmup_cycles": solver_params.n_warmup_cycles,
@@ -81,7 +82,7 @@ def solve_cthyb(params: InputParameters, u: np.ndarray, e_onsite: np.ndarray, de
 
     # Solve impurity problem
     report("Solving impurity...")
-    solver.solve(h_loc0=h_loc0, h_int=h_int, **solve_kwargs)
+    solver.solve(h_int=h_int, **solve_kwargs)
     report("Done!")
     report("")
 

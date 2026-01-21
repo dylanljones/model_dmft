@@ -437,3 +437,13 @@ If you use this code for your research, please cite the repository using the fol
 [HubbardI]: https://github.com/TRIQS/hubbardI
 [Hartree-Fock]: https://github.com/TRIQS/hartree_fock
 [ForkTPS]: https://git.rz.uni-augsburg.de/itphy-sw-origin/forktps
+
+
+
+╔╦╗╦═╗╦╔═╗ ╔═╗  ┌─┐┌┬┐┬ ┬┬ ┬┌┐
+ ║ ╠╦╝║║═╬╗╚═╗  │   │ ├─┤└┬┘├┴┐
+ ╩ ╩╚═╩╚═╝╚╚═╝  └─┘ ┴ ┴ ┴ ┴ └─┘
+
+┌┬┐┌─┐┌┬┐┌─┐┬    ╔╦╗╔╦╗╔═╗╔╦╗
+││││ │ ││├┤ │  ── ║║║║║╠╣  ║
+┴ ┴└─┘─┴┘└─┘┴─┘  ═╩╝╩ ╩╚   ╩
