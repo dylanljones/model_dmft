@@ -415,6 +415,48 @@ The temporary I/O files created during the calculation are stored in the tempora
 will be removed after each DMFT iteration.
 
 
+To read the output file, use the TRIQS HDF5 interface:
+
+```python
+from h5 import HDFArchive
+
+with HDFArchive("out.h5", "r") as ar:
+    # Read the last iteration number and input parameters
+    it = ar["it"]
+    params = ar["params"]
+    # Read the coherent Green's function
+    g_coh = ar["g_coh"]
+    # Read the component Green's functions
+    g_comp = ar["g_comp"]
+    # Read the coherent self energy
+    sigma_coh = ar["sigma_coh"]
+    # Read the impurity Green's functions
+    g_dmft = ar["g_dmft"]
+    # Read the impurity self energies
+    sigma_dmft = ar["sigma_dmft"]
+```
+
+If you want to read the results of a specific iteration, you can append the iteration number to the
+key name, e.g. `g_coh_10` for the coherent Green's function at iteration 10:
+
+```python
+from h5 import HDFArchive
+
+it = 10  # Specify the iteration number
+
+with HDFArchive("out.h5", "r") as ar:
+    # Read the coherent Green's function
+    g_coh = ar[f"g_coh-{it}"]
+    # Read the component Green's functions
+    g_comp = ar[f"g_comp-{it}"]
+    # Read the coherent self energy
+    sigma_coh = ar[f"sigma_coh-{it}"]
+    # Read the impurity Green's functions
+    g_dmft = ar[f"g_dmft-{it}"]
+    # Read the impurity self energies
+    sigma_dmft = ar[f"sigma_dmft-{it}"]
+```
+
 ## Citation
 
 If you use this code for your research, please cite the repository using the following BibTeX entry:
