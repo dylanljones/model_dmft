@@ -467,7 +467,7 @@ If you use this code for your research, please cite the repository using the fol
     license = {MIT},
     title   = {{model-dmft}: A versatile python wrapper to perform CPA+DMFT calculations utilizing the TRIQS library},
     url     = {https://github.com/dylanljones/model_dmft},
-    version = {0.0.1},
+    version = {0.3.0},
     year    = {2026}
 }
 ```
