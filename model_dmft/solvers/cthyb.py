@@ -79,8 +79,13 @@ def solve_cthyb(params: InputParameters, u: np.ndarray, e_onsite: np.ndarray, de
         # delta_interface=True,
         n_l=solver_params.n_l,
     )
+
     # Set hybridization function (imaginary time)
+    # for spin, delt in delta:
+    #     tail, err = fit_hermitian_tail(delt)
+    #     delt << delt - tail[0]  # noqa
     # solver.Delta_tau << Fourier(delta)  # type: ignore
+
     solver.G0_iw << g0_iw  # noqa
     mpi.barrier()
 

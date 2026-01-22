@@ -11,7 +11,6 @@ from triqs.gf import (
     BlockGf,
     Fourier,
     MeshImFreq,
-    fit_hermitian_tail,
     inverse,
     iOmega_n,
     make_hermitian,
@@ -24,24 +23,26 @@ from ..legendre import apply_legendre_filter
 from ..utility import blockgf, report
 
 
-def solve_ctseg(
-    params: InputParameters, u: np.ndarray, e_onsite: np.ndarray, delta: BlockGf
-) -> triqs_ctseg.Solver:
+def solve_ctseg(params: InputParameters, u: np.ndarray, e_onsite: np.ndarray, delta: BlockGf) -> triqs_ctseg.Solver:
     up, dn = params.spin_names
     solver_params: CtSegSolverParams = params.solver_params
-    gf_struct = params.gf_struct
+    # gf_struct = params.gf_struct
+    mu = params.mu
 
     report("Initializing CTSEG solver...")
 
     # Local Hamiltonian and interaction term
-    h_loc0 = e_onsite[0] * ops.n(up, 0) + e_onsite[1] * ops.n(dn, 0)
-    h_int = u * ops.n(up, 0) * ops.n(dn, 0)
+    eps = e_onsite  #  - mu
+    # Important: shift interaction to have zero Hartree at half-filling
+    h_int = u * (ops.n(up, 0) - 0.5) * (ops.n(dn, 0) - 0.5)
+
+    # h_loc0 = eps[0] * ops.n(up, 0) + eps[1] * ops.n(dn, 0)
+    # h_loc0_mat = block_matrix_from_op(h_loc0, gf_struct)
 
     # Initialize delta interface
     g0_iw = delta.copy()
-    h_loc0_mat = block_matrix_from_op(h_loc0, gf_struct)
     for i, name in enumerate(delta.indices):
-        g0_iw[name] << inverse(iOmega_n - delta[name] - h_loc0_mat[i])
+        g0_iw[name] << inverse(iOmega_n + mu - delta[name] - eps[i])
 
     solve_kwargs = {
         "n_warmup_cycles": solver_params.n_warmup_cycles,
@@ -51,6 +52,11 @@ def solve_ctseg(
     }
     if solver_params.density_matrix:
         solve_kwargs["measure_densities"] = solver_params.density_matrix
+
+    # Used for calculating moments
+    if solver_params.tail_fit or solver_params.crm_dyson:
+        solve_kwargs["measure_densities"] = True
+        # solve_kwargs["use_norm_as_weight"] = True
 
     seed_base = solver_params.random_seed if solver_params.random_seed is not None else 34788
     solve_kwargs["random_seed"] = seed_base + 928374 * mpi.rank  # random seed on each core
@@ -66,27 +72,26 @@ def solve_ctseg(
         # delta_interface=True,
         # n_l=solver_params.n_l,
     )
-    # Set hybridization function (imaginary time)
-    for spin, delt in delta:
-        tail, err = fit_hermitian_tail(delt)
-        delt << delt - tail[0]  # noqa
 
-    solver.Delta_tau << Fourier(delta)  # type: ignore
-    # solver.G0_iw << g0_iw  # noqa
+    # Set hybridization function (imaginary time)
+    # for spin, delt in delta:
+    #     tail, err = fit_hermitian_tail(delt)
+    #     delt << delt - tail[0]  # noqa
+    # solver.Delta_tau << Fourier(delta)  # type: ignore
+
+    solver.G0_iw << g0_iw  # noqa
     mpi.barrier()
 
     # Solve impurity problem
     report("Solving impurity...")
-    solver.solve(h_loc0=h_loc0, h_int=h_int, **solve_kwargs)
+    solver.solve(h_int=h_int, **solve_kwargs)
     report("Done!")
     report("")
 
     return solver
 
 
-def legendre_fit(
-    g0_iw: BlockGf, g_iw: BlockGf, g_tau: BlockGf, g_l: BlockGf
-) -> Tuple[BlockGf, BlockGf, BlockGf]:
+def legendre_fit(g0_iw: BlockGf, g_iw: BlockGf, g_tau: BlockGf, g_l: BlockGf) -> Tuple[BlockGf, BlockGf, BlockGf]:
     """Fit the Green's functions and self energy using the Legendre Green's function."""
     g_iw_l = g_iw.copy()
     g_tau_l = g_tau.copy()
