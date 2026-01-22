@@ -437,7 +437,7 @@ with HDFArchive("out.h5", "r") as ar:
 ```
 
 If you want to read the results of a specific iteration, you can append the iteration number to the
-key name, e.g. `g_coh_10` for the coherent Green's function at iteration 10:
+key name, e.g. `g_coh-10` for the coherent Green's function at iteration 10:
 
 ```python
 from h5 import HDFArchive
