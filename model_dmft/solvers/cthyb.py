@@ -18,7 +18,6 @@ from triqs.gf import (
     make_hermitian,
 )
 from triqs.gf.dlr_crm_dyson_solver import minimize_dyson
-from triqs.operators.util.extractors import block_matrix_from_op
 from triqs.utility import mpi
 from triqs_cthyb.tail_fit import tail_fit
 
@@ -30,21 +29,23 @@ from ..utility import rebin_gf_tau, report
 def solve_cthyb(params: InputParameters, u: np.ndarray, e_onsite: np.ndarray, delta: BlockGf) -> triqs_cthyb.Solver:
     up, dn = params.spin_names
     solver_params: CthybSolverParams = params.solver_params
-    gf_struct = params.gf_struct
+    # gf_struct = params.gf_struct
     mu = params.mu
 
     report("Initializing CTHYB solver...")
 
     # Local Hamiltonian and interaction term
     eps = e_onsite  #  - mu
-    h_loc0 = eps[0] * ops.n(up, 0) + eps[1] * ops.n(dn, 0)
-    h_int = u * ops.n(up, 0) * ops.n(dn, 0)
+    # Important: shift interaction to have zero Hartree at half-filling
+    h_int = u * (ops.n(up, 0) - 0.5) * (ops.n(dn, 0) - 0.5)
+
+    # h_loc0 = eps[0] * ops.n(up, 0) + eps[1] * ops.n(dn, 0)
+    # h_loc0_mat = block_matrix_from_op(h_loc0, gf_struct)
 
     # Initialize delta interface
     g0_iw = delta.copy()
-    h_loc0_mat = block_matrix_from_op(h_loc0, gf_struct)
     for i, name in enumerate(delta.indices):
-        g0_iw[name] << inverse(iOmega_n + mu + u / 2 - delta[name] - h_loc0_mat[i])  # maybe +mu missing?
+        g0_iw[name] << inverse(iOmega_n + mu - delta[name] - eps[i])
 
     solve_kwargs = {
         "n_warmup_cycles": solver_params.n_warmup_cycles,
@@ -56,13 +57,16 @@ def solve_cthyb(params: InputParameters, u: np.ndarray, e_onsite: np.ndarray, de
         solve_kwargs["measure_density_matrix"] = True
         solve_kwargs["use_norm_as_weight"] = True
 
+    # Used for calculating moments
     if solver_params.tail_fit or solver_params.crm_dyson:
-        # Used for calculating moments
         solve_kwargs["measure_density_matrix"] = True
         solve_kwargs["use_norm_as_weight"] = True
 
+    # Ensure different random seed on each MPI rank, but reproducible
     seed_base = solver_params.random_seed if solver_params.random_seed is not None else 34788
     solve_kwargs["random_seed"] = seed_base + 928374 * mpi.rank  # random seed on each core
+
+    # Set random name if provided
     if solver_params.random_name:
         solve_kwargs["random_name"] = solver_params.random_name
 
