@@ -423,7 +423,7 @@ If you use this code for your research, please cite the repository using the fol
 @software{Jones_model_dmft_2026,
     author  = {Jones, Dylan},
     license = {MIT},
-    title   = {{model-dmft}: A versatile python wrapper to perform CPA+DMFT calculations},
+    title   = {{model-dmft}: A versatile python wrapper to perform CPA+DMFT calculations utilizing the TRIQS library},
     url     = {https://github.com/dylanljones/model_dmft},
     version = {0.0.1},
     year    = {2026}
@@ -437,13 +437,3 @@ If you use this code for your research, please cite the repository using the fol
 [HubbardI]: https://github.com/TRIQS/hubbardI
 [Hartree-Fock]: https://github.com/TRIQS/hartree_fock
 [ForkTPS]: https://git.rz.uni-augsburg.de/itphy-sw-origin/forktps
-
-
-
-╔╦╗╦═╗╦╔═╗ ╔═╗  ┌─┐┌┬┐┬ ┬┬ ┬┌┐
- ║ ╠╦╝║║═╬╗╚═╗  │   │ ├─┤└┬┘├┴┐
- ╩ ╩╚═╩╚═╝╚╚═╝  └─┘ ┴ ┴ ┴ ┴ └─┘
-
-┌┬┐┌─┐┌┬┐┌─┐┬    ╔╦╗╔╦╗╔═╗╔╦╗
-││││ │ ││├┤ │  ── ║║║║║╠╣  ║
-┴ ┴└─┘─┴┘└─┘┴─┘  ═╩╝╩ ╩╚   ╩
