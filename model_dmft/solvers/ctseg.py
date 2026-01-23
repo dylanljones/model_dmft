@@ -49,14 +49,8 @@ def solve_ctseg(params: InputParameters, u: np.ndarray, e_onsite: np.ndarray, de
         "n_cycles": solver_params.n_cycles,
         "length_cycle": solver_params.length_cycle,
         "measure_F_tau": solver_params.measure_f_tau,
+        "measure_densities": True,
     }
-    if solver_params.density_matrix:
-        solve_kwargs["measure_densities"] = solver_params.density_matrix
-
-    # Used for calculating moments
-    if solver_params.tail_fit or solver_params.crm_dyson:
-        solve_kwargs["measure_densities"] = True
-        # solve_kwargs["use_norm_as_weight"] = True
 
     seed_base = solver_params.random_seed if solver_params.random_seed is not None else 34788
     solve_kwargs["random_seed"] = seed_base + 928374 * mpi.rank  # random seed on each core
