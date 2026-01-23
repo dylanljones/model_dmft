@@ -52,15 +52,10 @@ def solve_cthyb(params: InputParameters, u: np.ndarray, e_onsite: np.ndarray, de
         "n_cycles": solver_params.n_cycles,
         "length_cycle": solver_params.length_cycle,
         "measure_G_l": solver_params.measure_g_l,
+        # Used for calculating moments
+        "measure_density_matrix": True,
+        "use_norm_as_weight": True,
     }
-    if solver_params.density_matrix:
-        solve_kwargs["measure_density_matrix"] = True
-        solve_kwargs["use_norm_as_weight"] = True
-
-    # Used for calculating moments
-    if solver_params.tail_fit or solver_params.crm_dyson:
-        solve_kwargs["measure_density_matrix"] = True
-        solve_kwargs["use_norm_as_weight"] = True
 
     # Ensure different random seed on each MPI rank, but reproducible
     seed_base = solver_params.random_seed if solver_params.random_seed is not None else 34788
