@@ -2,7 +2,7 @@
 # Author: Dylan Jones
 # Date:   2025-03-19
 
-from typing import Optional
+from typing import Optional, Union
 
 import numpy as np
 from triqs.gf import BlockGf, Gf, MeshLegendre
@@ -37,7 +37,7 @@ def apply_legendre_filter(g_tau: BlockGf, order: int = 100, g_l_cut: float = 1e-
     return g_l
 
 
-def truncate_g_l(g_l_orig: BlockGf, n_l: int) -> BlockGf:
+def truncate_g_l(g_l_orig: Union[BlockGf, Gf], n_l: int) -> Union[BlockGf, Gf]:
     """Truncate a Legendre Green's function to a specified number of Legendre coefficients.
 
     Parameters
@@ -56,15 +56,19 @@ def truncate_g_l(g_l_orig: BlockGf, n_l: int) -> BlockGf:
     mesh_orig = g_l_orig.mesh
     # Create a new Legendre mesh with the specified maximum number of coefficients
     mesh = MeshLegendre(beta=mesh_orig.beta, statistic=mesh_orig.statistic, max_n=n_l)
-    blocks = list()
-    # Iterate over the blocks in the original Green's function
-    for _, g in g_l_orig:
-        # Create a new Green's function with truncated data
-        g_new = Gf(mesh=mesh, data=g.data[:n_l])
-        blocks.append(g_new)
-    # Construct a new BlockGf with the truncated blocks
-    g_l = BlockGf(name_list=list(g_l_orig.indices), block_list=blocks, name=g_l_orig.name)
-    return g_l
+
+    def _truncate(_g: Gf) -> Gf:
+        return Gf(mesh=mesh, data=_g.data[:n_l])
+
+    if isinstance(g_l_orig, BlockGf):
+        names, blocks = list(), list()
+        # Iterate over the blocks in the original Green's function
+        for name, g in g_l_orig:
+            names.append(name)
+            blocks.append(_truncate(g))
+        return BlockGf(name_list=names, block_list=blocks, name=g_l_orig.name)
+    else:
+        return _truncate(g_l_orig)
 
 
 def get_optimal_nl(g_l: BlockGf, thresh: float = 1e-2) -> int:
