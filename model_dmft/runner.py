@@ -245,34 +245,38 @@ def update_dataset(archive_file: Union[Path, str], keep_iter: bool = True) -> No
     if not keep_iter:
         return
 
+    keys = [
+        "sigma_coh",
+        "g_coh",
+        "g_cmpt",
+        "occ",
+        "err_g",
+        "err_sigma",
+        "err_occ",
+        "mu",
+        "delta",
+        "sigma_dmft",
+        "sigma_dmft_raw",
+        "g_coh_real",
+        "g_cmpt_real",
+        "g_cmpt_real",
+        "g_ret",
+        "g_l",
+        "g_tau",
+        "g_tau_raw",
+        "average_sign",
+        "average_order",
+        "auto_corr_time",
+        "g_iw_solver",
+        "g0_iw_solver",
+        "sigma_moments",
+    ]
+
     with HDFArchive(archive_file, "a") as ar:
         it = ar["it"]
-        ar[f"sigma_coh-{it}"] = ar["sigma_coh"]
-        ar[f"g_coh-{it}"] = ar["g_coh"]
-        ar[f"g_cmpt-{it}"] = ar["g_cmpt"]
-        ar[f"occ-{it}"] = ar["occ"]
-        ar[f"err_g-{it}"] = ar["err_g"]
-        ar[f"err_sigma-{it}"] = ar["err_sigma"]
-        ar[f"err_occ-{it}"] = ar["err_occ"]
-        ar[f"mu-{it}"] = ar["mu"]
-        if "sigma_dmft" in ar:
-            ar[f"sigma_dmft-{it}"] = ar["sigma_dmft"]
-            ar[f"delta-{it}"] = ar["delta"]
-        if "sigma_dmft_raw" in ar:
-            ar[f"sigma_dmft_raw-{it}"] = ar["sigma_dmft_raw"]
-
-        if "g_coh_real" in ar:
-            ar[f"g_coh_real-{it}"] = ar["g_coh_real"]
-        if "g_cmpt_real" in ar:
-            ar[f"g_cmpt_real-{it}"] = ar["g_cmpt_real"]
-        if "sigma_coh_real" in ar:
-            ar[f"sigma_coh_real-{it}"] = ar["sigma_coh_real"]
-        if "g_ret" in ar:
-            ar[f"g_ret-{it}"] = ar["g_ret"]
-        if "g_l" in ar:
-            ar[f"g_l-{it}"] = ar["g_l"]
-        if "g_tau" in ar:
-            ar[f"g_tau-{it}"] = ar["g_tau"]
+        for key in keys:
+            if key in ar:
+                ar[f"{key}-{it}"] = ar[key]
 
 
 def hybridization(gf: BlockGf, eps: BlockGf, sigma: BlockGf, mu: float, eta: float = 0.0, name: str = "Δ") -> BlockGf:
@@ -379,6 +383,7 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
                 ar["solver"] = solver
                 ar["g_tau_raw"] = solver.G_tau
                 ar["g_iw"] = solver.G_iw
+                ar["g0_iw"] = solver.G0_iw
                 if g_tau_rebinned is None:
                     ar["g_tau"] = solver.G_tau
                 else:
@@ -394,7 +399,11 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
                 if g_l is not None:
                     # Store the Legendre Green's functions
                     ar["g_l"] = g_l
-
+                try:
+                    sigma_moments = solver.Sigma_moments
+                    ar["sigma_moments"] = sigma_moments
+                except AttributeError:
+                    pass
     elif solver_type == "ctseg":
         from .solvers.ctseg import postprocess_ctseg, solve_ctseg
 
@@ -551,6 +560,7 @@ def _load_tmp_files(sigma_dmft: BlockGf, tmp_filepath: str, archive_file: str) -
         # report(f"Loading temporary file {tmp_file}...")
         keys = [
             "sigma_dmft_raw",
+            "sigma_moments",
             "g_ret",
             "g_l",
             "g_tau_raw",
@@ -559,6 +569,7 @@ def _load_tmp_files(sigma_dmft: BlockGf, tmp_filepath: str, archive_file: str) -
             "average_sign",
             "average_order",
             "auto_corr_time",
+            "g0_iw",
         ]
         with HDFArchive(str(tmp_file), "r") as ar:
             if "sigma_dmft" in ar:
@@ -571,6 +582,8 @@ def _load_tmp_files(sigma_dmft: BlockGf, tmp_filepath: str, archive_file: str) -
         for name, block_gf in accumulators.items():
             if name == "g_iw":
                 name = "g_iw_solver"
+            if name == "g0_iw":
+                name = "g0_iw_solver"
             ar[name] = block_gf
 
     # Remove temporary files

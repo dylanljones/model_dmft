@@ -259,22 +259,22 @@ def postprocess_cthyb(
 
         sigma_iw = sigma_iw_crm
 
-    if solver_params.correct_hartree:
-        # Correct hartree shift
-        report("Correcting Hartree shift...")
-        densities = dict()
-        for spin, g in solver.G_iw:
-            # Compute density
-            dens = g.density()
-            if np.any(dens.imag > 1e-10):
-                report("Warning: density is not real")
-            densities[spin] = dens.real
-
-        up, dn = params.spin_names
-        correction_up = densities[dn] * u
-        correction_dn = densities[up] * u
-        sigma_iw[up] += correction_up
-        sigma_iw[dn] += correction_dn
-        report(f"Corrected Hartree shift: {correction_up} (up), {correction_dn} (dn)")
+    # if solver_params.correct_hartree:
+    #     # Correct hartree shift
+    #     report("Correcting Hartree shift...")
+    #     densities = dict()
+    #     for spin, g in solver.G_iw:
+    #         # Compute density
+    #         dens = g.density()
+    #         if np.any(dens.imag > 1e-10):
+    #             report("Warning: density is not real")
+    #         densities[spin] = dens.real
+    #
+    #     up, dn = params.spin_names
+    #     correction_up = densities[dn] * u
+    #     correction_dn = densities[up] * u
+    #     sigma_iw[up] += correction_up
+    #     sigma_iw[dn] += correction_dn
+    #     report(f"Corrected Hartree shift: {correction_up} (up), {correction_dn} (dn)")
 
     return sigma_iw, g_l, g_tau_rebinned

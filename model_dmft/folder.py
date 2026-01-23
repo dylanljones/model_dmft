@@ -65,11 +65,11 @@ def find_slurm_scripts(root: Union[str, Path]) -> Path:
 class Folder:
     def __init__(
         self,
-        path: Union[str, Path],
+        *path: Union[str, Path],
         input_file: Union[str, Path] = None,
         assert_exists: bool = False,
     ):
-        self.path = Path(path)
+        self.path = Path(*path)
         self._input_file = input_file
         self._params = None
         self._slurm_file = None

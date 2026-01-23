@@ -432,7 +432,7 @@ class CthybSolverParams(SolverParams):
         self.crm_dyson: Optional[bool] = None  # Solve Dyson equation using constrained minimization problem
         self.crm_wmax: Optional[float] = None  # Spectral width of the impurity problem for DLR basis
         self.crm_eps: Optional[float] = None  # Accuracy of the DLR basis to represent Green’s function
-        self.correct_hartree: Optional[bool] = None  # Correct Hartree term in the self-energy
+        # self.correct_hartree: Optional[bool] = None  # Correct Hartree term in the self-energy
 
         self.random_seed: Optional[int] = None  # Random seed for the solver
         self.random_name: Optional[str] = None  # Name of random number generator
@@ -538,7 +538,7 @@ class CtSegSolverParams(SolverParams):
         self.n_l: int = 30  # Number of Legendre polynomials.
         self.legendre_fit: Optional[bool] = None  # Fit Green's function and self energy using Legendre Gf
         self.density_matrix: Optional[bool] = None  # Measure the impurity density matrix.
-        self.correct_hartree: Optional[bool] = None  # Correct Hartree term in the self-energy
+        # self.correct_hartree: Optional[bool] = None  # Correct Hartree term in the self-energy
         self.random_seed: Optional[int] = None  # Random seed for the solver
         self.random_name: Optional[str] = None  # Name of random number generator
 
