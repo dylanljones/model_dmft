@@ -163,7 +163,7 @@ def crm_solve_dyson(
     for name, sig in sigma_iw:
         sig += sigma_moments[name][0]
 
-    return sigma_iw
+    return make_hermitian(sigma_iw)
 
 
 def postprocess_cthyb(
