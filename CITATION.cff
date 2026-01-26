@@ -4,7 +4,7 @@ cff-version: "1.2.0"
 title: "model-dmft: A versatile python wrapper to perform CPA+DMFT calculations utilizing the TRIQS library."
 license: "MIT"
 date-released: 2026-01-22
-version: "0.3.0"
+version: "0.3"
 message: "If you use model-dmft, please consider to cite the software using the metadata below."
 repository-code: "https://github.com/dylanljones/model_dmft"
 authors:
