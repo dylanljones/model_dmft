@@ -11,6 +11,7 @@ A versatile python wrapper to perform CPA+DMFT calculations utilizing the TRIQS 
 - [Usage](#usage)
 - [Inputs](#inputs)
 - [Outputs](#outputs)
+- [Slurm Example](#slurm-example)
 - [Citation](#citation)
 
 
@@ -511,6 +512,41 @@ with HDFArchive("out.h5", "r") as ar:
     g_dmft = ar[f"g_dmft-{it}"]
     # Read the impurity self energies
     sigma_dmft = ar[f"sigma_dmft-{it}"]
+```
+
+## Slurm Example
+
+An example SLURM script to run `model_dmft` on a computing cluster is shown below.
+You may need to modify it according to your cluster's configuration and requirements.
+
+```bash
+#!/bin/bash
+#SBATCH --job-name=<Job Name>
+#SBATCH --mail-type=FAIL
+#SBATCH --mail-user=<Your Email>
+#SBATCH --nodes=1
+#SBATCH --ntasks=64
+#SBATCH --mem-per-cpu=512mb
+#SBATCH --threads-per-core=1
+#SBATCH --export=ALL
+
+# ---- Modify to load modules of your cluster -----
+# Initialize modules and activate conda environment
+module purge
+module load anaconda
+module load gcc openmpi/5
+conda activate triqs3.3
+# -------------------------------------------------
+
+# Limit Numpy threads
+export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
+export MKL_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
+export OPENBLAS_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
+export VECLIB_MAXIMUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
+export NUMEXPR_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
+
+# Run the script
+python -m model_dmft run inp.toml -n $SLURM_NTASKS
 ```
 
 ## Citation
