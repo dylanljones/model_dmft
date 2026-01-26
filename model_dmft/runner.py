@@ -1348,25 +1348,6 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                         # Stop iterations if converged
                         break
 
-                # if params.stol and err_sigma < params.stol:
-                #     now = datetime.now()
-                #     report("")
-                #     report(f"Σ converged in {it} iterations at {now:{TIME_FRMT}}")
-                #     report("")
-                #     break
-                # if params.gtol and err_g < params.gtol:
-                #     now = datetime.now()
-                #     report("")
-                #     report(f"G converged in {it} iterations at {now:{TIME_FRMT}}")
-                #     report("")
-                #     break
-                # if params.occ_tol and err_occ < params.occ_tol:
-                #     now = datetime.now()
-                #     report("")
-                #     report(f"Occupation converged in {it} iterations at {now:{TIME_FRMT}}")
-                #     report("")
-                #     break
-
         # Postprocessing
         postprocess(params, out_file)
 
@@ -1386,4 +1367,4 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
             if tmp_path.exists():
                 shutil.rmtree(tmp_path)
         except Exception as e:
-            report(f"Could not remove tmp-dir: {e}")
+            report(f"\nCould not remove tmp-dir: {e}")

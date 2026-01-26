@@ -11,7 +11,7 @@ from typing import Any, Generator, List, Tuple, Union
 import numpy as np
 from colorama import Fore, Style
 from numpy.typing import DTypeLike
-from triqs.gf import BlockGf, Gf, MeshImFreq, MeshImTime, MeshReFreq, MeshReTime
+from triqs.gf import BlockGf, Gf, MeshImFreq, MeshImTime, MeshReFreq, MeshReTime, inverse
 from triqs.utility import mpi
 
 GfStruct = List[Tuple[str, int]]
@@ -340,6 +340,18 @@ def fill_gf(gf: GfLike, data: np.ndarray) -> None:
                     g[k].data[...] = v[...]
 
         _fill_block(gf, data)
+
+
+def dyson(*, g0: GfLike = None, g: GfLike = None, sigma: GfLike = None) -> GfLike:
+    """Dyson equation solver. Provide exactly two of g0, g, sigma to compute the third."""
+    if g0 is not None and g is not None and sigma is None:
+        return inverse(g0) - inverse(g)
+    elif g0 is not None and sigma is not None and g is None:
+        return inverse(inverse(g0) - sigma)
+    elif g is not None and sigma is not None and g0 is None:
+        return inverse(inverse(g) + sigma)
+    else:
+        raise ValueError("Provide exactly two of g0, g, sigma.")
 
 
 def symmetrize_gf(gf: BlockGf) -> BlockGf:
