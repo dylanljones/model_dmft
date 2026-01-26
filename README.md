@@ -53,7 +53,7 @@ call the `solve` method:
 
 ```python
 from model_dmft import InputParameters
-from model_dmft.runner import solve
+from model_dmft.solver import solve
 
 params = InputParameters(solver="cthyb")
 

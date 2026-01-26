@@ -95,7 +95,7 @@ def update():
 @click.argument("tmp_file", type=click.Path(exists=True))
 def solve_impurity_cmd(tmp_file: str):
     """Solve the impurity problem."""
-    from model_dmft.runner import solve_impurity
+    from model_dmft.solver import solve_impurity
 
     solve_impurity(tmp_file)
     sys.exit(0)  # make sure exit code is 0 on success
@@ -110,7 +110,7 @@ def solve_impurity_cmd(tmp_file: str):
 @click.option("--n_procs", "-n", default=0, type=int, help="Total number of processes to use")
 def run_cmd(file: str, n_procs: int):
     """Run a CPA+DMFT calculation."""
-    from model_dmft.runner import solve
+    from model_dmft.solver import solve
 
     file = Path(file)
     if file.is_dir():
