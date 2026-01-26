@@ -34,7 +34,7 @@ Additionally, one or multiple of the following solvers are required:
 
 - [CTHYB]
 - [CTSEG]
-- [ForkTPS]
+- [ForkTPS] (private)
 - [HubbardI]
 - [Hartree-Fock]
 
@@ -588,4 +588,4 @@ If you use this code for your research, please cite the repository using the fol
 [CTSEG]: https://github.com/TRIQS/ctseg
 [HubbardI]: https://github.com/TRIQS/hubbardI
 [Hartree-Fock]: https://github.com/TRIQS/hartree_fock
-[ForkTPS]: https://git.rz.uni-augsburg.de/itphy-sw-origin/forktps
+[ForkTPS]: https://github.com/TRIQS/forktps
