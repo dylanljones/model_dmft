@@ -6,7 +6,7 @@
 
 import os
 import warnings
-from typing import Any, Generator, List, Tuple, Union
+from typing import Any, Generator, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 from colorama import Fore, Style
@@ -73,12 +73,22 @@ def style(text: Any, fg: str = "", bg: str = "", dim: bool = False) -> str:
     return fg + text + Style.RESET_ALL if s else text
 
 
-def report(text: Any, once: bool = True) -> None:
+def report(
+    *args: Any,
+    once: bool = True,
+    rank: bool = False,
+    sep: str = " ",
+) -> None:
     """Print a message to the console."""
-    text = str(text)
+    parts = [str(a) for a in args]
+    out_str = sep.join(parts)
+    if rank:
+        out_str = f"[{mpi.rank}] {out_str}"
     # text = style(text, fg=fg, bg=bg, dim=dim)
-    if not once or mpi.is_master_node():
-        mpi.report(text)
+    if once:
+        mpi.report(out_str)
+    else:
+        print(out_str, flush=True)
 
 
 class WorkingDir:
@@ -383,3 +393,155 @@ def mixing_update(it: float, mix_max: float, mix_min: float, mix_decay: float) -
         return mix_max
     mix = mix_min + (mix_max - mix_min) * np.exp(-mix_decay * max(it - 1, 0))
     return mix
+
+
+def mpi_enumerate(iterable: Iterable[Any]) -> Generator[tuple[int, Any], Any, None]:
+    """MPI-aware enumerate for general iterables (simple modulo assignment)."""
+    for i, x in enumerate(iterable):
+        if i % mpi.size == mpi.rank:
+            yield i, x
+
+
+def _rank_slice_from_length(n: int, size: int, rank: int) -> Tuple[int, int]:
+    """Return (start, stop) for block distribution of n items across size ranks."""
+    base = n // size
+    rem = n % size
+    if rank < rem:
+        start = rank * (base + 1)
+        stop = start + (base + 1)
+    else:
+        start = rem * (base + 1) + (rank - rem) * base
+        stop = start + base
+    return start, stop
+
+
+def mpi_enumerate_array(a: np.ndarray) -> Generator[Tuple[int | Any, Any], Any, None]:
+    """MPI-safe enumerate for numpy arrays along axis 0.
+
+    Yields (global_index, element) for the portion assigned to this rank.
+    """
+    n = a.shape[0]
+    start, stop = _rank_slice_from_length(n, mpi.size, mpi.rank)
+    local = a[start:stop]
+    for offset, elem in enumerate(local):
+        yield start + offset, elem
+
+
+def mpi_collect_to_array(
+    pairs: Iterable[Tuple[int, object]],
+    length: int,
+    dtype: Optional[np.dtype] = None,
+    fill: Optional[object] = None,
+    root: int = 0,
+) -> Optional[np.ndarray]:
+    """Gather local (index, value) pairs to `root` using triqs.mpi send/recv.
+
+    Reconstruct a numpy array of given `length` on `root`.
+    Returns the full array on `root`, None on other ranks.
+    """
+    rank = mpi.rank
+    size = mpi.size
+
+    local_pairs = list(pairs)
+    local_idx = [int(i) for i, _ in local_pairs]
+    local_vals = [v for _, v in local_pairs]
+
+    if rank == root:
+        # prepare containers indexed by rank
+        all_idx = [None] * size
+        all_vals = [None] * size
+        all_idx[root] = local_idx  # type: ignore
+        all_vals[root] = local_vals  # type: ignore
+
+        # receive from every other rank
+        for src in range(size):
+            if src == root:
+                continue
+            idx_vals = mpi.recv(source=src)  # expect (idx_list, val_list)
+            if idx_vals is None:
+                all_idx[src] = []  # type: ignore
+                all_vals[src] = []  # type: ignore
+            else:
+                idx_list, val_list = idx_vals
+                all_idx[src] = idx_list
+                all_vals[src] = val_list
+    else:
+        # send to root and return
+        mpi.send((local_idx, local_vals), dest=root)
+        return None
+
+    # infer dtype if not provided
+    if dtype is None:
+        for lst in all_vals:
+            if lst:
+                dtype = np.array(lst).dtype
+                break
+        if dtype is None:
+            dtype = object
+
+    # determine sensible default fill to avoid np.full errors for integer dtypes
+    np_dtype = np.dtype(dtype)
+    if fill is None:
+        if np.issubdtype(np_dtype, np.floating):
+            default_fill = np.nan
+        elif np.issubdtype(np_dtype, np.integer):
+            default_fill = 0
+        else:
+            default_fill = None
+    else:
+        default_fill = fill
+
+    out = np.full(length, default_fill, dtype=np_dtype)
+
+    for idx_list, val_list in zip(all_idx, all_vals):
+        if not idx_list:
+            continue
+        for i, v in zip(idx_list, val_list):
+            out[int(i)] = v
+
+    return out
+
+
+def mpi_collect_to_list(
+    pairs: Iterable[Tuple[int, object]], length: int, root: int = 0
+) -> Optional[List[Optional[object]]]:
+    """Gather local (index, value) pairs to `root` using triqs.mpi send/recv."""
+    rank = mpi.rank
+    size = mpi.size
+
+    local_pairs = list(pairs)
+    local_idx = [int(i) for i, _ in local_pairs]
+    local_vals = [v for _, v in local_pairs]
+
+    if rank == root:
+        # prepare containers indexed by rank
+        all_idx = [None] * size
+        all_vals = [None] * size
+        all_idx[root] = local_idx  # type: ignore
+        all_vals[root] = local_vals  # type: ignore
+
+        # receive from every other rank
+        for src in range(size):
+            if src == root:
+                continue
+            idx_vals = mpi.recv(source=src)  # expect (idx_list, val_list)
+            if idx_vals is None:
+                all_idx[src] = []  # type: ignore
+                all_vals[src] = []  # type: ignore
+            else:
+                idx_list, val_list = idx_vals
+                all_idx[src] = idx_list
+                all_vals[src] = val_list
+    else:
+        # send to root and return
+        mpi.send((local_idx, local_vals), dest=root)
+        return None
+
+    default_fill = None
+    out: List[Optional[object]] = [default_fill] * length
+    for idx_list, val_list in zip(all_idx, all_vals):
+        if not idx_list:
+            continue
+        for i, v in zip(idx_list, val_list):
+            out[int(i)] = v
+    return out

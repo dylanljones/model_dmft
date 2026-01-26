@@ -223,7 +223,7 @@ def postprocess_cthyb(
                 consec=solver_params.crm_consec or 1,
             )
             if not res.success:
-                wmax_center = (solver_params.crm_wmax_start + solver_params.crm_wmax_stop) / 2.0
+                wmax_center = (solver_params.crm_wmax_start + solver_params.crm_wmax_end) / 2.0
                 report("================================================================")
                 report(f"WARNING: Did not find optimal w_max! Using w_max={wmax_center}.")
                 report("================================================================")

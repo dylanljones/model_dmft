@@ -39,7 +39,8 @@ def minimize_dyson(
     G_dlr,
     Sigma_moments,
     method='trust-constr',
-    options=dict(maxiter=5000, disp=True, gtol=1e-32, xtol=1e-100, finite_diff_rel_step=1e-20),
+    options=dict(maxiter=5000, gtol=1e-32, xtol=1e-100, finite_diff_rel_step=1e-20),
+    verbosity=0,
     **kwargs,
 ):
     """
@@ -84,6 +85,8 @@ def minimize_dyson(
         Note: For non-linear constraints this is one of the few available methods
     options : dict, optional
         optimization options, defaults to dict(maxiter=5000, disp=True, gtol=1e-32, xtol=1e-100, finite_diff_rel_step=1e-20)
+    verbosity: int, optional
+        verbosity level for mpi reporting (0: warnings, 1: info, 2: full). Defaults to 0 (warnings)
 
     Returns
     -------
@@ -95,6 +98,10 @@ def minimize_dyson(
         L2 norm of residual (G-G₀-G₀ΣG)
 
     """
+    if verbosity > 1:
+        options['disp'] = True
+    else:
+        options['disp'] = False
 
     # recursive call for BlockGf, could be MPI parallelized
     if isinstance(G_dlr, BlockGf) or isinstance(G0_dlr, BlockGf):
@@ -188,15 +195,16 @@ def minimize_dyson(
     # run solver to optimize Σ(iν)
     solution = minimize(dyson_difference, x_init, method=method, constraints=constraints, options=options)
 
-    mpi.report(solution.message)
+    if verbosity > 0:
+        mpi.report(solution.message)
     if not solution.success:
         mpi.report('[WARNING] Minimization did not converge! Please proceed with caution!')
 
     # create optimized self-energy from minimizer
     sig_iwaa = Gf(mesh=mesh_iw, data=unflatten(solution.x))
 
-    mpi.report(f'L2 norm of residual (G-G₀-G₀ΣG): {solution.fun:.4e}')
-    if len(Sigma_moments) >= 2:
+    # mpi.report(f'L2 norm of residual (G-G₀-G₀ΣG): {solution.fun:.4e}')
+    if verbosity > 1 and len(Sigma_moments) >= 2:
         constraint_violation = np.max(np.abs(make_gf_dlr(sig_iwaa).data.sum(axis=0) - Sigma_moments[1]))
         mpi.report(f'Σ1 constraint diff: {constraint_violation:.4e}')
 

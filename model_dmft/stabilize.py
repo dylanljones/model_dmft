@@ -3,7 +3,7 @@
 # Date:   2026-01-25
 
 from dataclasses import dataclass
-from typing import Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -23,9 +23,10 @@ from triqs.gf import (
 
 # from triqs.gf.dlr_crm_dyson_solver import minimize_dyson
 from triqs.gf.tools import fit_legendre as _fit_legendre
+from triqs.utility import mpi
 
 from .crm_solver import minimize_dyson
-from .utility import GfLike, dyson, report, toarray
+from .utility import GfLike, dyson, mpi_collect_to_list, mpi_enumerate_array, report, toarray
 
 EPS = 1e-100  # small number to avoid div by zero
 
@@ -129,7 +130,7 @@ class TailPolynomial:
 
 
 def crm_solve_dyson(
-    g_tau: BlockGf, g0_iw: BlockGf, sigma_moments: dict[str, np.ndarray], w_max: float, eps: float
+    g_tau: BlockGf, g0_iw: BlockGf, sigma_moments: dict[str, np.ndarray], w_max: float, eps: float, verbosity: int = 0
 ) -> BlockGf:
     """Solve the Dyson equation via a constrained minimization problem (CRM).
 
@@ -174,7 +175,7 @@ def crm_solve_dyson(
     # Use the CRM solver to minimize the Dyson error
     for name, sig in sigma_dlr:
         s_dlr, s_hf, residual = minimize_dyson(
-            G0_dlr=g0_dlr_iw[name], G_dlr=g_dlr_iw[name], Sigma_moments=sigma_moments[name]
+            G0_dlr=g0_dlr_iw[name], G_dlr=g_dlr_iw[name], Sigma_moments=sigma_moments[name], verbosity=verbosity
         )
         sig << s_dlr  # noqa
 
@@ -228,56 +229,68 @@ def pick_wmax_opt(
     cutoff = int(0.5 * cutoff) if cutoff is not None else 10
 
     # compute Sigma(wmax) for each wmax
-    sigmas = list()
-    for i, wmax in enumerate(wmax_grid):
-        report(f"wmax: {wmax}")
+    # sigmas = list()
+    sigma_pairs = list()
+    for i, wmax in mpi_enumerate_array(wmax_grid):
+        report(f"Solving CRM for wmax: {wmax}", once=False, rank=True)
         sigma_crm = crm_solve_dyson(g_tau, g0_iw, sigma_moments, w_max=wmax, eps=1e-6)
-        report("")
-        sigmas.append(sigma_crm)
+        # report("")
+        # sigmas.append(sigma_crm)
+        sigma_pairs.append((i, sigma_crm))
+    mpi.barrier()
+    sigmas: List[GfLike] = mpi_collect_to_list(sigma_pairs, length=n, root=0)  # type: ignore
+    mpi.barrier()
 
-    # build metric curve m(i)
-    metrics = []
-    pairs = list(zip(range(n - idx_step), range(idx_step, n)))
-    for i, j in pairs:
-        dist = gf_distance(sigmas[j], sigmas[i], n_stop=iw_stop, relative=True, q=q)
-        metrics.append(dist)
-    metrics = np.asarray(metrics, float)
-    metrics = np.pad(metrics, (idx_step, 0), mode="edge")  # align sizes
+    if mpi.is_master_node():
+        assert len(sigmas) == n, "Sigma list has incorrect length."
+        assert all(s is not None for s in sigmas), "Some Sigma computations failed."
+        # build metric curve m(i)
+        metrics = []
+        pairs = list(zip(range(n - idx_step), range(idx_step, n)))
+        for i, j in pairs:
+            dist = gf_distance(sigmas[j], sigmas[i], n_stop=iw_stop, relative=True, q=q)
+            metrics.append(dist)
+        metrics = np.asarray(metrics, float)
+        metrics = np.pad(metrics, (idx_step, 0), mode="edge")  # align sizes
 
-    # build metric curve m(i) to reference
-    metrics_ref = []
-    for i in range(n):
-        dist = gf_distance(sigmas[i], sigma_ref, n_stop=cutoff, relative=True, q=q)
-        metrics_ref.append(dist)
-    metrics_ref = np.asarray(metrics_ref, float)
+        # build metric curve m(i) to reference
+        metrics_ref = []
+        for i in range(n):
+            dist = gf_distance(sigmas[i], sigma_ref, n_stop=cutoff, relative=True, q=q)
+            metrics_ref.append(dist)
+        metrics_ref = np.asarray(metrics_ref, float)
 
-    metrics_tails = list()
-    n_iw = g0_iw.mesh.n_iw
-    i0 = int(n_iw * (1.0 + tail_frac))  # last % of Matsubara points
-    iw = toarray(g0_iw.mesh)[i0:]
-    tails = tail_poly(1j * iw)[..., 0, 0].imag
-    for sigma in sigmas:
-        data = toarray(sigma)[..., i0:, 0, 0].imag
-        dist = distance(tails, data, relative=True, q=q)
-        metrics_tails.append(dist)
-    metrics_tails = np.asarray(metrics_tails, float)
+        metrics_tails = list()
+        n_iw = g0_iw.mesh.n_iw
+        i0 = int(n_iw * (1.0 + tail_frac))  # last % of Matsubara points
+        iw = toarray(g0_iw.mesh)[i0:]
+        tails = tail_poly(1j * iw)[..., 0, 0].imag
+        for sigma in sigmas:
+            data = toarray(sigma)[..., i0:, 0, 0].imag
+            dist = distance(tails, data, relative=True, q=q)
+            metrics_tails.append(dist)
+        metrics_tails = np.asarray(metrics_tails, float)
 
-    ok = np.logical_and(metrics <= tol, metrics_ref <= tol)
-    ok = np.logical_and(ok, metrics_tails <= tol)
-    chosen = find_first_consecutive(ok, consec=consec)
-    success = chosen is not None
-    return WMaxOptResult(
-        success=success,
-        index=chosen,
-        wmax=wmax_grid[chosen] if chosen is not None else None,
-        sigma_opt=sigmas[chosen] if chosen is not None else None,
-        wmax_grid=wmax_grid,
-        metrics=metrics,
-        metrics_ref=metrics_ref,
-        metrics_tails=metrics_tails,
-        sigmas=sigmas,
-        tol=tol,
-    )
+        ok = np.logical_and(metrics <= tol, metrics_ref <= tol)
+        ok = np.logical_and(ok, metrics_tails <= tol)
+        chosen = find_first_consecutive(ok, consec=consec)
+        success = chosen is not None
+        res = WMaxOptResult(
+            success=success,
+            index=chosen,
+            wmax=wmax_grid[chosen] if chosen is not None else None,
+            sigma_opt=sigmas[chosen] if chosen is not None else None,
+            wmax_grid=wmax_grid,
+            metrics=metrics,
+            metrics_ref=metrics_ref,
+            metrics_tails=metrics_tails,
+            sigmas=sigmas,
+            tol=tol,
+        )
+    else:
+        res = None
+    res = mpi.bcast(res)
+    return res
 
 
 def plot_wmax_metrics(res: WMaxOptResult) -> None:

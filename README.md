@@ -225,41 +225,75 @@ n_conv          = 2                       # Number of iterations for convergence
 
 Parameters for the [CTHYB] solver.
 
-| Name             | Type    | Description                                                                  |
-|------------------|---------|------------------------------------------------------------------------------|
-| `n_cycles`       | `int`   | Number of Quantum Monte Carlo cycles (default: 10_000)                       |
-| `n_warmup_cycle` | `int`   | Number of warmup cycles (default: 1_000)                                     |
-| `length_cycle`   | `int`   | Length of the cycle (default: 100)                                           |
-| `n_tau`          | `int`   | Number of imaginary time steps (default: 10_001)                             |
-| `density_matrix` | `bool`  | Measure the impurity density matrix (default: False)                         |
-| `measure_g_l`    | `bool`  | Measure G_l (Legendre) (default: False)                                      |
-| `n_l`            | `int`   | Number of Legendre polynomials. (default: 30)                                |
-| `legendre_fit`   | `bool`  | Fit Green's function and self energy using Legendre Gf (default: false)      |
-| `tail_fit `      | `bool`  | Perform tail fit of Sigma and G (default: False)                             |
-| `fit_max_moment` | `int`   | Highest moment to fit in the tail of Sigma (default: 3)                      |
-| `fit_min_n`      | `int`   | Index of iw from which to start fitting (default: 0.8*n_iw)                  |
-| `fit_max_n`      | `int`   | Index of iw up to which to fit (default: n_iw)                               |
-| `fit_min_w`      | `float` | iw from which to start fitting (default: None)                               |
-| `fit_max_w`      | `float` | iw up to which to fit (default: None)                                        |
-| `crm_dyson`      | `bool`  | Solve Dyson equation using constrained minimization problem (default: false) |
-| `crm_wmax`       | `float` | Spectral width of the impurity problem for DLR basis (default: None)         |
-| `crm_eps`        | `float` | Accuracy of the DLR basis to represent Green’s function (default: 1e-8)      |
+| Name               | Type    | Description                                                                                                       |
+|--------------------|---------|-------------------------------------------------------------------------------------------------------------------|
+| `n_warmup_cycles`  | `int`   | Number of warmup cycles (default: 10_000).                                                                        |
+| `n_cycles`         | `int`   | Number of Quantum Monte Carlo cycles (default: 500_000).                                                          |
+| `length_cycle`     | `int`   | Length of a single Monte Carlo cycle (default: 200).                                                              |
+| `n_tau`            | `int`   | Number of imaginary time steps (if not set the solver / environment default is used).                             |
+| `rebin_tau`        | `int`   | Rebin imaginary time grid (must satisfy 1 <= rebin_tau < n_tau when used).                                        |
+| `random_seed`      | `int`   | Random seed for the solver (optional; default: unset / chosen from MPI rank if not provided).                     |
+| `random_name`      | `str`   | Name of the random number generator (optional).                                                                   |
+| `tail_fit`         | `bool`  | Perform tail fit of Sigma and G (default: False).                                                                 |
+| `fit_max_moment`   | `int`   | Highest moment to fit in the tail of Sigma (default: 3 when fitting enabled).                                     |
+| `fit_min_n`        | `int`   | Index of iw from which to start fitting (default: inferred, typically ~0.8 * n_iw).                               |
+| `fit_max_n`        | `int`   | Index of iw up to which to fit (default: inferred, typically n_iw).                                               |
+| `fit_min_w`        | `float` | Real-frequency cutoff from which to start fitting (optional).                                                     |
+| `fit_max_w`        | `float` | Real-frequency cutoff up to which to fit (optional).                                                              |
+| `crm_dyson`        | `bool`  | Use constrained-minimization Dyson solver (CRM) for DLR/CRM options (optional).                                   |
+| `crm_wmax`         | `float` | Spectral width of the impurity problem for the DLR basis (wmax; optional).                                        |
+| `crm_eps`          | `float` | Accuracy of the DLR basis to represent Green’s function (default: 1e-6).                                          |
+| `crm_wmax_start`   | `float` | Starting wmax for CRM optimization if `crm_wmax` not set (default: bandwidth when not set).                       |
+| `crm_wmax_end`     | `float` | Ending wmax for CRM optimization if `crm_wmax` not set (default: 4 * bandwidth when not set).                     |
+| `crm_wmax_step`    | `float` | Step size for wmax during CRM optimization if `crm_wmax` not set (default: 0.1).                                  |
+| `crm_iw_stop`      | `int`   | Index of iw up to which to compute the CRM error if `crm_wmax` not set (default: 50).                             |
+| `crm_tol`          | `float` | Relative tolerance for the CRM wmax optimization if `crm_wmax` not set (default: 0.01).                           |
+| `crm_q`            | `float` | Quantile for the CRM error norm if `crm_wmax` not set (optional).                                                 |
+| `crm_consec`       | `int`   | Number of consecutive tolerances to consider convergence in CRM if `crm_wmax` not set (default: 2).               |
+| `measure_g_l`      | `bool`  | Measure G_l (Legendre representation) (default: False).                                                           |
+| `legendre_fit`     | `bool`  | Fit Green's function and self energy using Legendre representation (default: False).                              |
+| `n_l`              | `int`   | Number of Legendre polynomials / coefficients to measure (optional; set to solver default if unset).              |
+| `nl_max`           | `int`   | Maximum number of Legendre polynomials considered when optimizing `n_l` (default: 100).                           |
+| `nl_step`          | `int`   | Step size for Legendre polynomial optimization if `n_l` not set (default: 1).                                     |
+| `legendre_iw_stop` | `int`   | Index of iw up to which to compute Legendre-related error if `n_l` not set (default: 50).                         |
+| `legendre_tol`     | `float` | Relative tolerance for Legendre `n_l` optimization if `n_l` not set(default: 0.01).                               |
+| `legendre_q`       | `float` | Quantile for the Legendre error norm  if `n_l` not set (optional).                                                |
+| `legendre_consec`  | `int`   | Number of consecutive tolerances to consider convergence for Legendre optimization  if `n_l` not set(default: 1). |
 
 ```toml
 [solver]
-type            = "cthyb"                # Solver used to solve impurity problem
+type            = "cthyb"                 # Solver used to solve impurity problem
 
-n_warmup_cycle  = 500_000                # Number of warmup cycles (default: 10_000)
-n_cycles        = 5_000_000              # Number of Quantum Monte Carlo cycles (default 500_000)
-length_cycle    = 200                    # Length of the cycle (default: 200)
-n_tau           = 10001                  # Number of imaginary time steps. (default: 10001)
-rebin_tau       = 5001                   # Rebin imaginary time grid (default: None)
-tail_fit        = false                  # Perform tail fit of Sigma and G (default: false)
-fit_max_moment  = 3                      # Highest moment to fit in the tail of Sigma (default: 3)
-fit_min_n       = 0                      # Index of iw from which to start fitting (default: 0.5*n_iw)
-fit_max_n       = 0                      # Index of iw up to which to fit (default: n_iw)
-measure_g_l     = false                  # Measure G_l (Legendre) (default: false)
-n_l             = 30                     # Number of Legendre polynomials (default: 30)
+n_warmup_cycles = 500_000                 # Number of warmup cycles (default: 10_000)
+n_cycles        = 5_000_000               # Number of QMC cycles (default: 500_000)
+length_cycle    = 200                     # Length of the cycle (default: 200)
+n_tau           = 20001                   # Number of imaginary time steps (optional)
+rebin_tau       = 5001                    # Rebin imaginary time grid (optional)
+# random_seed     = 34788                   # Optional random seed for reproducibility
+# random_name     = "rng"                   # Optional RNG name
+# Tail fitting
+# tail_fit        = false                   # Perform tail fit of Sigma and G (default: false)
+# fit_max_moment  = 3                       # Highest moment to fit in the tail of Sigma (default: 3)
+# fit_min_n       = 0                       # Index of iw from which to start fitting (optional)
+# fit_max_n       = 0                       # Index of iw up to which to fit (optional)
+# CRM / DLR options
+crm_dyson       = true                    # Use CRM Dyson solver (optional)
+# crm_wmax        = 1.0                   # Spectral width for CRM (optional)
+crm_eps         = 1e-6                    # DLR representation accuracy (default: 1e-6)
+crm_wmax_start  = 1.0                     # Starting wmax for optimization (example)
+crm_wmax_end    = 4.0                     # Ending wmax for optimization (example)
+crm_wmax_step   = 0.1                     # Step size for wmax search (default: 0.1)
+crm_iw_stop     = 50                      # Index of iw up to which to compute error (default: 50)
+crm_tol         = 0.01                    # Relative tolerance for wmax optimization (default: 0.01)
+crm_consec      = 2                       # Consecutive tolerance count to stop (default: 2)
+# Legendre / measurements
+# measure_g_l     = true                    # Measure G_l (Legendre) (default: false)
+# legendre_fit    = true                    # Fit using Legendre representation (default: false)
+# # n_l             = 30                      # Number of Legendre polynomials (optional)
+# nl_max          = 100                     # Maximum number of Legendre polynomials (default: 100)
+# legendre_iw_stop= 50                      # Index of iw up to which to compute error (default: 50)
+# legendre_tol    = 0.01                    # Relative tolerance for Legendre n_l optimization (default: 0.01)
+# legendre_consec = 1                       # Consecutive tolerance count to stop (default: 1)
 ```
 
 #### `ctseg`

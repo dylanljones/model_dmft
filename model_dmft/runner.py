@@ -36,7 +36,6 @@ from triqs_cpa import (
 from . import __version__
 from .convergence import calculate_convergences
 from .input import InputParameters, get_supported_solvers
-from .legendre import check_nl
 from .mixer import apply_mixing
 from .postprocessing import anacont_pade
 from .utility import SIGMA, TIME_FRMT, blockgf, check_broadening, mixing_update, report, symmetrize_gf
@@ -374,9 +373,13 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
         solver = solve_cthyb(params, u, e_onsite, delta)
 
         mpi.barrier()
+        sigma_post, g_l, g_tau_rebinned = postprocess_cthyb(params, solver, u)
+        # report("Postprocess done!")
+
+        # mpi.barrier()
         if mpi.is_master_node():
             # Run post-processing of the solver results
-            sigma_post, g_l, g_tau_rebinned = postprocess_cthyb(params, solver, u)
+            # report("Saving results...")
 
             # Write results back to temporary file
             with HDFArchive(str(tmp_file), "a") as ar:
@@ -1163,16 +1166,14 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                     report(f"Solving for impurity self-energies Σ_i({freq_name})...")
                     report("")
 
-                num_tries = 0
-                while True:
-                    num_tries += 1
-                    kwargs = dict(params=params, u=u, e_onsite=e_onsite, delta=delta, sigma_dmft=sigma_dmft)
-                    if n_procs > 1:
-                        solve_impurities(**kwargs, nproc=n_procs, it=it)
-                    else:
-                        solve_impurities_seq(**kwargs, it=it)
+                kwargs = dict(params=params, u=u, e_onsite=e_onsite, delta=delta, sigma_dmft=sigma_dmft)
+                if n_procs > 1:
+                    solve_impurities(**kwargs, nproc=n_procs, it=it)
+                else:
+                    solve_impurities_seq(**kwargs, it=it)
 
-                    if params.solver in ("cthyb", "ctseg"):
+                if params.solver in ("cthyb", "ctseg"):
+                    if mpi.is_master_node():
                         # Print some statistics from CTQMC solvers
                         with HDFArchive(out_file, "r") as ar:
                             auto_corr_time = ar["auto_corr_time"]
@@ -1195,39 +1196,12 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                         if any(abs(s - 1.0) > 0.1 for s in average_sign.values()):
                             report("WARNING: Average sign is low, results may be unreliable!")
                         if any(t > 1.0 for t in auto_corr_time.values()):
+                            report()
                             report("================================================================")
                             report("WARNING: Auto-correlation time is high, simulation may be stuck!")
                             report("         Consider increasing 'length_cycle'!")
                             report("================================================================")
-
-                        if mpi.is_master_node():
-                            # If we are in CTHYb solver and use Legendre fit, check nl
-                            if (
-                                params.solver == "cthyb"
-                                and params.solver_params.legendre_fit
-                                and params.solver_params.n_l_thresh
-                            ):
-                                with HDFArchive(out_file, "r") as ar:
-                                    g_l = ar["g_l"]
-
-                                n_l_old = params.solver_params.n_l
-                                n_l_new = check_nl(g_l, n_l_old, params.solver_params.n_l_thresh)
-                                if n_l_new is None or n_l_new < 6 or (n_l_new - n_l_old) <= 2:
-                                    # n_l is okay or invalid, nothing to do
-                                    break
-                                else:
-                                    report("----------------------------------------------------------------")
-                                    report(f"NOTE: Changing n_l from {n_l_old} to {n_l_new} for better accuracy.")
-                                    report("       Restarting solvers...")
-                                    report("----------------------------------------------------------------")
-                                    params.solver_params.n_l = n_l_new
-                            else:
-                                break
-                    if num_tries >= 3:
-                        report("================================================================")
-                        report(f"WARNING: Did not find optimal n_l after {num_tries} tries.")
-                        report("================================================================")
-                        break
+                            report()
 
                 # Symmetrize DMFT self-energies
                 if params.symmetrize:
