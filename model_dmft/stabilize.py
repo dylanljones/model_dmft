@@ -20,10 +20,12 @@ from triqs.gf import (
     make_gf_imfreq,
     make_hermitian,
 )
-from triqs.gf.dlr_crm_dyson_solver import minimize_dyson
+
+# from triqs.gf.dlr_crm_dyson_solver import minimize_dyson
 from triqs.gf.tools import fit_legendre as _fit_legendre
 
-from .utility import GfLike, dyson, toarray
+from .crm_solver import minimize_dyson
+from .utility import GfLike, dyson, report, toarray
 
 EPS = 1e-100  # small number to avoid div by zero
 
@@ -228,9 +230,9 @@ def pick_wmax_opt(
     # compute Sigma(wmax) for each wmax
     sigmas = list()
     for i, wmax in enumerate(wmax_grid):
-        print(f"wmax: {wmax}")
+        report(f"wmax: {wmax}")
         sigma_crm = crm_solve_dyson(g_tau, g0_iw, sigma_moments, w_max=wmax, eps=1e-6)
-        print()
+        report("")
         sigmas.append(sigma_crm)
 
     # build metric curve m(i)

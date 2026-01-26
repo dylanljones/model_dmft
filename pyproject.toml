@@ -64,6 +64,7 @@ exclude = [
     "dist",
     ".ruff_cache",
     "*/_version.py",
+    "*/crm_solver.py",
 ]
 line-length = 120
 indent-width = 4
