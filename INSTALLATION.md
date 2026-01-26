@@ -217,7 +217,9 @@ Alternatively, you can install the latest version from the source code:
 
 ## ForkTPS
 
-The [ForkTPS] solver is not public yet! Contact the TRIQS development team for access.
+> [!NOTE]
+> The [ForkTPS] solver is not public yet! Contact the TRIQS development team for access.
+
 
 > [!IMPORTANT]
 >
