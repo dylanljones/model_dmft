@@ -418,25 +418,31 @@ class CthybSolverParams(SolverParams):
         self.length_cycle: int = 150  # Length of a cycle.
         self.n_tau: Optional[int] = None  # Number of imaginary time steps.
         self.rebin_tau: Optional[int] = None  # Rebin imaginary time grid
-        self.measure_g_l: bool = False  # Measure G_l (Legendre)
-        self.n_l: int = 30  # Number of Legendre polynomials.
-        self.n_l_thresh: Optional[float] = None  # Legendre polynomials threshold
-        self.legendre_fit: Optional[bool] = None  # Fit Green's function and self energy using Legendre Gf
+        self.random_seed: Optional[int] = None  # Random seed for the solver
+        self.random_name: Optional[str] = None  # Name of random number generator
+        # Tail fit params
         self.tail_fit: Optional[bool] = None  # Perform tail fit.
         self.fit_max_moment: Optional[int] = None  # Highest moment to fit in the tail of Sigma
         self.fit_min_n: Optional[int] = None  # Index of iw from which to start fitting.
         self.fit_max_n: Optional[int] = None  # Index of iw up to which to fit.
         self.fit_min_w: Optional[float] = None  # iw from which to start fitting.
         self.fit_max_w: Optional[float] = None  # iw up to which to fit.
-        self.density_matrix: Optional[bool] = None  # Measure the impurity density matrix.
+        # CRM params
         self.crm_dyson: Optional[bool] = None  # Solve Dyson equation using constrained minimization problem
         self.crm_wmax: Optional[float] = None  # Spectral width of the impurity problem for DLR basis
         self.crm_eps: Optional[float] = None  # Accuracy of the DLR basis to represent Green’s function
-        # self.correct_hartree: Optional[bool] = None  # Correct Hartree term in the self-energy
-
-        self.random_seed: Optional[int] = None  # Random seed for the solver
-        self.random_name: Optional[str] = None  # Name of random number generator
-
+        self.crm_wmax_start: Optional[float] = None  # Starting wmax for the optimization (default: bandwidth)
+        self.crm_wmax_end: Optional[float] = None  # Ending wmax for the optimization (default: 4*bandwidth)
+        self.crm_wmax_step: Optional[float] = None  # Step size for w (defauilt: 0.1*bandwidth)
+        self.crm_iw_stop: Optional[int] = None  # Index of iw up to which to compute error (defult: 50)
+        self.crm_tol: Optional[float] = None  # Relative tolerance for the wmax optimization (default: 1e-2)
+        self.crm_q: Optional[float] = None  # Quantile for the error norm (default: None)
+        self.crm_consec: Optional[int] = None  # Number of consecutive wmax values below tolerance to stop (default: 2)
+        # Legendre params
+        self.measure_g_l: bool = False  # Measure G_l (Legendre)
+        self.legendre_fit: Optional[bool] = None  # Fit Green's function and self energy using Legendre Gf
+        self.n_l: int = 30  # Number of Legendre polynomials.
+        self.n_l_thresh: Optional[float] = None  # Legendre polynomials threshold
         super().__init__(**kwargs)
 
     def validate(self) -> None:

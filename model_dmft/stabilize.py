@@ -554,7 +554,6 @@ def pick_nl_opt(
     # compute Sigma(nl) for each nl
     sigmas = list()
     for i, nl in enumerate(nl_grid):
-        print(f"nl: {nl}")
         gl_trunc = truncate_g_l(g_l, nl)
         sigma = sigma_from_legendre(g0_iw, gl_trunc)
         sigmas.append(sigma)
