@@ -19,7 +19,7 @@ from triqs.operators.util.extractors import block_matrix_from_op
 from triqs.utility import mpi
 
 from ..input import CtSegSolverParams, InputParameters
-from ..legendre import apply_legendre_filter
+from ..stabilize import apply_legendre_filter
 from ..utility import blockgf, report
 
 
