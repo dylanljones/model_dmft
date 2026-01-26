@@ -215,12 +215,6 @@ n_conv          = 2                       # Number of iterations for convergence
 | `type` | `{'cthyb', 'ctseg', ftps', 'hubbardI', 'hartree'}` | The solver used for the impurity problem. |
 | ...    | ...                                                | Solver-specific parameters.               |
 
-
-> [!CAUTION]
->
-> The following is out-of-date and will be updated soon. For an up-to-date list of input parameters,
-> please check the source code or the examples directory.
-
 #### `cthyb`
 
 Parameters for the [CTHYB] solver.
@@ -295,6 +289,13 @@ crm_consec      = 2                       # Consecutive tolerance count to stop 
 # legendre_tol    = 0.01                    # Relative tolerance for Legendre n_l optimization (default: 0.01)
 # legendre_consec = 1                       # Consecutive tolerance count to stop (default: 1)
 ```
+
+
+> [!CAUTION]
+>
+> The following is out-of-date and will be updated soon. For an up-to-date list of input parameters,
+> please check the source code or the examples directory.
+
 
 #### `ctseg`
 
