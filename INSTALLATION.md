@@ -15,6 +15,7 @@ The following dependencies are required to run the code and can not be installed
 Additionally, one or multiple of the following solvers are required:
 
 - [CTHYB](#cthyb)
+- [CTSEG](#ctseg)
 - [HubbardI](#hubbardi)
 - [Hartree-Fock](#hartree-fock)
 - [ForkTPS](#forktps)
@@ -65,71 +66,6 @@ conda install -c conda-forge triqs -y
 
 5. Finally, compile the code and install the application:
    ```bash
-   make install
-   ```
-
-
-## Hartree-Fock
-
-1. Clone the latest stable version of the [Hartree-Fock] repository:
-   ```bash
-   git clone https://github.com/TRIQS/hartree_fock hartree_fock.src
-   ```
-
-2. Create and move to a new directory where you will compile the code:
-   ```bash
-   mkdir hartree_fock.build && cd hartree_fock.build
-   ```
-
-3. Ensure that your shell contains the TRIQS environment variables by sourcing the ``triqsvars.sh`` file from your TRIQS installation:
-   ```bash
-   source path_to_triqs/share/triqs/triqsvars.sh
-   ```
-   If you are using TRIQS from Anaconda, you can use the ``CONDA_PREFIX`` environment variable:
-   ```bash
-   source $CONDA_PREFIX/share/triqs/triqsvars.sh
-   ```
-
-4. In the build directory call cmake, including any additional custom CMake options, see below:
-   ```bash
-   cmake ../hartree_fock.src
-   ```
-
-5. Finally, compile the code and install the application:
-   ```bash
-   make install
-   ```
-
-
-## HubbardI
-
-1. Clone the latest stable version of the [CTHYB] repository:
-   ```bash
-   git clone https://github.com/TRIQS/hubbardI hubbardI.src
-   ```
-
-2. Create and move to a new directory where you will compile the code:
-   ```bash
-   mkdir hubbardI.build && cd hubbardI.build
-   ```
-
-3. Ensure that your shell contains the TRIQS environment variables by sourcing the ``triqsvars.sh`` file from your TRIQS installation:
-   ```bash
-   source path_to_triqs/share/triqs/triqsvars.sh
-   ```
-   If you are using TRIQS from Anaconda, you can use the ``CONDA_PREFIX`` environment variable:
-   ```bash
-   source $CONDA_PREFIX/share/triqs/triqsvars.sh
-   ```
-
-4. In the build directory call cmake, including any additional custom CMake options, see below:
-   ```bash
-   cmake ../hubbardI.src
-   ```
-
-5. Finally, compile the code and install the application:
-   ```bash
-   make
    make install
    ```
 
@@ -205,6 +141,71 @@ Alternatively, you can install the latest version from the source code:
 4. In the build directory call cmake, including any additional custom CMake options, see below:
    ```bash
    cmake ../ctseg.src
+   ```
+
+5. Finally, compile the code and install the application:
+   ```bash
+   make
+   make install
+   ```
+
+
+## Hartree-Fock
+
+1. Clone the latest stable version of the [Hartree-Fock] repository:
+   ```bash
+   git clone https://github.com/TRIQS/hartree_fock hartree_fock.src
+   ```
+
+2. Create and move to a new directory where you will compile the code:
+   ```bash
+   mkdir hartree_fock.build && cd hartree_fock.build
+   ```
+
+3. Ensure that your shell contains the TRIQS environment variables by sourcing the ``triqsvars.sh`` file from your TRIQS installation:
+   ```bash
+   source path_to_triqs/share/triqs/triqsvars.sh
+   ```
+   If you are using TRIQS from Anaconda, you can use the ``CONDA_PREFIX`` environment variable:
+   ```bash
+   source $CONDA_PREFIX/share/triqs/triqsvars.sh
+   ```
+
+4. In the build directory call cmake, including any additional custom CMake options, see below:
+   ```bash
+   cmake ../hartree_fock.src
+   ```
+
+5. Finally, compile the code and install the application:
+   ```bash
+   make install
+   ```
+
+
+## HubbardI
+
+1. Clone the latest stable version of the [CTHYB] repository:
+   ```bash
+   git clone https://github.com/TRIQS/hubbardI hubbardI.src
+   ```
+
+2. Create and move to a new directory where you will compile the code:
+   ```bash
+   mkdir hubbardI.build && cd hubbardI.build
+   ```
+
+3. Ensure that your shell contains the TRIQS environment variables by sourcing the ``triqsvars.sh`` file from your TRIQS installation:
+   ```bash
+   source path_to_triqs/share/triqs/triqsvars.sh
+   ```
+   If you are using TRIQS from Anaconda, you can use the ``CONDA_PREFIX`` environment variable:
+   ```bash
+   source $CONDA_PREFIX/share/triqs/triqsvars.sh
+   ```
+
+4. In the build directory call cmake, including any additional custom CMake options, see below:
+   ```bash
+   cmake ../hubbardI.src
    ```
 
 5. Finally, compile the code and install the application:

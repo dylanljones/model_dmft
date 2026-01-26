@@ -32,6 +32,7 @@ The following dependencies are required to run the code and can not be installed
 Additionally, one or multiple of the following solvers are required:
 
 - [CTHYB]
+- [CTSEG]
 - [ForkTPS]
 - [HubbardI]
 - [Hartree-Fock]
@@ -209,10 +210,10 @@ n_conv          = 2                       # Number of iterations for convergence
 
 ### Solver Parameters
 
-| Name   | Type                                       | Description                               |
-|--------|--------------------------------------------|-------------------------------------------|
-| `type` | `{'cthyb', 'ftps', 'hubbardI', 'hartree'}` | The solver used for the impurity problem. |
-| ...    | ...                                        | Solver-specific parameters.               |
+| Name   | Type                                               | Description                               |
+|--------|----------------------------------------------------|-------------------------------------------|
+| `type` | `{'cthyb', 'ctseg', ftps', 'hubbardI', 'hartree'}` | The solver used for the impurity problem. |
+| ...    | ...                                                | Solver-specific parameters.               |
 
 
 > [!CAUTION]
@@ -248,17 +249,37 @@ Parameters for the [CTHYB] solver.
 [solver]
 type            = "cthyb"                # Solver used to solve impurity problem
 
-n_cycles        = 5000                   # Number of Quantum Monte Carlo cycles (default 10_000)
-n_warmup_cycle  = 1000                   # Number of warmup cycles (default: 1_000)
-length_cycle    = 100                    # Length of the cycle (default: 100)
+n_warmup_cycle  = 500_000                # Number of warmup cycles (default: 10_000)
+n_cycles        = 5_000_000              # Number of Quantum Monte Carlo cycles (default 500_000)
+length_cycle    = 200                    # Length of the cycle (default: 200)
 n_tau           = 10001                  # Number of imaginary time steps. (default: 10001)
+rebin_tau       = 5001                   # Rebin imaginary time grid (default: None)
 tail_fit        = false                  # Perform tail fit of Sigma and G (default: false)
 fit_max_moment  = 3                      # Highest moment to fit in the tail of Sigma (default: 3)
 fit_min_n       = 0                      # Index of iw from which to start fitting (default: 0.5*n_iw)
 fit_max_n       = 0                      # Index of iw up to which to fit (default: n_iw)
 measure_g_l     = false                  # Measure G_l (Legendre) (default: false)
 n_l             = 30                     # Number of Legendre polynomials (default: 30)
-density_matrix  = true                   # Measure the impurity density matrix (default: false)
+```
+
+#### `ctseg`
+
+Parameters for the [CTSEG] solver.
+
+| Name             | Type    | Description                                                                  |
+|------------------|---------|------------------------------------------------------------------------------|
+| `n_cycles`       | `int`   | Number of Quantum Monte Carlo cycles (default: 10_000)                       |
+| `n_warmup_cycle` | `int`   | Number of warmup cycles (default: 1_000)                                     |
+| `length_cycle`   | `int`   | Length of the cycle (default: 100)                                           |
+| `n_tau`          | `int`   | Number of imaginary time steps (default: 10_001)                             |
+
+```toml
+[solver]
+type            = "ctseg"                # Solver used to solve impurity problem
+
+n_warmup_cycle  = 1000                   # Number of warmup cycles (default: 1_000)
+n_cycles        = 5000                   # Number of Quantum Monte Carlo cycles (default 10_000)
+length_cycle    = 100                    # Length of the cycle (default: 100)
 ```
 
 
@@ -476,6 +497,7 @@ If you use this code for your research, please cite the repository using the fol
 [TRIQS]: https://triqs.github.io/triqs/latest/index.html
 [TRIQS-CPA]: https://github.com/dylanljones/triqs_cpa
 [CTHYB]: https://github.com/TRIQS/cthyb
+[CTSEG]: https://github.com/TRIQS/ctseg
 [HubbardI]: https://github.com/TRIQS/hubbardI
 [Hartree-Fock]: https://github.com/TRIQS/hartree_fock
 [ForkTPS]: https://git.rz.uni-augsburg.de/itphy-sw-origin/forktps
