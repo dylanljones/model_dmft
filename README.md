@@ -124,7 +124,8 @@ The `[solver]` section specifies wich solver is used for the impurity problem an
 contains solver-specific parameters.
 
 Examples of input files and SLURM scripts can be found in the [examples](examples) directory.
-To start a new calculation, copy the folder and modify the parameters in the `inp.toml` file as needed:
+To start a new calculation, copy the folder and modify the parameters in the `inp.toml`
+file and the `run.slurm` script as needed:
 ```shell
 cp <path-to-repo>/examples/<directory> <new-directory>
 ```
@@ -273,7 +274,7 @@ rebin_tau       = 5001                    # Rebin imaginary time grid (optional)
 # fit_max_n       = 0                       # Index of iw up to which to fit (optional)
 # CRM / DLR options
 crm_dyson       = true                    # Use CRM Dyson solver (optional)
-# crm_wmax        = 1.0                   # Spectral width for CRM (optional)
+# crm_wmax        = 1.0                     # Spectral width for CRM (optional)
 crm_eps         = 1e-6                    # DLR representation accuracy (default: 1e-6)
 crm_wmax_start  = 1.0                     # Starting wmax for optimization (example)
 crm_wmax_end    = 4.0                     # Ending wmax for optimization (example)
