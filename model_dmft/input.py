@@ -774,6 +774,8 @@ class InputParameters(Parameters):
     It also includes the parameters for the supported solvers.
     """
 
+    LATTICES = ["bethe", "onedim", "square", "box", "triangular", "honeycomb"]
+
     __types__ = {
         "n_loops": int,
         "load_iter": int,
@@ -1098,6 +1100,10 @@ class InputParameters(Parameters):
 
     def validate(self) -> None:
         """Validate the input parameters."""
+        # Check lattice
+        if self.lattice not in self.LATTICES:
+            raise InputError(f"Lattice '{self.lattice}' not recognized! Supported: {', '.join(self.LATTICES)}")
+
         # Check solver mesh compatibility
         if self.is_interacting:
             if self.solver_params is None:
