@@ -340,82 +340,124 @@ class CthybSolverParams(SolverParams):
     RE_MESH = False
 
     __types__ = {
+        "n_warmup_cycles": int,
         "n_cycles": int,
         "length_cycle": int,
-        "n_warmup_cycles": int,
         "n_tau": int,
         "rebin_tau": int,
-        "measure_g_l": bool,
-        "n_l": int,
-        "n_l_thresh": float,
-        "legendre_fit": bool,
+        "random_seed": int,
+        "random_name": str,
+        # Tail fit params
         "tail_fit": bool,
         "fit_max_moment": int,
         "fit_min_n": int,
         "fit_max_n": int,
         "fit_min_w": float,
         "fit_max_w": float,
-        "density_matrix": bool,
+        # CRM params
         "crm_dyson": bool,
         "crm_wmax": float,
         "crm_eps": float,
-        "correct_hartree": bool,
-        "random_seed": int,
-        "random_name": str,
+        "crm_wmax_start": float,
+        "crm_wmax_end": float,
+        "crm_wmax_step": float,
+        "crm_iw_stop": int,
+        "crm_tol": float,
+        "crm_q": float,
+        "crm_consec": int,
+        # Legendre params
+        "measure_g_l": bool,
+        "legendre_fit": bool,
+        "n_l": int,
+        "nl_max": int,
+        "nl_step": int,
+        "legendre_iw_stop": int,
+        "legendre_tol": float,
+        "legendre_q": float,
+        "legendre_consec": int,
     }
 
     __descriptions__ = {
-        "n_cycles": "Number of Quantum Monte Carlo cycles (default 10_000)",
-        "length_cycle": "Length of the cycle (default: 100)",
-        "n_warmup_cycles": "Number of warmup cycles (default: 1_000)",
+        "n_warmup_cycles": "Number of warmup cycles (default: 10_000)",
+        "n_cycles": "Number of Quantum Monte Carlo cycles (default 500_000)",
+        "length_cycle": "Length of the cycle (default: 200)",
         "n_tau": "Number of imaginary time steps. (default: 10001)",
         "rebin_tau": "Rebin imaginary time grid (default: None)",
-        "measure_g_l": "Measure G_l (Legendre) (default: false)",
-        "n_l": "Number of Legendre polynomials. (default: 30)",
-        "n_l_thresh": "Threshold for determining the number of Legendre polynomials. (default: 0)",
-        "legendre_fit": "Fit Green's function and self energy using Legendre Gf (default: false)",
+        "random_seed": "Random seed for the solver (default: 34788+928374*mpi.rank)",
+        "random_name": "Name of random number generator (default: None)",
+        # Tail fit params
         "tail_fit": "Perform tail fit of Sigma and G (default: false)",
         "fit_max_moment": "Highest moment to fit in the tail of Sigma (default: 3)",
         "fit_min_n": "Index of iw from which to start fitting (default: 0.8*n_iw)",
         "fit_max_n": "Index of iw up to which to fit (default: n_iw)",
         "fit_min_w": "iw from which to start fitting (default: None)",
         "fit_max_w": "iw up to which to fit (default: None)",
-        "density_matrix": "Measure the impurity density matrix (default: false)",
+        # CRM params
         "crm_dyson": "Solve Dyson equation using constrained minimization problem (default: false)",
         "crm_wmax": "Spectral width of the impurity problem for DLR basis",
         "crm_eps": "Accuracy of the DLR basis to represent Green’s function (default: 1e-8)",
-        "correct_hartree": "Correct Hartree term in the self-energy (default: false)",
-        "random_seed": "Random seed for the solver (default: 34788+928374*mpi.rank)",
-        "random_name": "Name of random number generator (default: None)",
+        "crm_wmax_start": "Starting wmax for the optimization (default: bandwidth)",
+        "crm_wmax_end": "Ending wmax for the optimization (default: 4*bandwidth)",
+        "crm_wmax_step": "Step size for w (defauilt: 0.1*bandwidth)",
+        "crm_iw_stop": "Index of iw up to which to compute error (defult: 50)",
+        "crm_tol": "Relative tolerance for the wmax optimization (default: 1e-2)",
+        "crm_q": "Quantile for the error norm (default: None)",
+        "crm_consec": "Number of consecutive tolerances to consider convergence (default: 2)",
+        # Legendre params
+        "measure_g_l": "Measure G_l (Legendre) (default: false)",
+        "legendre_fit": "Fit Green's function and self energy using Legendre Gf (default: false)",
+        "n_l": "Number of Legendre polynomials. (default: 30)",
+        "nl_max": "Maximum number of Legendre polynomials to consider (default: 100)",
+        "nl_step": "Legendre polynomials step size (default: 1)",
+        "legendre_iw_stop": "Index of iw up to which to compute error (defult: 50)",
+        "legendre_tol": "Relative tolerance for the nl optimization (default: 1e-2)",
+        "legendre_q": "Quantile for the error norm (default: None)",
+        "legendre_consec": "Number of consecutive tolerances to consider convergence (default: 2)",
     }
 
     __defaults__ = {
-        "n_cycles": 10_000,
-        "length_cycle": 100,
-        "n_warmup_cycles": 1_000,
+        "n_warmup_cycles": 10_000,
+        "n_cycles": 500_000,
+        "length_cycle": 200,
         "n_tau": None,
-        "measure_g_l": False,
-        "n_l": 30,
         "rebin_tau": None,
-        "n_l_thresh": None,
-        "legendre_fit": False,
+        "random_seed": None,
+        "random_name": None,
+        # Tail fit params
         "tail_fit": False,
         "fit_max_moment": 3,
         "fit_min_n": None,
         "fit_max_n": None,
         "fit_min_w": None,
         "fit_max_w": None,
-        "density_matrix": None,
+        # CRM params
         "crm_dyson": None,
         "crm_wmax": None,
-        "crm_eps": 1e-8,
+        "crm_eps": 1e-6,
+        "crm_wmax_start": None,
+        "crm_wmax_end": None,
+        "crm_wmax_step": 0.1,
+        "crm_iw_stop": 50,
+        "crm_tol": 0.01,
+        "crm_q": None,
+        "crm_consec": 2,
+        # Legendre params
+        "measure_g_l": False,
+        "legendre_fit": False,
+        "n_l": None,
+        "nl_max": 100,
+        "nl_step": 1,
+        "legendre_iw_stop": 50,
+        "legendre_tol": 0.01,
+        "legendre_q": None,
+        "legendre_consec": 1,
     }
 
     def __init__(self, **kwargs):
         # General
         self.n_warmup_cycles: int = 10_000  # Number of warmup cycles.
         self.n_cycles: int = 500_000  # Number of QMC cycles.
-        self.length_cycle: int = 150  # Length of a cycle.
+        self.length_cycle: int = 200  # Length of a cycle.
         self.n_tau: Optional[int] = None  # Number of imaginary time steps.
         self.rebin_tau: Optional[int] = None  # Rebin imaginary time grid
         self.random_seed: Optional[int] = None  # Random seed for the solver
@@ -433,36 +475,30 @@ class CthybSolverParams(SolverParams):
         self.crm_eps: Optional[float] = None  # Accuracy of the DLR basis to represent Green’s function
         self.crm_wmax_start: Optional[float] = None  # Starting wmax for the optimization (default: bandwidth)
         self.crm_wmax_end: Optional[float] = None  # Ending wmax for the optimization (default: 4*bandwidth)
-        self.crm_wmax_step: Optional[float] = None  # Step size for w (defauilt: 0.1*bandwidth)
+        self.crm_wmax_step: Optional[float] = None  # Step size for w (default: 0.1*bandwidth)
         self.crm_iw_stop: Optional[int] = None  # Index of iw up to which to compute error (defult: 50)
         self.crm_tol: Optional[float] = None  # Relative tolerance for the wmax optimization (default: 1e-2)
         self.crm_q: Optional[float] = None  # Quantile for the error norm (default: None)
-        self.crm_consec: Optional[int] = None  # Number of consecutive wmax values below tolerance to stop (default: 2)
+        self.crm_consec: Optional[int] = None  # Number of consecutive tolerances to consider convergence (default: 2)
         # Legendre params
-        self.measure_g_l: bool = False  # Measure G_l (Legendre)
+        self.measure_g_l: Optional[bool] = None  # Measure G_l (Legendre)
         self.legendre_fit: Optional[bool] = None  # Fit Green's function and self energy using Legendre Gf
-        self.n_l: int = 30  # Number of Legendre polynomials.
-        self.n_l_thresh: Optional[float] = None  # Legendre polynomials threshold
+        self.n_l: Optional[int] = None  # Number of Legendre polynomials.
+        self.nl_max: Optional[int] = None  # Maximum number of Legendre polynomials to consider
+        self.nl_step: Optional[int] = None  # Legendre polynomials step size
+        self.legendre_iw_stop: Optional[int] = None  # Index of iw up to which to compute error (defult: 50)
+        self.legendre_tol: Optional[float] = None  # Relative tolerance for the nl optimization (default: 1e-2)
+        self.legendre_q: Optional[float] = None  # Quantile for the error norm (default: None)
+        self.legendre_consec: Optional[int] = (
+            None  # Number of consecutive wmax values below tolerance to stop (default: 2)
+        )
+
         super().__init__(**kwargs)
 
     def validate(self) -> None:
         if self.rebin_tau is not None:
             if self.rebin_tau < 1 or self.rebin_tau >= self.n_tau:
                 raise InputError("Parameter 'rebin_tau' must be 1 <= n < n_tau!")
-        if self.tail_fit:
-            if self.legendre_fit or self.crm_dyson:
-                raise InputError("Cannot use 'tail_fit', 'legendre_fit' or 'crm_dyson' at the same time!")
-        if self.legendre_fit:
-            if self.tail_fit or self.crm_dyson:
-                raise InputError("Cannot use 'tail_fit', 'legendre_fit' or 'crm_dyson' at the same time!")
-
-        if self.crm_dyson:
-            if self.tail_fit or self.legendre_fit:
-                raise InputError("Cannot use 'tail_fit', 'legendre_fit' or 'crm_dyson' at the same time!")
-            if self.crm_wmax is None:
-                raise InputError("Parameter 'crm_wmax' is required for 'crm_dyson'!")
-            if self.crm_eps is None:
-                raise InputError("Parameter 'crm_eps' is required for 'crm_dyson'!")
 
     def to_string(self) -> str:
         lines = list()

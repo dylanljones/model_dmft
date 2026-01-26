@@ -200,14 +200,14 @@ class WMaxOptResult:
 
 
 def pick_wmax_opt(
-    start: float,
-    stop: float,
-    step: float,
     g_tau: BlockGf,
     g0_iw: BlockGf,
     g_iw: BlockGf,
     sigma_moments: dict[str, np.ndarray],
     *,
+    start: float = 1.0,
+    stop: float = 5.0,
+    step: float = 0.1,
     smooth: int = 8,
     smooth_err: int = 30,
     iw_stop: int = 50,
@@ -516,7 +516,7 @@ def wiener_shrinkage(g_l: GfLike, noise_start: int = None, noise_power: int = No
 class NlOptResult:
     success: bool
     index: Optional[int]
-    nl: Optional[float]
+    nl: Optional[int]
     sigma_opt: Optional[BlockGf]
     nl_grid: np.ndarray
     metrics: np.ndarray
