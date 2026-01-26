@@ -261,7 +261,7 @@ Once [ITensor] is installed, you can proceed with the installation of [ForkTPS]:
 
 1. Clone the latest stable version of the [ForkTPS] repository:
    ```bash
-   git clone https://git.rz.uni-augsburg.de/itphy-sw-origin/forktps forktps.src
+   git clone https://github.com/TRIQS/forktps forktps.src
    ```
 
 2. Create and move to a new directory where you will compile the code:
@@ -343,6 +343,6 @@ Some common issues and their solutions are listed below:
 [CTSEG]: https://github.com/TRIQS/ctseg
 [HubbardI]: https://github.com/TRIQS/hubbardI
 [Hartree-Fock]: https://github.com/TRIQS/hartree_fock
-[ForkTPS]: https://git.rz.uni-augsburg.de/itphy-sw-origin/forktps
+[ForkTPS]: https://github.com/TRIQS/forktps
 
 [ITensor]: https://github.com/ITensor/ITensor
