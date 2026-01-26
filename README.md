@@ -514,6 +514,23 @@ with HDFArchive("out.h5", "r") as ar:
     sigma_dmft = ar[f"sigma_dmft-{it}"]
 ```
 
+To get a list of all available keys in the output file, you can use:
+
+```python
+from h5 import HDFArchive
+
+with HDFArchive("out.h5", "r") as ar:
+    keys = list(ar.keys())
+
+print(keys)
+```
+
+If you want to filter the keys to exclude the iteration-specific ones, you can use:
+
+```python
+keys = [key for key in keys if '-' not in key]
+```
+
 ## Slurm Example
 
 An example SLURM script to run `model_dmft` on a computing cluster is shown below.
