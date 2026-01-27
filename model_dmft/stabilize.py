@@ -206,7 +206,7 @@ def pick_wmax_opt(
     g_tau: BlockGf,
     g0_iw: BlockGf,
     g_iw: BlockGf,
-    sigma_moments: dict[str, np.ndarray],
+    sigma_moments: Union[dict[str, np.ndarray], None],
     *,
     start: float = 1.0,
     stop: float = 5.0,
@@ -224,7 +224,6 @@ def pick_wmax_opt(
     wmax_grid = np.round(np.arange(start, stop, step), decimals=3)
     n = len(wmax_grid)
 
-    tail_poly = TailPolynomial(sigma_moments)
     sigma_ref = dyson(g0=g0_iw, g=g_iw)
     if iw_noise is None:
         cutoff = find_sigma_ref_cutoff(sigma=sigma_ref, smooth=smooth, smooth_err=smooth_err, dist=10)
@@ -265,15 +264,19 @@ def pick_wmax_opt(
         metrics_ref = np.asarray(metrics_ref, float)
 
         metrics_tails = list()
-        n_iw = g0_iw.mesh.n_iw
-        i0 = int(n_iw * (1.0 + tail_frac))  # last % of Matsubara points
-        iw = toarray(g0_iw.mesh)[i0:]
-        tails = tail_poly(1j * iw)[..., 0, 0].imag
-        for sigma in sigmas:
-            data = toarray(sigma)[..., i0:, 0, 0].imag
-            dist = distance(tails, data, relative=True, q=q)
-            metrics_tails.append(dist)
-        metrics_tails = np.asarray(metrics_tails, float)
+        if sigma_moments is not None:
+            tail_poly = TailPolynomial(sigma_moments)
+            n_iw = g0_iw.mesh.n_iw
+            i0 = int(n_iw * (1.0 + tail_frac))  # last % of Matsubara points
+            iw = toarray(g0_iw.mesh)[i0:]
+            tails = tail_poly(1j * iw)[..., 0, 0].imag
+            for sigma in sigmas:
+                data = toarray(sigma)[..., i0:, 0, 0].imag
+                dist = distance(tails, data, relative=True, q=q)
+                metrics_tails.append(dist)
+            metrics_tails = np.asarray(metrics_tails, float)
+        else:
+            metrics_tails = np.zeros_like(metrics)
 
         ok = np.logical_and(metrics <= tol, metrics_ref <= tol)
         ok = np.logical_and(ok, metrics_tails <= tol)
@@ -549,7 +552,7 @@ def pick_nl_opt(
     g_l: BlockGf,
     g0_iw: BlockGf,
     g_iw: BlockGf,
-    sigma_moments: dict[str, np.ndarray],
+    sigma_moments: Union[dict[str, np.ndarray], None],
     *,
     nl_step: int = 2,
     smooth: int = 8,
@@ -566,7 +569,6 @@ def pick_nl_opt(
     nl_grid = np.arange(nl_step, nl_max + 1, nl_step, dtype=int)
     n = len(nl_grid)
 
-    tail_poly = TailPolynomial(sigma_moments)
     sigma_ref = dyson(g0=g0_iw, g=g_iw)
     if iw_noise is None:
         cutoff = find_sigma_ref_cutoff(sigma=sigma_ref, smooth=smooth, smooth_err=smooth_err, dist=10)
@@ -598,15 +600,19 @@ def pick_nl_opt(
     metrics_ref = np.asarray(metrics_ref, float)
 
     metrics_tails = list()
-    n_iw = g0_iw.mesh.n_iw
-    i0 = int(n_iw * (1.0 + tail_frac))  # last % of Matsubara points
-    iw = toarray(g0_iw.mesh)[i0:]
-    tails = tail_poly(1j * iw)[..., 0, 0].imag
-    for sigma in sigmas:
-        data = toarray(sigma)[..., i0:, 0, 0].imag
-        dist = distance(tails, data, relative=True, q=q)
-        metrics_tails.append(dist)
-    metrics_tails = np.asarray(metrics_tails, float)
+    if sigma_moments is not None:
+        tail_poly = TailPolynomial(sigma_moments)
+        n_iw = g0_iw.mesh.n_iw
+        i0 = int(n_iw * (1.0 + tail_frac))  # last % of Matsubara points
+        iw = toarray(g0_iw.mesh)[i0:]
+        tails = tail_poly(1j * iw)[..., 0, 0].imag
+        for sigma in sigmas:
+            data = toarray(sigma)[..., i0:, 0, 0].imag
+            dist = distance(tails, data, relative=True, q=q)
+            metrics_tails.append(dist)
+        metrics_tails = np.asarray(metrics_tails, float)
+    else:
+        metrics_tails = np.zeros_like(metrics)
 
     ok = np.logical_and(metrics <= tol, metrics_ref <= tol)
     ok = np.logical_and(ok, metrics_tails <= tol)

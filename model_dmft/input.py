@@ -530,61 +530,87 @@ class CtSegSolverParams(SolverParams):
     RE_MESH = False
 
     __types__ = {
+        "n_warmup_cycles": int,
         "n_cycles": int,
         "length_cycle": int,
-        "n_warmup_cycles": int,
         "n_tau": int,
+        "rebin_tau": int,
         "n_tau_bosonic": int,
-        "measure_f_tau": bool,
-        "n_l": int,
-        "legendre_fit": bool,
-        "density_matrix": bool,
-        "correct_hartree": bool,
         "random_seed": int,
         "random_name": str,
+        # Legendre params
+        "legendre_fit": bool,
+        "n_l": int,
+        "nl_max": int,
+        "nl_step": int,
+        "legendre_iw_stop": int,
+        "legendre_tol": float,
+        "legendre_q": float,
+        "legendre_consec": int,
     }
 
     __descriptions__ = {
-        "n_cycles": "Number of Quantum Monte Carlo cycles (default 10_000)",
-        "length_cycle": "Length of the cycle (default: 100)",
-        "n_warmup_cycles": "Number of warmup cycles (default: 1_000)",
+        "n_warmup_cycles": "Number of warmup cycles (default: 10_000)",
+        "n_cycles": "Number of Quantum Monte Carlo cycles (default 500_000)",
+        "length_cycle": "Length of the cycle (default: 200)",
         "n_tau": "Number of imaginary time steps. (default: 10001)",
+        "rebin_tau": "Rebin imaginary time grid (default: None)",
         "n_tau_bosonic": "Number of time slices for bosonic functions. (default: 10001)",
-        "measure_f_tau": "Measure improved estimator F(tau)",
-        "n_l": "Number of Legendre polynomials. (default: 30)",
-        "legendre_fit": "Fit Green's function and self energy using Legendre Gf (default: false)",
-        "density_matrix": "Measure the impurity density matrix (default: false)",
-        "correct_hartree": "Correct Hartree term in the self-energy (default: false)",
         "random_seed": "Random seed for the solver (default: 34788+928374*mpi.rank)",
         "random_name": "Name of random number generator (default: None)",
+        # Legendre params
+        "legendre_fit": "Fit Green's function and self energy using Legendre Gf (default: false)",
+        "n_l": "Number of Legendre polynomials. (default: 30)",
+        "nl_max": "Maximum number of Legendre polynomials to consider (default: 100)",
+        "nl_step": "Legendre polynomials step size (default: 1)",
+        "legendre_iw_stop": "Index of iw up to which to compute error (defult: 50)",
+        "legendre_tol": "Relative tolerance for the nl optimization (default: 1e-2)",
+        "legendre_q": "Quantile for the error norm (default: None)",
+        "legendre_consec": "Number of consecutive tolerances to consider convergence (default: 2)",
     }
 
     __defaults__ = {
-        "n_cycles": 10_000,
-        "length_cycle": 100,
-        "n_warmup_cycles": 1_000,
+        "n_warmup_cycles": 10_000,
+        "n_cycles": 500_000,
+        "length_cycle": 200,
         "n_tau": None,
+        "rebin_tau": None,
+        "random_seed": None,
+        "random_name": None,
         "n_tau_bosonic": None,
-        "measure_f_tau": True,
-        "n_l": 30,
+        # Legendre params
         "legendre_fit": False,
-        "density_matrix": None,
+        "n_l": None,
+        "nl_max": 100,
+        "nl_step": 1,
+        "legendre_iw_stop": 50,
+        "legendre_tol": 0.01,
+        "legendre_q": None,
+        "legendre_consec": 1,
     }
 
     def __init__(self, **kwargs):
         # General
-        self.n_warmup_cycles: int = 1_000  # Number of warmup cycles.
-        self.n_cycles: int = 10_000  # Number of QMC cycles.
-        self.length_cycle: int = 100  # Length of a cycle.
-        self.n_tau: int = 10001  # Number of time slices for fermionic functions
-        self.n_tau_bosonic: int = 10001  # Number of time slices for bosonic functions
-        self.measure_f_tau: bool = True  # Measure improved estimator F(tau)
-        self.n_l: int = 30  # Number of Legendre polynomials.
-        self.legendre_fit: Optional[bool] = None  # Fit Green's function and self energy using Legendre Gf
-        self.density_matrix: Optional[bool] = None  # Measure the impurity density matrix.
-        # self.correct_hartree: Optional[bool] = None  # Correct Hartree term in the self-energy
+        self.n_warmup_cycles: int = 10_000  # Number of warmup cycles.
+        self.n_cycles: int = 500_000  # Number of QMC cycles.
+        self.length_cycle: int = 200  # Length of a cycle.
+        self.n_tau: Optional[int] = None  # Number of imaginary time steps.
+        self.rebin_tau: Optional[int] = None  # Rebin imaginary time grid
+        self.n_tau_bosonic: Optional[int] = None  # Number of time slices for bosonic functions.
         self.random_seed: Optional[int] = None  # Random seed for the solver
         self.random_name: Optional[str] = None  # Name of random number generator
+        # Legendre params
+        self.legendre_fit: Optional[bool] = None  # Fit Green's function and self energy using Legendre Gf
+        self.n_l: Optional[int] = None  # Number of Legendre polynomials.
+        self.nl_max: Optional[int] = None  # Maximum number of Legendre polynomials to consider
+        self.nl_step: Optional[int] = None  # Legendre polynomials step size
+        self.legendre_iw_noise: Optional[int] = None  # Index of iw up to measured Sigma is trusted (None: auto)
+        self.legendre_iw_stop: Optional[int] = None  # Index of iw up to which to compute error (defult: 50)
+        self.legendre_tol: Optional[float] = None  # Relative tolerance for the nl optimization (default: 1e-2)
+        self.legendre_q: Optional[float] = None  # Quantile for the error norm (default: None)
+        self.legendre_consec: Optional[int] = (
+            None  # Number of consecutive wmax values below tolerance to stop (default: 2)
+        )
 
         super().__init__(**kwargs)
 

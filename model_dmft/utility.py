@@ -545,3 +545,61 @@ def mpi_collect_to_list(
         for i, v in zip(idx_list, val_list):
             out[int(i)] = v
     return out
+
+
+def extract_moments(
+    gf: GfLike,
+    n_moments: int = None,
+    tail_frac: float = None,
+    n_tail_max: int = None,
+    hermitian: bool = True,
+    verbose: bool = False,
+) -> Union[dict[str, np.ndarray], np.ndarray]:
+    """Extract moments from a Gf or BlockGf using a tail fit.
+
+    Parameters
+    ----------
+    gf : GfLike
+        The Gf or BlockGf to extract the moments from.
+    n_moments : int, optional
+        Number of moments to extract. If not provided, all available moments are extracted.
+    tail_frac : float, optional
+        Fraction of the high-frequency tail to use for fitting the moments.
+        Default is 0.2 (20% of the highest frequencies).
+    n_tail_max : int, optional
+        Maximum number of tail points to use for fitting the moments.
+        Default is 30.
+    hermitian : bool, optional
+        Whether to assume the Gf is Hermitian. Default is True.
+    verbose : bool, optional
+        Whether to print verbose output during the fitting. Default is False.
+
+    Returns
+    -------
+    dict[str, np.ndarray] or np.ndarray
+        A dictionary mapping block names to their moment arrays if `gf` is a BlockGf,
+        otherwise a single array of moments if `gf` is a Gf.
+    """
+    if tail_frac is None:
+        tail_frac = 0.2  # Default fraction of tail to use
+    if n_tail_max is None:
+        n_tail_max = 30  # Default maximum number of tail points
+    if n_moments is None:
+        n_moments = 2
+
+    order = max(1, n_moments) - 1
+
+    def _extract(_g: Gf) -> np.ndarray:
+        _g.mesh.set_tail_fit_parameters(tail_fraction=tail_frac, n_tail_max=n_tail_max, expansion_order=order)
+        mom, err = _g.fit_hermitian_tail()
+        if verbose:
+            report(f"Extracted moments: {mom}, errors: {err}")
+        return mom
+
+    if isinstance(gf, Gf):
+        return _extract(gf)
+    else:
+        moments = dict()
+        for name, g in gf:
+            moments[name] = _extract(g)
+        return moments

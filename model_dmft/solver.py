@@ -411,18 +411,27 @@ def solve_impurity(tmp_file: Union[str, Path]) -> None:
         from .solvers.ctseg import postprocess_ctseg, solve_ctseg
 
         solver = solve_ctseg(params, u, e_onsite, delta)
+        # Run post-processing of the solver results
+        g0_iw, g_iw, sigma_post, sigma_iw, g_tau_rebinned, g_l = postprocess_ctseg(params, solver, u, e_onsite, delta)
 
         mpi.barrier()
         if mpi.is_master_node():
-            # Run post-processing of the solver results
-            g_iw, sigma_iw, g_l = postprocess_ctseg(params, solver, u, e_onsite, delta)
-
             # Write results back to temporary file
             with HDFArchive(str(tmp_file), "a") as ar:
                 ar["solver"] = solver
-                ar["g_tau"] = solver.results.G_tau  # type: ignore
+                ar["g_tau_raw"] = solver.results.G_tau  # type: ignore
                 ar["g_iw"] = g_iw
-                ar["sigma_dmft"] = sigma_iw
+                ar["g0_iw"] = g_iw
+                # ar["sigma_dmft"] = sigma_iw
+                if g_tau_rebinned is None:
+                    ar["g_tau"] = solver.results.G_tau  # type: ignore
+                else:
+                    ar["g_tau"] = g_tau_rebinned
+                if sigma_post is not None:
+                    ar["sigma_dmft_raw"] = sigma_iw
+                    ar["sigma_dmft"] = sigma_post
+                else:
+                    ar["sigma_dmft"] = sigma_iw
                 if g_l is not None:
                     # Store the Legendre Green's functions
                     ar["g_l"] = g_l
@@ -1172,7 +1181,7 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                 else:
                     solve_impurities_seq(**kwargs, it=it)
 
-                if params.solver in ("cthyb", "ctseg"):
+                if params.solver in ("cthyb",):
                     if mpi.is_master_node():
                         # Print some statistics from CTQMC solvers
                         with HDFArchive(out_file, "r") as ar:
