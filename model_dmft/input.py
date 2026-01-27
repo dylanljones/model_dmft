@@ -538,6 +538,17 @@ class CtSegSolverParams(SolverParams):
         "n_tau_bosonic": int,
         "random_seed": int,
         "random_name": str,
+        # CRM params
+        "crm_dyson": bool,
+        "crm_wmax": float,
+        "crm_eps": float,
+        "crm_wmax_start": float,
+        "crm_wmax_end": float,
+        "crm_wmax_step": float,
+        "crm_iw_stop": int,
+        "crm_tol": float,
+        "crm_q": float,
+        "crm_consec": int,
         # Legendre params
         "legendre_fit": bool,
         "n_l": int,
@@ -558,6 +569,17 @@ class CtSegSolverParams(SolverParams):
         "n_tau_bosonic": "Number of time slices for bosonic functions. (default: 10001)",
         "random_seed": "Random seed for the solver (default: 34788+928374*mpi.rank)",
         "random_name": "Name of random number generator (default: None)",
+        # CRM params
+        "crm_dyson": "Solve Dyson equation using constrained minimization problem (default: false)",
+        "crm_wmax": "Spectral width of the impurity problem for DLR basis",
+        "crm_eps": "Accuracy of the DLR basis to represent Green’s function (default: 1e-8)",
+        "crm_wmax_start": "Starting wmax for the optimization (default: bandwidth)",
+        "crm_wmax_end": "Ending wmax for the optimization (default: 4*bandwidth)",
+        "crm_wmax_step": "Step size for w (defauilt: 0.1*bandwidth)",
+        "crm_iw_stop": "Index of iw up to which to compute error (defult: 50)",
+        "crm_tol": "Relative tolerance for the wmax optimization (default: 1e-2)",
+        "crm_q": "Quantile for the error norm (default: None)",
+        "crm_consec": "Number of consecutive tolerances to consider convergence (default: 2)",
         # Legendre params
         "legendre_fit": "Fit Green's function and self energy using Legendre Gf (default: false)",
         "n_l": "Number of Legendre polynomials. (default: 30)",
@@ -578,6 +600,17 @@ class CtSegSolverParams(SolverParams):
         "random_seed": None,
         "random_name": None,
         "n_tau_bosonic": None,
+        # CRM params
+        "crm_dyson": None,
+        "crm_wmax": None,
+        "crm_eps": 1e-6,
+        "crm_wmax_start": None,
+        "crm_wmax_end": None,
+        "crm_wmax_step": 0.1,
+        "crm_iw_stop": 50,
+        "crm_tol": 0.01,
+        "crm_q": None,
+        "crm_consec": 2,
         # Legendre params
         "legendre_fit": False,
         "n_l": None,
@@ -599,6 +632,18 @@ class CtSegSolverParams(SolverParams):
         self.n_tau_bosonic: Optional[int] = None  # Number of time slices for bosonic functions.
         self.random_seed: Optional[int] = None  # Random seed for the solver
         self.random_name: Optional[str] = None  # Name of random number generator
+        # CRM params
+        self.crm_dyson: Optional[bool] = None  # Solve Dyson equation using constrained minimization problem
+        self.crm_wmax: Optional[float] = None  # Spectral width of the impurity problem for DLR basis
+        self.crm_eps: Optional[float] = None  # Accuracy of the DLR basis to represent Green’s function
+        self.crm_wmax_start: Optional[float] = None  # Starting wmax for the optimization (default: bandwidth)
+        self.crm_wmax_end: Optional[float] = None  # Ending wmax for the optimization (default: 4*bandwidth)
+        self.crm_wmax_step: Optional[float] = None  # Step size for w (default: 0.1*bandwidth)
+        self.crm_iw_noise: Optional[int] = None  # Index of iw up to measured Sigma is trusted  (None: auto)
+        self.crm_iw_stop: Optional[int] = None  # Index of iw up to which to compute error (defult: 50)
+        self.crm_tol: Optional[float] = None  # Relative tolerance for the wmax optimization (default: 1e-2)
+        self.crm_q: Optional[float] = None  # Quantile for the error norm (default: None)
+        self.crm_consec: Optional[int] = None  # Number of consecutive tolerances to consider convergence (default: 2)
         # Legendre params
         self.legendre_fit: Optional[bool] = None  # Fit Green's function and self energy using Legendre Gf
         self.n_l: Optional[int] = None  # Number of Legendre polynomials.
@@ -611,7 +656,6 @@ class CtSegSolverParams(SolverParams):
         self.legendre_consec: Optional[int] = (
             None  # Number of consecutive wmax values below tolerance to stop (default: 2)
         )
-
         super().__init__(**kwargs)
 
 
