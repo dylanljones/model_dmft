@@ -412,13 +412,6 @@ maxm            = 100                    # Maximum bond dimension. (default 100)
 nmax            = 40                     # Maximal Number of Krylov vectors created. (default 40)
 ```
 
-
-> [!CAUTION]
->
-> The following is out-of-date and will be updated soon. For an up-to-date list of input parameters,
-> please check the source code or the examples directory.
-
-
 #### `hubbardI`
 
 Parameters for the [HubbardI] solver (experimental).
@@ -466,6 +459,12 @@ tol             = 1e-5                   # Tolerance for root finder if one_shot
 with_fock       = false                  # Include Fock exchange terms in the self-energy (default: False)
 force_real      = true                   # Force the self energy from Hartree fock to be real (default: True)
 ```
+
+
+> [!CAUTION]
+>
+> The following is out-of-date and will be updated soon. For an up-to-date list of input parameters,
+> please check the source code or the examples directory.
 
 
 #### `pade`
