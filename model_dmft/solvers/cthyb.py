@@ -9,11 +9,11 @@ import triqs.operators as ops
 import triqs_cthyb
 from triqs.gf import BlockGf, inverse, iOmega_n
 from triqs.utility import mpi
-from triqs_cthyb.tail_fit import tail_fit
 
+# from triqs_cthyb.tail_fit import tail_fit
 from ..input import CthybSolverParams, InputParameters
 from ..stabilize import apply_legendre_filter, crm_solve_dyson, legendre_fit, pick_nl_opt, pick_wmax_opt, truncate_g_l
-from ..utility import rebin_gf_tau, report
+from ..utility import rebin_gf_tau, report, sigma_tail_fit
 
 
 def solve_cthyb(params: InputParameters, u: float, e_onsite: np.ndarray, delta: BlockGf) -> triqs_cthyb.Solver:
@@ -133,7 +133,7 @@ def postprocess_cthyb(
             report("")
 
         sigma_fitted = solver.Sigma_iw.copy()
-        tail_fit(
+        sigma_tail_fit(
             sigma_fitted,
             fit_min_n=params.solver_params.fit_min_n,
             fit_max_n=params.solver_params.fit_max_n,

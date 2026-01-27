@@ -538,6 +538,13 @@ class CtSegSolverParams(SolverParams):
         "n_tau_bosonic": int,
         "random_seed": int,
         "random_name": str,
+        # Tail fit params
+        "tail_fit": bool,
+        "fit_max_moment": int,
+        "fit_min_n": int,
+        "fit_max_n": int,
+        "fit_min_w": float,
+        "fit_max_w": float,
         # CRM params
         "crm_dyson": bool,
         "crm_wmax": float,
@@ -569,6 +576,13 @@ class CtSegSolverParams(SolverParams):
         "n_tau_bosonic": "Number of time slices for bosonic functions. (default: 10001)",
         "random_seed": "Random seed for the solver (default: 34788+928374*mpi.rank)",
         "random_name": "Name of random number generator (default: None)",
+        # Tail fit params
+        "tail_fit": "Perform tail fit of Sigma and G (default: false)",
+        "fit_max_moment": "Highest moment to fit in the tail of Sigma (default: 3)",
+        "fit_min_n": "Index of iw from which to start fitting (default: 0.8*n_iw)",
+        "fit_max_n": "Index of iw up to which to fit (default: n_iw)",
+        "fit_min_w": "iw from which to start fitting (default: None)",
+        "fit_max_w": "iw up to which to fit (default: None)",
         # CRM params
         "crm_dyson": "Solve Dyson equation using constrained minimization problem (default: false)",
         "crm_wmax": "Spectral width of the impurity problem for DLR basis",
@@ -600,6 +614,13 @@ class CtSegSolverParams(SolverParams):
         "random_seed": None,
         "random_name": None,
         "n_tau_bosonic": None,
+        # Tail fit params
+        "tail_fit": False,
+        "fit_max_moment": 3,
+        "fit_min_n": None,
+        "fit_max_n": None,
+        "fit_min_w": None,
+        "fit_max_w": None,
         # CRM params
         "crm_dyson": None,
         "crm_wmax": None,
@@ -632,6 +653,13 @@ class CtSegSolverParams(SolverParams):
         self.n_tau_bosonic: Optional[int] = None  # Number of time slices for bosonic functions.
         self.random_seed: Optional[int] = None  # Random seed for the solver
         self.random_name: Optional[str] = None  # Name of random number generator
+        # Tail fit params
+        self.tail_fit: Optional[bool] = None  # Perform tail fit.
+        self.fit_max_moment: Optional[int] = None  # Highest moment to fit in the tail of Sigma
+        self.fit_min_n: Optional[int] = None  # Index of iw from which to start fitting.
+        self.fit_max_n: Optional[int] = None  # Index of iw up to which to fit.
+        self.fit_min_w: Optional[float] = None  # iw from which to start fitting.
+        self.fit_max_w: Optional[float] = None  # iw up to which to fit.
         # CRM params
         self.crm_dyson: Optional[bool] = None  # Solve Dyson equation using constrained minimization problem
         self.crm_wmax: Optional[float] = None  # Spectral width of the impurity problem for DLR basis

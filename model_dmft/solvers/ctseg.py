@@ -21,7 +21,7 @@ from triqs.utility import mpi
 
 from ..input import CtSegSolverParams, InputParameters
 from ..stabilize import apply_legendre_filter, crm_solve_dyson, legendre_fit, pick_nl_opt, pick_wmax_opt, truncate_g_l
-from ..utility import blockgf, extract_moments, rebin_gf_tau, report
+from ..utility import blockgf, extract_moments, rebin_gf_tau, report, sigma_tail_fit
 
 
 def shift_hybridization_ctseg(delta_iw: BlockGf, u: float) -> BlockGf:
@@ -130,7 +130,23 @@ def postprocess_ctseg(
         report("Re-binning G(τ)...")
         g_tau_rebinned = rebin_gf_tau(g_tau, solver_params.rebin_tau)
 
-    if solver_params.legendre_fit:
+    if solver_params.tail_fit:
+        report("Performing tail fit of of Σ(iw)...")
+        fit_max_moment = params.solver_params.fit_max_moment
+
+        sigma_fitted = solver.Sigma_iw.copy()
+        sigma_tail_fit(
+            sigma_fitted,
+            fit_min_n=params.solver_params.fit_min_n,
+            fit_max_n=params.solver_params.fit_max_n,
+            fit_min_w=params.solver_params.fit_min_w,
+            fit_max_w=params.solver_params.fit_max_w,
+            fit_max_moment=fit_max_moment,
+            fit_known_moments=sigma_moments,
+        )
+        sigma_iw_post = sigma_fitted
+
+    elif solver_params.legendre_fit:
         # Compute Legendre Gf by filtering binned imaginary time Green's function
         report("Applying Legendre filter...")
         order = solver_params.n_l or solver_params.nl_max or 100

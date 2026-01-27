@@ -12,6 +12,7 @@ import numpy as np
 from colorama import Fore, Style
 from numpy.typing import DTypeLike
 from triqs.gf import BlockGf, Gf, MeshImFreq, MeshImTime, MeshReFreq, MeshReTime, inverse
+from triqs.gf.gf_fnt import fit_hermitian_tail_on_window, replace_by_tail
 from triqs.utility import mpi
 
 GfStruct = List[Tuple[str, int]]
@@ -591,7 +592,7 @@ def extract_moments(
 
     def _extract(_g: Gf) -> np.ndarray:
         _g.mesh.set_tail_fit_parameters(tail_fraction=tail_frac, n_tail_max=n_tail_max, expansion_order=order)
-        mom, err = _g.fit_hermitian_tail()
+        mom, err = _g.fit_hermitian_tail()  # noqa
         if verbose:
             report(f"Extracted moments: {mom}, errors: {err}")
         return mom
@@ -603,3 +604,75 @@ def extract_moments(
         for name, g in gf:
             moments[name] = _extract(g)
         return moments
+
+
+def sigma_tail_fit(
+    sigma_iw: GfLike,
+    fit_min_n: int = None,
+    fit_max_n: int = None,
+    fit_min_w: float = None,
+    fit_max_w: float = None,
+    fit_max_moment: int = None,
+    fit_known_moments: Union[np.ndarray, dict[str, np.ndarray]] = None,
+) -> GfLike:
+    """Fit a high frequency 1/(iw)^n expansion of Sigma_iw and replace the high frequency part.
+
+    Either give frequency window to fit on in terms of matsubara frequencies index
+    (fit_min_n/fit_max_n) or value (fit_min_w/fit_max_w).
+
+    Parameters
+    ----------
+    sigma_iw : Gf or BlockGf
+        The self-energy to fit the tail of. Will be modified in place.
+    fit_min_n : int, optional, default=int(0.8*len(Sigma_iw.mesh))
+        Matsubara frequency index from which tail fitting should start.
+    fit_max_n : int, optional, default=int(len(Sigma_iw.mesh))
+        Matsubara frequency index at which tail fitting should end.
+    fit_min_w : float, optional
+        Matsubara frequency from which tail fitting should start.
+    fit_max_w : float, optional
+        Matsubara frequency at which tail fitting should end.
+    fit_max_moment : int, optional
+        Highest moment to fit in the tail of Sigma_iw.
+    fit_known_moments : np.ndarray or Dict[str, np.ndarray], optional, default = None
+        Known moments of Sigma_iw, given as an numpy ndarray
+
+    Returns
+    -------
+    Sigma_iw : Gf
+               Self-energy.
+    """
+    # Define default tail quantities
+    if fit_min_w is not None:
+        fit_min_n = int(0.5 * (fit_min_w * sigma_iw.mesh.beta / np.pi - 1.0))
+    if fit_max_w is not None:
+        fit_max_n = int(0.5 * (fit_max_w * sigma_iw.mesh.beta / np.pi - 1.0))
+    if fit_min_n is None:
+        fit_min_n = int(0.8 * len(sigma_iw.mesh) / 2)
+    if fit_max_n is None:
+        fit_max_n = int(len(sigma_iw.mesh) / 2)
+    if fit_max_moment is None:
+        fit_max_moment = 3
+
+    def _tail_fit(_g: Gf, _known_moments: Optional[np.ndarray] = None) -> None:
+        if _known_moments is None:
+            shape = [0] + list(_g.target_shape)
+            _known_moments = np.zeros(shape, dtype=complex)  # no known moments
+        tail, err = fit_hermitian_tail_on_window(
+            _g,
+            n_min=fit_min_n,
+            n_max=fit_max_n,
+            known_moments=fit_known_moments[name],
+            # set max number of pts used in fit larger than mesh size, to use all data in fit
+            n_tail_max=10 * len(_g.mesh),
+            expansion_order=fit_max_moment,
+        )
+        replace_by_tail(_g, tail, n_min=fit_min_n)
+
+    if isinstance(sigma_iw, BlockGf):
+        for name, sig in sigma_iw:
+            _tail_fit(sig, fit_known_moments[name])
+    else:
+        _tail_fit(sigma_iw, fit_known_moments)
+
+    return sigma_iw
