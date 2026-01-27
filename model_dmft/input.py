@@ -476,6 +476,7 @@ class CthybSolverParams(SolverParams):
         self.crm_wmax_start: Optional[float] = None  # Starting wmax for the optimization (default: bandwidth)
         self.crm_wmax_end: Optional[float] = None  # Ending wmax for the optimization (default: 4*bandwidth)
         self.crm_wmax_step: Optional[float] = None  # Step size for w (default: 0.1*bandwidth)
+        self.crm_iw_noise: Optional[int] = None  # Index of iw up to measured Sigma is trusted  (None: auto)
         self.crm_iw_stop: Optional[int] = None  # Index of iw up to which to compute error (defult: 50)
         self.crm_tol: Optional[float] = None  # Relative tolerance for the wmax optimization (default: 1e-2)
         self.crm_q: Optional[float] = None  # Quantile for the error norm (default: None)
@@ -486,6 +487,7 @@ class CthybSolverParams(SolverParams):
         self.n_l: Optional[int] = None  # Number of Legendre polynomials.
         self.nl_max: Optional[int] = None  # Maximum number of Legendre polynomials to consider
         self.nl_step: Optional[int] = None  # Legendre polynomials step size
+        self.legendre_iw_noise: Optional[int] = None  # Index of iw up to measured Sigma is trusted (None: auto)
         self.legendre_iw_stop: Optional[int] = None  # Index of iw up to which to compute error (defult: 50)
         self.legendre_tol: Optional[float] = None  # Relative tolerance for the nl optimization (default: 1e-2)
         self.legendre_q: Optional[float] = None  # Quantile for the error norm (default: None)

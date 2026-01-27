@@ -213,6 +213,7 @@ def pick_wmax_opt(
     step: float = 0.1,
     smooth: int = 8,
     smooth_err: int = 30,
+    iw_noise: int = None,
     iw_stop: int = 50,
     tail_frac: float = 0.8,
     idx_step: int = 1,
@@ -225,8 +226,11 @@ def pick_wmax_opt(
 
     tail_poly = TailPolynomial(sigma_moments)
     sigma_ref = dyson(g0=g0_iw, g=g_iw)
-    cutoff = find_sigma_ref_cutoff(sigma=sigma_ref, smooth=smooth, smooth_err=smooth_err, dist=10)
-    cutoff = int(0.5 * cutoff) if cutoff is not None else 10
+    if iw_noise is None:
+        cutoff = find_sigma_ref_cutoff(sigma=sigma_ref, smooth=smooth, smooth_err=smooth_err, dist=10)
+        cutoff = int(0.5 * cutoff) if cutoff is not None else 10
+    else:
+        cutoff = iw_noise
 
     # compute Sigma(wmax) for each wmax
     # sigmas = list()
@@ -550,6 +554,7 @@ def pick_nl_opt(
     nl_step: int = 2,
     smooth: int = 8,
     smooth_err: int = 30,
+    iw_noise: int = None,
     iw_stop: int = 50,
     tail_frac: float = 0.8,
     idx_step: int = 1,
@@ -563,8 +568,11 @@ def pick_nl_opt(
 
     tail_poly = TailPolynomial(sigma_moments)
     sigma_ref = dyson(g0=g0_iw, g=g_iw)
-    cutoff = find_sigma_ref_cutoff(sigma=sigma_ref, smooth=smooth, smooth_err=smooth_err, dist=10)
-    cutoff = int(0.5 * cutoff) if cutoff is not None else 10
+    if iw_noise is None:
+        cutoff = find_sigma_ref_cutoff(sigma=sigma_ref, smooth=smooth, smooth_err=smooth_err, dist=10)
+        cutoff = int(0.5 * cutoff) if cutoff is not None else 10
+    else:
+        cutoff = iw_noise
 
     # compute Sigma(nl) for each nl
     sigmas = list()
