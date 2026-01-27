@@ -16,7 +16,7 @@ from ..stabilize import apply_legendre_filter, crm_solve_dyson, legendre_fit, pi
 from ..utility import rebin_gf_tau, report
 
 
-def solve_cthyb(params: InputParameters, u: np.ndarray, e_onsite: np.ndarray, delta: BlockGf) -> triqs_cthyb.Solver:
+def solve_cthyb(params: InputParameters, u: float, e_onsite: np.ndarray, delta: BlockGf) -> triqs_cthyb.Solver:
     up, dn = params.spin_names
     solver_params: CthybSolverParams = params.solver_params
     # gf_struct = params.gf_struct

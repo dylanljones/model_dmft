@@ -24,7 +24,16 @@ from ..stabilize import apply_legendre_filter, crm_solve_dyson, legendre_fit, pi
 from ..utility import blockgf, extract_moments, rebin_gf_tau, report
 
 
-def solve_ctseg(params: InputParameters, u: np.ndarray, e_onsite: np.ndarray, delta_iw: BlockGf) -> triqs_ctseg.Solver:
+def shift_hybridization_ctseg(delta_iw: BlockGf, u: float) -> BlockGf:
+    delta_iw_out = delta_iw.copy()
+    for spin, delt in delta_iw_out:
+        delt << delt + u / 2  # noqa
+        tail, err = fit_hermitian_tail(delt)
+        delt << delt - tail[0]  # noqa
+    return delta_iw_out
+
+
+def solve_ctseg(params: InputParameters, u: float, e_onsite: np.ndarray, delta_iw: BlockGf) -> triqs_ctseg.Solver:
     up, dn = params.spin_names
     solver_params: CtSegSolverParams = params.solver_params
     # gf_struct = params.gf_struct
@@ -37,9 +46,6 @@ def solve_ctseg(params: InputParameters, u: np.ndarray, e_onsite: np.ndarray, de
     eps = e_onsite - mu_imp
     h_int = u * ops.n(up, 0) * ops.n(dn, 0)
     h_loc0 = eps[0] * ops.n(up, 0) + eps[1] * ops.n(dn, 0)
-
-    # h_loc0 = eps[0] * ops.n(up, 0) + eps[1] * ops.n(dn, 0)
-    # h_loc0_mat = block_matrix_from_op(h_loc0, gf_struct)
 
     solve_kwargs = {
         "n_warmup_cycles": solver_params.n_warmup_cycles,
@@ -62,11 +68,8 @@ def solve_ctseg(params: InputParameters, u: np.ndarray, e_onsite: np.ndarray, de
     )
 
     # Set hybridization function (imaginary time)
-    for spin, delt in delta_iw:
-        delt << delt + u / 2  # noqa
-        tail, err = fit_hermitian_tail(delt)
-        delt << delt - tail[0]  # noqa
-    solver.Delta_tau << Fourier(delta_iw)  # type: ignore
+    delta_iw_shifted = shift_hybridization_ctseg(delta_iw, u)
+    solver.Delta_tau << Fourier(delta_iw_shifted)  # type: ignore
 
     # solver.G0_iw << g0_iw  # noqa
     mpi.barrier()
@@ -96,31 +99,25 @@ def postprocess_ctseg(
     g0_iw = blockgf(mesh=iw, name="G0_iw", gf_struct=gf_struct)
     g_iw = blockgf(mesh=iw, name="G_iw", gf_struct=gf_struct)
     f_iw = blockgf(mesh=iw, name="F_iw", gf_struct=gf_struct)
-    sigma_iw = blockgf(mesh=iw, name="Sigma_iw", gf_struct=gf_struct)
+    sigma_iw_raw = blockgf(mesh=iw, name="Sigma_iw", gf_struct=gf_struct)
 
     g_tau = solver.results.G_tau
     f_tau = solver.results.F_tau
 
-    # Set hybridization function (imaginary time)
-    for spin, delt in delta_iw:
-        delt << delt + u / 2  # noqa
-        tail, err = fit_hermitian_tail(delt)
-        delt << delt - tail[0]  # noqa
+    delta_iw_shifted = shift_hybridization_ctseg(delta_iw, u)
 
     # Weiss field for the impurity
     # G0^{-1} = iω + μ - ϵ_imp - Δ
     for i, (name, g0) in enumerate(g0_iw):
-        g0 << inverse(iOmega_n + mu - e_onsite[i] - delta_iw[name])
+        g0 << inverse(iOmega_n + mu - e_onsite[i] - delta_iw_shifted[name])
 
     # Fourier transform G_tau and F_tau to get Sigma
     g_iw << Fourier(g_tau)
     f_iw << Fourier(f_tau)
-    sigma_iw << inverse(g_iw) * f_iw - u / 2.0
+    sigma_iw_raw << inverse(g_iw) * f_iw - u / 2.0
 
     # Extract high-frequency moments
-    sigma_moments = extract_moments(sigma_iw, n_moments=2)
-
-    sigma_iw_raw = sigma_iw.copy()
+    sigma_moments = extract_moments(sigma_iw_raw, n_moments=2)
 
     #
     # Sigma stabilizations
@@ -128,6 +125,7 @@ def postprocess_ctseg(
 
     g_l = None
     g_tau_rebinned = None
+    sigma_iw_post = None
     if solver_params.rebin_tau:
         report("Re-binning G(τ)...")
         g_tau_rebinned = rebin_gf_tau(g_tau, solver_params.rebin_tau)
@@ -172,7 +170,7 @@ def postprocess_ctseg(
             # Fit the Green's functions and self energy using the Legendre Green's function
             report("Performing Legendre fit...")
             g_iw_l, g_tau_l, sigma_iw_l = legendre_fit(g0_iw, g_iw, g_tau, g_l)
-        sigma_iw = sigma_iw_l
+        sigma_iw_post = sigma_iw_l
 
     elif solver_params.crm_dyson:
         report("Solving Dyson equation via constrained minimization problem...")
@@ -214,6 +212,6 @@ def postprocess_ctseg(
         else:
             sigma_iw_crm = crm_solve_dyson(g_tau, g0_iw, sigma_moments, solver_params.crm_wmax, solver_params.crm_eps)
 
-        sigma_iw = sigma_iw_crm
+        sigma_iw_post = sigma_iw_crm
 
-    return g0_iw, g_iw, sigma_iw, sigma_iw_raw, g_tau_rebinned, g_l
+    return g0_iw, g_iw, sigma_iw_post, sigma_iw_raw, g_tau_rebinned, g_l
