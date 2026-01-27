@@ -1,6 +1,6 @@
 # Model DMFT
 
-A versatile python wrapper to perform CPA+DMFT calculations utilizing the TRIQS software library.
+A framework to perform CPA+DMFT calculations utilizing the [TRIQS] library.
 
 > [!WARNING]
 >
@@ -577,7 +577,7 @@ If you use this code for your research, please cite the repository using the fol
 @software{Jones_model_dmft_2026,
     author  = {Jones, Dylan},
     license = {MIT},
-    title   = {{model-dmft}: A versatile python wrapper to perform CPA+DMFT calculations utilizing the TRIQS library},
+    title   = {{model-dmft}: A framework to perform CPA+DMFT calculations utilizing the TRIQS library},
     url     = {https://github.com/dylanljones/model_dmft},
     version = {0.3},
     year    = {2026}

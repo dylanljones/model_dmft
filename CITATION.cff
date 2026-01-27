@@ -1,7 +1,7 @@
 # YAML 1.2
 ---
 cff-version: "1.2.0"
-title: "model-dmft: A versatile python wrapper to perform CPA+DMFT calculations utilizing the TRIQS library."
+title: "model-dmft: A framework to perform CPA+DMFT calculations utilizing the TRIQS library."
 license: "MIT"
 date-released: 2026-01-22
 version: "0.3"
