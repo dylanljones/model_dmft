@@ -84,7 +84,8 @@ def report(
     parts = [str(a) for a in args]
     out_str = sep.join(parts)
     if rank:
-        out_str = f"[{mpi.rank}] {out_str}"
+        w = len(str(mpi.size - 1))
+        out_str = f"[{mpi.rank:>{w}}] {out_str}"
     # text = style(text, fg=fg, bg=bg, dim=dim)
     if once:
         mpi.report(out_str)
@@ -372,6 +373,17 @@ def symmetrize_gf(gf: BlockGf) -> BlockGf:
     gf[up] << g
     gf[dn] << g
     return gf
+
+
+def symmetrize_moments(moments: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
+    """Symmetrize the spin components of a BlockGf."""
+    mom_sum = 0
+    for comp in moments:
+        mom_sum += moments[comp]
+    mom_avg = mom_sum / len(moments)
+    for comp in moments:
+        moments[comp] = mom_avg.copy()
+    return moments
 
 
 def rebin_gf_tau(g_tau: BlockGf, n_tau: int) -> BlockGf:

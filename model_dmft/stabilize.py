@@ -3,7 +3,7 @@
 # Date:   2026-01-25
 
 from dataclasses import dataclass
-from typing import List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -13,11 +13,8 @@ from scipy.signal import find_peaks
 from triqs.gf import (
     BlockGf,
     Gf,
-    MeshDLRImFreq,
     MeshImFreq,
     MeshLegendre,
-    fit_gf_dlr,
-    make_gf_imfreq,
     make_hermitian,
 )
 
@@ -25,8 +22,17 @@ from triqs.gf import (
 from triqs.gf.tools import fit_legendre as _fit_legendre
 from triqs.utility import mpi
 
-from .crm_solver import minimize_dyson
-from .utility import GfLike, dyson, mpi_collect_to_list, mpi_enumerate_array, report, toarray
+from .crm_solver import crm_solve_dyson
+from .utility import (
+    GfLike,
+    dyson,
+    mpi_collect_to_list,
+    mpi_enumerate_array,
+    report,
+    symmetrize_gf,
+    symmetrize_moments,
+    toarray,
+)
 
 EPS = 1e-100  # small number to avoid div by zero
 
@@ -41,16 +47,16 @@ def zero_matsubara_index(gf: GfLike) -> int:
     return i0
 
 
-def distance(a: np.ndarray, b: np.ndarray, relative: bool = True, q: float = None) -> float:
+def distance(a: np.ndarray, b: np.ndarray, relative: bool = True, q: float = None) -> np.ndarray:
     """Scalar metric between two arrays."""
     num = np.abs(a - b)
     den = np.maximum(np.abs(b), EPS)
     err = num / den if relative else num
     err = np.quantile(err, q, axis=0) if q is not None else err
-    return float(err if err.ndim == 0 else np.mean(err))
+    return err if err.ndim == 0 else np.mean(err, axis=0)
 
 
-def gf_distance(gf1: GfLike, gf2: GfLike, n_stop: int = None, relative: bool = True, q: float = None) -> float:
+def gf_distance(gf1: GfLike, gf2: GfLike, n_stop: int = None, relative: bool = True, q: float = None) -> np.ndarray:
     """Scalar metric between two Greens function methods over low Matsubara frequencies."""
     i0 = zero_matsubara_index(gf1)
     a = toarray(gf1)[..., i0:, 0, 0]
@@ -100,7 +106,7 @@ def find_first_consecutive(ok: np.ndarray, consec: int = 1) -> int:
     for i in range(len(ok)):
         run = run + 1 if ok[i] else 0
         if run >= consec:
-            chosen = int(i - consec + 1)
+            chosen = int(i - consec // 2)
             break
     return chosen
 
@@ -129,70 +135,11 @@ class TailPolynomial:
 # ---- CRM methods ---------------------------------------------------------------------------------
 
 
-def crm_solve_dyson(
-    g_tau: BlockGf, g0_iw: BlockGf, sigma_moments: dict[str, np.ndarray], w_max: float, eps: float, verbosity: int = 0
-) -> BlockGf:
-    """Solve the Dyson equation via a constrained minimization problem (CRM).
-
-    Parameters
-    ----------
-    g_tau : imaginary time BlockGf
-        The imaginary time Green's function measured by the impurity solver.
-    g0_iw : imaginary frequency BlockGf
-        The non-interacting Green's function.
-    sigma_moments : dict[str, np.ndarray]
-        The moments of the self-energy to be used in the CRM solver.
-    w_max : float
-        Spectral width of the impurity problem for DLR basis.
-    eps : float
-        Accuracy of the DLR basis to represent Green’s function
-
-    Returns
-    -------
-    sigma: imaginary frequency BlockGf
-        The self-energy obtained by solving the Dyson equation via CRM.
-
-    References
-    ----------
-    [1] https://arxiv.org/abs/2310.01266.
-    """
-    # Fit DLR Green’s function to imaginary time Green’s function
-    g_dlr_iw = fit_gf_dlr(g_tau, w_max=w_max, eps=eps)
-
-    # Read off G0 at the DLR nodes
-    names = list(g_tau.indices)
-    mesh_iw = MeshDLRImFreq(g_dlr_iw.mesh)
-    g = Gf(mesh=mesh_iw, target_shape=g_dlr_iw[names[0]].target_shape)
-    g0_dlr_iw = BlockGf(name_list=names, block_list=[g, g])
-    for name, g in g0_dlr_iw:
-        for iwn in mesh_iw:
-            g[iwn] = g0_iw[name](iwn.value)
-
-    g = Gf(mesh=mesh_iw, target_shape=g_dlr_iw[names[0]].target_shape)
-    sigma_dlr = BlockGf(name_list=names, block_list=[g, g])
-    n_iw = g0_iw.mesh.n_iw
-
-    # Use the CRM solver to minimize the Dyson error
-    for name, sig in sigma_dlr:
-        s_dlr, s_hf, residual = minimize_dyson(
-            G0_dlr=g0_dlr_iw[name], G_dlr=g_dlr_iw[name], Sigma_moments=sigma_moments[name], verbosity=verbosity
-        )
-        sig << s_dlr  # noqa
-
-    # Since a spectral representable G has no constant we have to manually add the Hartree
-    # shift after the solver is finished again
-    sigma_iw = make_gf_imfreq(sigma_dlr, n_iw=n_iw)
-    for name, sig in sigma_iw:
-        sig += sigma_moments[name][0]
-
-    return make_hermitian(sigma_iw)
-
-
 @dataclass
 class WMaxOptResult:
     success: bool
-    index: Optional[int]
-    wmax: Optional[float]
+    index: Optional[Dict[str, int]]
+    wmax: Optional[Dict[str, float]]
     sigma_opt: Optional[BlockGf]
     wmax_grid: np.ndarray
     metrics: np.ndarray
@@ -211,6 +158,7 @@ def pick_wmax_opt(
     start: float = 1.0,
     stop: float = 5.0,
     step: float = 0.1,
+    eps: float = 1e-6,
     smooth: int = 8,
     smooth_err: int = 30,
     iw_noise: int = None,
@@ -220,6 +168,7 @@ def pick_wmax_opt(
     tol: float = 0.01,
     q: float = None,
     consec: int = 2,
+    symmetrize: bool = False,
 ) -> WMaxOptResult:
     wmax_grid = np.round(np.arange(start, stop, step), decimals=3)
     n = len(wmax_grid)
@@ -233,10 +182,15 @@ def pick_wmax_opt(
 
     # compute Sigma(wmax) for each wmax
     # sigmas = list()
+    if symmetrize:
+        g_tau = symmetrize_gf(g_tau.copy())
+        g0_iw = symmetrize_gf(g0_iw.copy())
+        sig_mom_copy = {name: moments.copy() for name, moments in sigma_moments.items()}
+        sigma_moments = symmetrize_moments(sig_mom_copy)
     sigma_pairs = list()
     for i, wmax in mpi_enumerate_array(wmax_grid):
         report(f"Solving CRM for wmax: {wmax}", once=False, rank=True)
-        sigma_crm = crm_solve_dyson(g_tau, g0_iw, sigma_moments, w_max=wmax, eps=1e-6)
+        sigma_crm = crm_solve_dyson(g_tau, g0_iw, sigma_moments, w_max=wmax, eps=eps)
         # report("")
         # sigmas.append(sigma_crm)
         sigma_pairs.append((i, sigma_crm))
@@ -254,7 +208,7 @@ def pick_wmax_opt(
             dist = gf_distance(sigmas[j], sigmas[i], n_stop=iw_stop, relative=True, q=q)
             metrics.append(dist)
         metrics = np.asarray(metrics, float)
-        metrics = np.pad(metrics, (idx_step, 0), mode="edge")  # align sizes
+        metrics = np.pad(metrics, ((idx_step, 0), (0, 0)), mode="edge")  # align sizes
 
         # build metric curve m(i) to reference
         metrics_ref = []
@@ -269,21 +223,57 @@ def pick_wmax_opt(
         i0 = int(n_iw * (1.0 + tail_frac))  # last % of Matsubara points
         iw = toarray(g0_iw.mesh)[i0:]
         tails = tail_poly(1j * iw)[..., 0, 0].imag
+        if tails.ndim > 1:
+            tails = np.swapaxes(tails, 0, 1)
         for sigma in sigmas:
             data = toarray(sigma)[..., i0:, 0, 0].imag
+            if data.ndim > 1:
+                data = np.swapaxes(data, 0, 1)
             dist = distance(tails, data, relative=True, q=q)
             metrics_tails.append(dist)
         metrics_tails = np.asarray(metrics_tails, float)
 
-        ok = np.logical_and(metrics <= tol, metrics_ref <= tol)
-        ok = np.logical_and(ok, metrics_tails <= tol)
-        chosen = find_first_consecutive(ok, consec=consec)
-        success = chosen is not None
+        names = list(g_iw.indices)
+        if symmetrize:
+            ok = np.logical_and(metrics <= tol, metrics_ref <= tol)
+            ok = np.logical_and(ok, metrics_tails <= tol)
+            ok = np.all(ok, axis=-1)
+
+            chosen = find_first_consecutive(ok, consec=consec)
+            success = chosen is not None
+            wmax = wmax_grid[chosen] if success else None
+            sigma_opt = sigmas[chosen] if success else None
+
+            wmax = {name: wmax for name in names} if success else None
+            chosen = {name: chosen for name in names} if success else None
+        else:
+            ok = np.logical_and(metrics <= tol, metrics_ref <= tol)
+            ok = np.logical_and(ok, metrics_tails <= tol)
+
+            chosen, wmax = dict(), dict()
+            blocks = list()
+            success = True
+            for i, name in enumerate(names):
+                c = find_first_consecutive(ok[:, i], consec=consec)
+                chosen[name] = c
+                if c is None:
+                    success = False
+                else:
+                    wmax[name] = wmax_grid[c]
+                    sig = sigmas[c][name]
+                    blocks.append(sig)
+
+            if success:
+                sigma_opt = BlockGf(name_list=names, block_list=blocks)
+            else:
+                sigma_opt = None
+                wmax = None
+
         res = WMaxOptResult(
             success=success,
             index=chosen,
-            wmax=wmax_grid[chosen] if chosen is not None else None,
-            sigma_opt=sigmas[chosen] if chosen is not None else None,
+            wmax=wmax,
+            sigma_opt=sigma_opt,
             wmax_grid=wmax_grid,
             metrics=metrics,
             metrics_ref=metrics_ref,
@@ -299,12 +289,21 @@ def pick_wmax_opt(
 
 def plot_wmax_metrics(res: WMaxOptResult) -> None:
     n = len(res.metrics)
-    plt.plot(res.wmax_grid[:n], res.metrics, label="Σ conv")
-    plt.plot(res.wmax_grid[:n], res.metrics_ref, label="Σ ref")
-    plt.plot(res.wmax_grid[:n], res.metrics_tails, label="Σ tail")
     plt.axhline(res.tol, color="k", ls="--")
-    if res.success:
-        plt.axvline(res.wmax, color="r", ls="--")
+    if res.metrics.ndim == 1:
+        plt.plot(res.wmax_grid[:n], res.metrics, marker="o", ls="-", color="C0", label="Σ conv")
+        plt.plot(res.wmax_grid[:n], res.metrics_ref, marker="o", ls="--", color="C0", label="Σ ref")
+        plt.plot(res.wmax_grid[:n], res.metrics_tails, marker="o", ls="-.", color="C0", label="Σ tail")
+        plt.axvline(res.wmax["up"], color="C0", ls="--")
+    else:
+        plt.plot(res.wmax_grid[:n], res.metrics[:, 0], marker="o", ls="-", color="C0", label="Σ conv")
+        plt.plot(res.wmax_grid[:n], res.metrics_ref[:, 0], marker="o", ls="--", color="C0", label="Σ ref")
+        plt.plot(res.wmax_grid[:n], res.metrics_tails[:, 0], marker="o", ls="-.", color="C0", label="Σ tail")
+        plt.plot(res.wmax_grid[:n], res.metrics[:, 1], marker="s", ls="-", color="C1")
+        plt.plot(res.wmax_grid[:n], res.metrics_ref[:, 1], marker="s", ls="--", color="C1")
+        plt.plot(res.wmax_grid[:n], res.metrics_tails[:, 1], marker="s", ls="-.", color="C1")
+        plt.axvline(res.wmax["up"], color="C0", ls="--")
+        plt.axvline(res.wmax["dn"], color="C1", ls="--")
     plt.xlabel("$w_{max}$")
     plt.ylabel("Error")
     plt.legend()
@@ -585,7 +584,7 @@ def pick_nl_opt(
     pairs = list(zip(range(n - idx_step), range(idx_step, n)))
     for i, j in pairs:
         dist = gf_distance(sigmas[j], sigmas[i], n_stop=iw_stop, relative=True, q=q)
-        metrics.append(dist)
+        metrics.append(np.mean(dist))
     metrics = np.asarray(metrics, float)
     metrics = np.pad(metrics, (idx_step, 0), mode="edge")  # align sizes
 
@@ -593,7 +592,7 @@ def pick_nl_opt(
     metrics_ref = []
     for i in range(n):
         dist = gf_distance(sigmas[i], sigma_ref, n_stop=cutoff, relative=True, q=q)
-        metrics_ref.append(dist)
+        metrics_ref.append(np.mean(dist))
     metrics_ref = np.asarray(metrics_ref, float)
 
     metrics_tails = list()
@@ -606,7 +605,7 @@ def pick_nl_opt(
         for sigma in sigmas:
             data = toarray(sigma)[..., i0:, 0, 0].imag
             dist = distance(tails, data, relative=True, q=q)
-            metrics_tails.append(dist)
+            metrics_tails.append(np.mean(dist))
         metrics_tails = np.asarray(metrics_tails, float)
     else:
         metrics_tails = np.zeros_like(metrics)

@@ -10,9 +10,11 @@ import triqs_cthyb
 from triqs.gf import BlockGf, inverse, iOmega_n
 from triqs.utility import mpi
 
+from ..crm_solver import crm_solve_dyson
+
 # from triqs_cthyb.tail_fit import tail_fit
 from ..input import CthybSolverParams, InputParameters
-from ..stabilize import apply_legendre_filter, crm_solve_dyson, legendre_fit, pick_nl_opt, pick_wmax_opt, truncate_g_l
+from ..stabilize import apply_legendre_filter, legendre_fit, pick_nl_opt, pick_wmax_opt, truncate_g_l
 from ..utility import rebin_gf_tau, report, sigma_tail_fit
 
 
@@ -214,6 +216,7 @@ def postprocess_cthyb(
                 start=solver_params.crm_wmax_start or 1.0 * d,
                 stop=solver_params.crm_wmax_end or 5.0 * d,
                 step=solver_params.crm_wmax_step or 0.1 * d,
+                eps=solver_params.crm_eps,
                 smooth=8,
                 smooth_err=30,
                 iw_noise=solver_params.crm_iw_noise,
@@ -223,6 +226,7 @@ def postprocess_cthyb(
                 tol=solver_params.crm_tol or 1e-2,
                 q=solver_params.crm_q or None,
                 consec=solver_params.crm_consec or 1,
+                symmetrize=params.symmetrize,
             )
             if not res.success:
                 wmax_center = (solver_params.crm_wmax_start + solver_params.crm_wmax_end) / 2.0
