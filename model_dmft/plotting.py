@@ -28,9 +28,7 @@ def crosshair(
         ax.axvline(x, color=color, lw=lw)
 
 
-def plot_errors(
-    output_file: str, u: float = None, de: float = None, log: bool = True
-) -> Tuple[plt.Figure, plt.Axes]:
+def plot_errors(output_file: str, u: float = None, de: float = None, log: bool = True) -> Tuple[plt.Figure, plt.Axes]:
     iterations = list()
     errors_gf = list()
     errors_sigma = list()
@@ -91,9 +89,7 @@ def plot_greens_functions(
     return fig, ax
 
 
-def plot_self_energies(
-    output_file: str, it: int = None
-) -> Tuple[plt.Figure, Tuple[plt.Axes, plt.Axes]]:
+def plot_self_energies(output_file: str, it: int = None) -> Tuple[plt.Figure, Tuple[plt.Axes, plt.Axes]]:
     with HDFArchive(output_file, "r") as ar:
         params = ar["params"]
         if it is None:

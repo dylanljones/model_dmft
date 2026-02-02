@@ -11,9 +11,7 @@ from .input import InputParameters
 from .utility import blockgf, report
 
 
-def anacont_pade(
-    gf_iw: BlockGf, w_range: List[float], n_w: int, n_points: int, eta: float = 1e-3
-) -> BlockGf:
+def anacont_pade(gf_iw: BlockGf, w_range: List[float], n_w: int, n_points: int, eta: float = 1e-3) -> BlockGf:
     """Perform analytic continuation using Pade approximation.
 
     Parameters
