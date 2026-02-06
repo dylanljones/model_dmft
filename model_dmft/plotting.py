@@ -7,30 +7,41 @@ from typing import Tuple
 import matplotlib.pyplot as plt
 import numpy as np
 from h5 import HDFArchive
+from triqs.gf import Gf, MeshReFreq
 
-from .utility import DN, UP
+from .utility import DN, UP, GfLike, toarray
 
 
 def crosshair(
-    ax: plt.Axes,
     show_x: bool = True,
     show_y: bool = True,
     x: float = 0,
     y: float = 0,
     color: str = "dimgrey",
     lw: float = 0.8,
-    axis_below: bool = True,
 ) -> None:
-    ax.set_axisbelow(axis_below)
     if show_y:
-        ax.axhline(y, color=color, lw=lw)
+        plt.axhline(y, color=color, lw=lw)
     if show_x:
-        ax.axvline(x, color=color, lw=lw)
+        plt.axvline(x, color=color, lw=lw)
 
 
-def plot_errors(
-    output_file: str, u: float = None, de: float = None, log: bool = True
-) -> Tuple[plt.Figure, plt.Axes]:
+def plot_gf_refreq(gf: GfLike, label: str, **kwargs) -> None:
+    assert isinstance(gf.mesh, MeshReFreq), "Expected real frequency mesh."
+    x = toarray(gf.mesh)
+    if isinstance(gf, Gf):
+        y = toarray(gf).imag
+        assert y.shape[-1] == 1, "Expected scalar GF."
+        plt.plot(x, -y[:, 0, 0], label=label, **kwargs)
+    else:
+        y_up = toarray(gf[UP]).imag
+        y_dn = toarray(gf[DN]).imag
+        assert y_up.shape[-1] == 1 and y_dn.shape[-1] == 1, "Expected scalar GF."
+        plt.plot(x, -y_up[:, 0, 0], label=label, **kwargs)
+        plt.plot(x, y_dn[:, 0, 0], **kwargs)
+
+
+def plot_errors(output_file: str, u: float = None, de: float = None, log: bool = True) -> Tuple[plt.Figure, plt.Axes]:
     iterations = list()
     errors_gf = list()
     errors_sigma = list()
@@ -91,9 +102,7 @@ def plot_greens_functions(
     return fig, ax
 
 
-def plot_self_energies(
-    output_file: str, it: int = None
-) -> Tuple[plt.Figure, Tuple[plt.Axes, plt.Axes]]:
+def plot_self_energies(output_file: str, it: int = None) -> Tuple[plt.Figure, Tuple[plt.Axes, plt.Axes]]:
     with HDFArchive(output_file, "r") as ar:
         params = ar["params"]
         if it is None:
