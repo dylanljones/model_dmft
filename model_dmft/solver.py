@@ -1081,27 +1081,27 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
 
         report("")
         report("Computing initial CPA solution for U=0...")
-        sigma_cpa_0 = sigma_cpa.copy()
+        # sigma_cpa_0 = sigma_cpa.copy()
         # Solve CPA self-consistent equations and update coherent potential (sigm_cpa)
         eps_eff = eps  # + sigma_dmft
         if target_occ is not None:
-            mu, sigma_cpa_out = solve_cpa_fxocc(ht, sigma_cpa_0, conc, eps_eff, target_occ, mu0=mu, eta=eta, **cpa_kwds)
-            sigma_cpa_0 << sigma_cpa_out
+            mu, sigma_cpa_out = solve_cpa_fxocc(ht, sigma_cpa, conc, eps_eff, target_occ, mu0=mu, eta=eta, **cpa_kwds)
+            sigma_cpa << sigma_cpa_out
         else:
-            sigma_cpa_0 << solve_cpa(ht, sigma_cpa_0, conc, eps_eff, mu=mu, eta=eta, **cpa_kwds)
+            sigma_cpa << solve_cpa(ht, sigma_cpa, conc, eps_eff, mu=mu, eta=eta, **cpa_kwds)
 
         # Symmetrize CPA self-energy
         if params.symmetrize:
-            symmetrize_gf(sigma_cpa_0)
+            symmetrize_gf(sigma_cpa)
         if mpi.is_master_node() and has_interaction:
             report(f"Computing coherent Green's function G_c({freq_name})...")
-            g_coh = G_coherent(ht, sigma_cpa_0, mu=mu, eta=eta)
+            g_coh = G_coherent(ht, sigma_cpa, mu=mu, eta=eta)
             report(f"Computing component Green's functions G_i({freq_name})...")
-            g_cmpt = G_component(ht, sigma_cpa_0, conc, eps_eff, mu=mu, eta=eta, scale=False)
+            g_cmpt = G_component(ht, sigma_cpa, conc, eps_eff, mu=mu, eta=eta, scale=False)
             # Compute occupation numbers
             occ = g_coh.total_density().real
             with HDFArchive(out_file, "a") as ar:
-                ar["sigma_coh-0"] = sigma_cpa_0
+                ar["sigma_coh-0"] = sigma_cpa
                 ar["g_coh-0"] = g_coh
                 ar["g_cmpt-0"] = g_cmpt
                 ar["occ-0"] = occ
