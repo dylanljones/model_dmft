@@ -4,6 +4,7 @@
 .tmp/
 app/
 figs/
+data/
 app_test/
 *.h5
 dev*.py

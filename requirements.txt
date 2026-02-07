@@ -6,6 +6,4 @@ numpy<2.0.0
 scipy<1.14.0
 matplotlib
 pytest
-seaborn
 slurmio @ git+https://github.com/dylanljones/slurmio
-mplstyles @ git+https://github.com/dylanljones/mplstyles
