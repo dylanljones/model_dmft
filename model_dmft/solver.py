@@ -1071,6 +1071,9 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
     if mpi.is_master_node():
         with HDFArchive(out_file, "a") as ar:
             ar["params"] = params
+            if it_prev == 0:
+                ar["conv"] = False
+
         # Remove any existing solver outputs
         if it_prev == 0:
             for file in Path(params.location_path).glob("solver-*.log"):
@@ -1328,6 +1331,8 @@ def solve(params: InputParameters, n_procs: int = 0) -> None:
                                 break
 
                     if converged:
+                        with HDFArchive(out_file, "a") as ar:
+                            ar["conv"] = True
                         # Stop iterations if converged
                         break
 
