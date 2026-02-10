@@ -250,19 +250,26 @@ def error_cmd(all: bool, recursive: bool, paths: List[str]):
                 if "it" not in ar:
                     click.echo(f"{p}  " + click.style("No iterations!", fg="red"))
                     continue
+                conv = ar.get("conv", False)
                 max_it = ar["it"]
                 if not all:
                     err_g = ar["err_g"]
                     err_s = ar["err_sigma"]
                     err_n = ar["err_occ"]
-                    click.echo(f"{p}  [{max_it:<2}] {s.format(g=err_g, s=err_s, n=err_n)}")
+                    out = f"{p}  [{max_it:<2}] {s.format(g=err_g, s=err_s, n=err_n)}"
+                    if conv:
+                        out += " " + click.style("(Converged)", fg="green")
+                    click.echo(out)
                 else:
                     click.echo(p)
                     for it in range(1, max_it + 1):
                         err_g = ar[f"err_g-{it}"]
                         err_s = ar[f"err_sigma-{it}"]
                         err_n = ar[f"err_occ-{it}"]
-                        click.echo(f"  [{it:<2}] {s.format(g=err_g, s=err_s, n=err_n)}")
+                        out = f"  [{it:<2}] {s.format(g=err_g, s=err_s, n=err_n)}"
+                        if conv and it == max_it:
+                            out += " " + click.style("(Converged)", fg="green")
+                        click.echo(out)
     click.echo("")
 
 
