@@ -250,7 +250,7 @@ def error_cmd(all: bool, recursive: bool, paths: List[str]):
                 if "it" not in ar:
                     click.echo(f"{p}  " + click.style("No iterations!", fg="red"))
                     continue
-                conv = ar.get("conv", False)
+                conv = ar["conv"] if "conv" in ar else False
                 max_it = ar["it"]
                 if not all:
                     err_g = ar["err_g"]
