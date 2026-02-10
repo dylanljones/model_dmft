@@ -179,7 +179,12 @@ def blockgf(
     """
     if target_gf is not None:
         names = list(target_gf.indices)
-        target_shape = list(target_gf[names[0]].target_shape)
+        g_block = target_gf[names[0]]
+        # If target_gf is a nested BlockGf, recursively copy the structure and blocks
+        if isinstance(g_block, BlockGf):
+            blocks = [blockgf(mesh=mesh, target_gf=target_gf[name]) for name in names]
+        else:
+            target_shape = list(g_block.target_shape)
     elif gf_struct is not None:
         names = [name for name, _ in gf_struct]
         norbs = np.unique([norbs for _, norbs in gf_struct])
@@ -280,6 +285,31 @@ def walk_block_paths(gf: BlockGf) -> Generator[List[str], None, None]:
         else:
             for k, g in parent:
                 queue.append((g, path + [k]))
+
+
+def get_block(gf: BlockGf, *keys: str) -> Gf:
+    """Get a block from a (nested) BlockGf by its key path."""
+    for name, block in gf:
+        if name == keys[0]:
+            if len(keys) == 1:
+                return block
+            else:
+                return get_block(block, *keys[1:])
+    raise KeyError(f"Block with keys {keys} not found in BlockGf {gf.name}")
+
+
+def iter_blockgf(gf: BlockGf) -> Generator[tuple[list[str], Gf], None, None]:
+    """Iterate through a (nested) BlockGf and yield (key path, Gf) for all leaf Gfs."""
+    queue = [(list(), gf)]
+    while queue:
+        keys, parent = queue.pop(0)
+        if isinstance(parent, Gf):
+            yield keys, parent
+        else:
+            for k, g in parent:
+                new_keys = keys.copy()
+                new_keys.append(k)
+                queue.append((new_keys, g))
 
 
 def gf_target_shape(gf: GfLike) -> Tuple[int, ...]:
