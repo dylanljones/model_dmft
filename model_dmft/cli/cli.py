@@ -289,7 +289,7 @@ def autocorr_cmd(all: bool, recursive: bool, paths: List[str]):
     click.echo("")
     for folder in folders:
         p = frmt_file(f"{str(folder.path) + ':':<{maxw}}")
-        s = "Auto-correlation time: {act:7.3f}  Average order: {avo:7.3f}  Average sign: {avs:.3f}"
+        # s = "Auto-correlation time: {act:7.3f}  Average order: {avo:7.3f}  Average sign: {avs:.3f}"
         if not Path(folder.params.output_path).exists():
             click.echo(f"{p}  " + click.style("No output file!", fg="red"))
         else:
@@ -302,24 +302,32 @@ def autocorr_cmd(all: bool, recursive: bool, paths: List[str]):
                 if not all:
                     try:
                         act = ar["auto_corr_time"]
-                        avs = ar["average_sign"]
-                        avo = ar["average_order"]
+                        # avs = ar["average_sign"]
+                        # avo = ar["average_order"]
                     except KeyError:
                         click.echo(f"{p}  " + click.style("No auto-correlation time!", fg="red"))
                         continue
-                    out = f"{p}  [{max_it:<2}] {s.format(act=act, avo=avo, avs=avs)}"
+                    auto_corr_time_parts = list()
+                    for cmpt, t in act.items():
+                        auto_corr_time_parts.append(f"{cmpt}: {t:.4f}")
+                    act_str = ", ".join(auto_corr_time_parts)
+                    out = f"{p}  [{max_it:<2}] Auto-corr. times: {act_str}"
                     click.echo(out)
                 else:
                     click.echo(p)
                     for it in range(1, max_it + 1):
                         try:
                             act = ar[f"auto_corr_time-{it}"]
-                            avs = ar[f"average_sign-{it}"]
-                            avo = ar[f"average_order-{it}"]
+                            # avs = ar[f"average_sign-{it}"]
+                            # avo = ar[f"average_order-{it}"]
                         except KeyError:
                             click.echo(f"{p}  " + click.style("No auto-correlation time!", fg="red"))
                             continue
-                        out = f"  [{it:<2}] {s.format(act=act, avo=avo, avs=avs)}"
+                        auto_corr_time_parts = list()
+                        for cmpt, t in act.items():
+                            auto_corr_time_parts.append(f"{cmpt}: {t:.4f}")
+                        act_str = ", ".join(auto_corr_time_parts)
+                        out = f"  [{it:<2}] Auto-corr. times: {act_str}"
                         click.echo(out)
     click.echo("")
 
