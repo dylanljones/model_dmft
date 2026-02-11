@@ -274,6 +274,57 @@ def error_cmd(all: bool, recursive: bool, paths: List[str]):
 
 
 # noinspection PyShadowingBuiltins
+@cli.command(name="autocorr")
+@click.option("--all", "-a", is_flag=True, default=False, help="Show all line")
+@multi_path_opts
+def autocorr_cmd(all: bool, recursive: bool, paths: List[str]):
+    """Greps for the auto-correlation time in the output files in the given directories.
+
+    ALL: Show all iterations. The default is False (only last iteration).
+    RECURSIVE: Search directories recursively. The default is False.
+    PATHS: One or multiple paths to search for calculation directories. The default is '.'.
+    """
+    folders = get_dirs(*paths, recursive=recursive)
+    maxw = max(len(str(folder.path)) for folder in folders) + 1
+    click.echo("")
+    for folder in folders:
+        p = frmt_file(f"{str(folder.path) + ':':<{maxw}}")
+        s = "Auto-correlation time: {act:7.3f}  Average order: {avo:7.3f}  Average sign: {avs:.3f}"
+        if not Path(folder.params.output_path).exists():
+            click.echo(f"{p}  " + click.style("No output file!", fg="red"))
+        else:
+            with folder.archive() as ar:
+                if "it" not in ar:
+                    click.echo(f"{p}  " + click.style("No iterations!", fg="red"))
+                    continue
+
+                max_it = ar["it"]
+                if not all:
+                    try:
+                        act = ar["auto_corr_time"]
+                        avs = ar["average_sign"]
+                        avo = ar["average_order"]
+                    except KeyError:
+                        click.echo(f"{p}  " + click.style("No auto-correlation time!", fg="red"))
+                        continue
+                    out = f"{p}  [{max_it:<2}] {s.format(act=act, avo=avo, avs=avs)}"
+                    click.echo(out)
+                else:
+                    click.echo(p)
+                    for it in range(1, max_it + 1):
+                        try:
+                            act = ar[f"auto_corr_time-{it}"]
+                            avs = ar[f"average_sign-{it}"]
+                            avo = ar[f"average_order-{it}"]
+                        except KeyError:
+                            click.echo(f"{p}  " + click.style("No auto-correlation time!", fg="red"))
+                            continue
+                        out = f"  [{it:<2}] {s.format(act=act, avo=avo, avs=avs)}"
+                        click.echo(out)
+    click.echo("")
+
+
+# noinspection PyShadowingBuiltins
 @cli.command(name="clean")
 @multi_path_opts
 def clean_cmd(recursive: bool, paths: List[str]):
