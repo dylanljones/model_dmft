@@ -103,13 +103,9 @@ def construct_bath(
     return bath
 
 
-def plot_hybrid_reconstruction(
-    x: np.ndarray, ori: np.ndarray, rec: np.ndarray, errs: np.ndarray
-) -> None:
+def plot_hybrid_reconstruction(x: np.ndarray, ori: np.ndarray, rec: np.ndarray, errs: np.ndarray) -> None:
     """Plot the original hybridization vs the reconstructed one."""
-    fig, (ax1, ax2) = plt.subplots(
-        nrows=2, sharex="all", figsize=(8, 6), gridspec_kw={"height_ratios": [2, 1]}
-    )
+    fig, (ax1, ax2) = plt.subplots(nrows=2, sharex="all", figsize=(8, 6), gridspec_kw={"height_ratios": [2, 1]})
 
     ax1.set(ylabel="Im Δ(ω)", xmargin=0)
     ax1.axhline(0, color="dimgrey", lw=0.8)
@@ -256,9 +252,7 @@ def rm_tmpdirs(root: Union[Path, str] = None) -> None:
 
 
 @contextmanager
-def cleantmp(
-    root: Union[Path, str] = None, pre: bool = False, post: bool = True
-) -> ContextManager[None]:
+def cleantmp(root: Union[Path, str] = None, pre: bool = False, post: bool = True) -> ContextManager[None]:
     if pre:
         rm_tmpdirs(root)
     try:
@@ -281,9 +275,7 @@ def make_positive_definite(g: GfLike, eps: float = 0.0) -> GfLike:
     return g
 
 
-def solve_ftps(
-    params: InputParameters, u: np.ndarray, e_onsite: np.ndarray, delta: BlockGf
-) -> forktps.Solver:
+def solve_ftps(params: InputParameters, u: np.ndarray, e_onsite: np.ndarray, delta: BlockGf) -> forktps.Solver:
     gf_struct = params.gf_struct
     up, dn = params.spin_names
 
