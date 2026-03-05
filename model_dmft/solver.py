@@ -37,7 +37,7 @@ from . import __version__
 from .convergence import calculate_convergences
 from .input import InputParameters, get_supported_solvers
 from .mixer import apply_mixing
-from .postprocessing import anacont_pade
+from .pade import anacont_pade
 from .utility import SIGMA, TIME_FRMT, blockgf, check_broadening, mixing_update, report, symmetrize_gf
 
 BANNER = """\
