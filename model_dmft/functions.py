@@ -101,9 +101,7 @@ class Ht(Partial, ABC):
         """
         pass
 
-    def function(
-        self, G: Gf, Sigma: Gf = None, eps: Onsite = None, mu: float = None, eta: float = 0.0
-    ) -> Gf:
+    def function(self, G: Gf, Sigma: Gf = None, eps: Onsite = None, mu: float = None, eta: float = 0.0) -> Gf:
         """Function definition for PartialFunction, see `transform`."""
         if Sigma is None:
             Sigma = G.copy()
@@ -112,9 +110,7 @@ class Ht(Partial, ABC):
         mu = self.mu + mu if mu is not None else self.mu
         return self.transform(G, Sigma, eps, mu, eta)
 
-    def __call__(
-        self, Sigma: Gf = None, eps: Onsite = None, mu: float = None, eta: float = 0.0
-    ) -> PartialFunction:
+    def __call__(self, Sigma: Gf = None, eps: Onsite = None, mu: float = None, eta: float = 0.0) -> PartialFunction:
         """Return a partial function of `tansform` that can be applied to Gfs.
 
         Sigma : Gf, optional
