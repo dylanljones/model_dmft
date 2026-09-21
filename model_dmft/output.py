@@ -16,9 +16,7 @@ from .utility import mesh_to_array
 __all__ = ["write_out_files"]
 
 
-def _write_gf(
-    g_coh: BlockGf, g_cmpt: BlockGf, location: Path, frmt: str, is_real_mesh: bool
-) -> None:
+def _write_gf(g_coh: BlockGf, g_cmpt: BlockGf, location: Path, frmt: str, is_real_mesh: bool) -> None:
     suffix = "_w" if is_real_mesh else "_iw"
     freq_name = "w" if is_real_mesh else "iw"
     omega = mesh_to_array(g_coh.mesh)
