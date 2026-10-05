@@ -127,8 +127,7 @@ def check_broadening(mesh: MeshLike, eta: float = 0.0) -> None:
             dw = min(np.diff(w))
             if eta < dw:
                 warnings.warn(
-                    f"Broadening {eta} is smaller than mesh discretization {dw}. "
-                    "This may lead to inaccurate results."
+                    f"Broadening {eta} is smaller than mesh discretization {dw}. This may lead to inaccurate results."
                 )
 
 
