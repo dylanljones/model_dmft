@@ -584,7 +584,7 @@ print(keys)
 If you want to filter the keys to exclude the iteration-specific ones, you can use:
 
 ```python
-keys = [key for key in keys if '-' not in key]
+keys = [key for key in keys if "-" not in key]
 ```
 
 ## Slurm Example
