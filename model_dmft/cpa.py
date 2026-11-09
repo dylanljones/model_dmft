@@ -31,9 +31,7 @@ def generate_cmpt_names(n_cmpt: int) -> List[str]:
     return list(string.ascii_uppercase[:n_cmpt])
 
 
-def initialize_gf_cmpt(
-    sigma_cpa: GfLike, cmpts: Union[int, Sequence[str]], name: str = "G_cmpt"
-) -> BlockGf:
+def initialize_gf_cmpt(sigma_cpa: GfLike, cmpts: Union[int, Sequence[str]], name: str = "G_cmpt") -> BlockGf:
     if isinstance(cmpts, int):
         cmpts = generate_cmpt_names(cmpts)
     return blockgf(sigma_cpa.mesh, names=list(cmpts), blocks=sigma_cpa, name=name, copy=True)
@@ -73,9 +71,7 @@ def initalize_onsite_energy(
     return eps_eff
 
 
-def _validate(
-    sigma: GfLike, conc: Sequence[float], eps: Onsite
-) -> Tuple[bool, np.ndarray, Union[BlockGf, np.ndarray]]:
+def _validate(sigma: GfLike, conc: Sequence[float], eps: Onsite) -> Tuple[bool, np.ndarray, Union[BlockGf, np.ndarray]]:
     if isinstance(eps, BlockGf):
         # Convert back to numpy array if eps is a Block Gf
         # ToDo: Implement CPA methods to accept BlockGf
