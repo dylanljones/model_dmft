@@ -12,9 +12,7 @@ from .input import InputParameters
 from .utility import TIME_FRMT, GfLike, report, walk_block_paths
 
 
-def max_difference(
-    old: GfLike, new: GfLike, norm_temp: bool = True, relative: bool = False
-) -> float:
+def max_difference(old: GfLike, new: GfLike, norm_temp: bool = True, relative: bool = False) -> float:
     """Calculate the maximum difference between two Green's functions using the Frobenius norm.
 
     The Frobenius norm is calculated over the grid points of the Green's function. The result is
@@ -163,9 +161,7 @@ def calculate_convergences(
     return err_g, err_sigma, err_occ
 
 
-def check_convergence(
-    params: InputParameters, it: int, err_g: float, err_sigma: float, err_occ: float
-) -> bool:
+def check_convergence(params: InputParameters, it: int, err_g: float, err_sigma: float, err_occ: float) -> bool:
     """Check if the convergence criteria are met.
 
     Parameters
